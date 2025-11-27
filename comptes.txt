@@ -1,0 +1,108 @@
+========================================
+COMPTES D'ACCÈS - CampusLink
+========================================
+
+SUPERUTILISATEUR (Admin Django)
+--------------------------------
+Username: admin
+Email: admin@campuslink.sn
+Password: Admin123!@#
+
+Accès Admin Django: http://localhost:8000/admin/
+
+
+COMPTES DE TEST (Utilisateurs normaux)
+---------------------------------------
+Ces comptes peuvent être créés via l'interface d'inscription:
+- Email: doit être d'un domaine universitaire (@esmt.sn, @ucad.sn, @ugb.sn, etc.)
+- Username: 3-30 caractères (lettres, chiffres, underscores)
+- Password: Min. 8 caractères, 1 majuscule, 1 minuscule, 1 chiffre, 1 caractère spécial
+- Phone: Format +221XXXXXXXXX
+
+Exemple de compte test:
+Email: test@esmt.sn
+Username: testuser
+Password: Test123!@#
+Phone: +221771234567
+
+
+NOTES
+-----
+- Le mot de passe du superutilisateur peut être changé via Django admin
+- Les utilisateurs normaux doivent vérifier leur téléphone via OTP après inscription
+- Les comptes non vérifiés ont des fonctionnalités limitées
+
+
+COMMANDES DE LANCEMENT
+======================
+
+BACKEND (Django)
+----------------
+Option 1 - Lancement automatique avec détection IP (Recommandé):
+  cd backend
+  start-auto.bat
+
+Option 2 - Lancement manuel:
+  cd backend
+  venv\Scripts\activate
+  python manage.py runserver 0.0.0.0:8000
+
+Option 3 - Lancement local uniquement:
+  cd backend
+  venv\Scripts\activate
+  python manage.py runserver
+
+URLs Backend:
+  - Local: http://localhost:8000
+  - Réseau: http://[VOTRE_IP]:8000
+  - Admin: http://localhost:8000/admin/
+
+
+FRONTEND (Next.js)
+------------------
+Option 1 - Lancement avec détection IP automatique (Recommandé):
+  cd frontend
+  npm run dev:auto
+
+Option 2 - Lancement pour mobile (accessible depuis téléphone):
+  cd frontend
+  npm run dev:mobile
+
+Option 3 - Lancement local uniquement:
+  cd frontend
+  npm run dev
+
+URLs Frontend:
+  - Local: http://localhost:3000
+  - Réseau: http://[VOTRE_IP]:3000
+
+
+LANCEMENT SIMULTANÉ (Backend + Frontend)
+----------------------------------------
+Depuis la racine du projet:
+  start-all.bat
+
+Ou manuellement dans deux terminaux séparés:
+  Terminal 1:
+    cd backend
+    start-auto.bat
+
+  Terminal 2:
+    cd frontend
+    npm run dev:mobile
+
+
+PRÉREQUIS
+---------
+Backend:
+  - Python 3.8+ installé
+  - Environnement virtuel activé (venv)
+  - Dépendances installées: pip install -r requirements.txt
+  - Base de données migrée: python manage.py migrate
+
+Frontend:
+  - Node.js 18+ installé
+  - Dépendances installées: npm install
+
+========================================
+

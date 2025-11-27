@@ -1,0 +1,556 @@
+# Guide d'Implémentation - CampusLink
+
+Ce document complète l'architecture technique en fournissant des détails d'implémentation pratiques pour les développeurs.
+
+---
+
+## 📋 Table des Matières
+
+1. [Workflow de Vérification Détaillé](#workflow-verification)
+2. [Implémentation Rate Limiting](#rate-limiting)
+3. [Configuration Redis Cache](#redis-cache)
+4. [Intégration OTP SMS](#otp-sms)
+5. [Système de Modération](#moderation)
+6. [Tests d'Exemple](#tests-exemple)
+7. [Commandes Utiles](#commandes)
+
+---
+
+## 🔐 1. Workflow de Vérification Détaillé {#workflow-verification}
+
+### Étape 1 : Inscription
+
+```python
+# users/views.py
+@api_view(['POST'])
+@throttle_classes([AnonRateThrottle])  # 3/heure
+def register(request):
+    serializer = UserRegistrationSerializer(data=request.data)
+    if serializer.is_valid():
+        # Validation email universitaire
+        email = serializer.validated_data['email']
+        if not is_university_email(email):
+            return Response({'error': 'Email universitaire requis'}, 400)
+        
+        # Validation téléphone
+        phone = serializer.validated_data['phone_number']
+        if not is_valid_phone(phone):
+            return Response({'error': 'Format téléphone invalide'}, 400)
+        
+        # Création utilisateur
+        user = serializer.save()
+        user.is_verified = False
+        user.verification_status = 'pending'
+        user.save()
+        
+        # Envoi OTP SMS
+        send_otp_sms.delay(user.phone_number)
+        
+        # Envoi email vérification
+        send_verification_email.delay(user.id)
+        
+        return Response({'message': 'Inscription réussie. Vérifiez votre email et téléphone.'}, 201)
+```
+
+### Étape 2 : Vérification Téléphone (OTP)
+
+```python
+# users/views.py
+@api_view(['POST'])
+@throttle_classes([AnonRateThrottle])  # 5/heure
+def verify_phone(request):
+    phone = request.data.get('phone_number')
+    otp_code = request.data.get('otp_code')
+    
+    # Vérifier OTP dans Redis (TTL 10 minutes)
+    stored_otp = redis_client.get(f'otp:{phone}')
+    if not stored_otp or stored_otp != otp_code:
+        return Response({'error': 'Code OTP invalide ou expiré'}, 400)
+    
+    # Marquer téléphone comme vérifié
+    user = User.objects.get(phone_number=phone)
+    user.phone_verified = True
+    
+    # Vérifier si email aussi vérifié → is_verified = True
+    if user.profile.email_verified:
+        user.is_verified = True
+        user.verification_status = 'verified'
+    
+    user.save()
+    
+    # Supprimer OTP utilisé
+    redis_client.delete(f'otp:{phone}')
+    
+    return Response({'message': 'Téléphone vérifié avec succès'}, 200)
+```
+
+### Étape 3 : Vérification Email
+
+```python
+# users/views.py
+@api_view(['GET'])
+def verify_email(request, token):
+    try:
+        # Décoder token JWT
+        payload = jwt.decode(token, settings.SECRET_KEY, algorithms=['HS256'])
+        user_id = payload['user_id']
+        
+        user = User.objects.get(id=user_id)
+        user.profile.email_verified = True
+        
+        # Vérifier si téléphone aussi vérifié → is_verified = True
+        if user.phone_verified:
+            user.is_verified = True
+            user.verification_status = 'verified'
+        
+        user.profile.save()
+        user.save()
+        
+        return Response({'message': 'Email vérifié avec succès'}, 200)
+    except jwt.ExpiredSignatureError:
+        return Response({'error': 'Lien expiré'}, 400)
+    except Exception as e:
+        return Response({'error': 'Token invalide'}, 400)
+```
+
+---
+
+## 🚦 2. Implémentation Rate Limiting {#rate-limiting}
+
+### Configuration Django
+
+```python
+# campuslink/settings.py
+REST_FRAMEWORK = {
+    'DEFAULT_THROTTLE_CLASSES': [
+        'rest_framework.throttling.AnonRateThrottle',
+        'rest_framework.throttling.UserRateThrottle',
+    ],
+    'DEFAULT_THROTTLE_RATES': {
+        'anon': '100/hour',  # Utilisateurs non authentifiés
+        'user': '1000/hour',  # Utilisateurs authentifiés
+    }
+}
+
+# Rate limiting custom par endpoint
+CUSTOM_THROTTLE_RATES = {
+    'register': '3/hour',
+    'otp': '5/hour',
+    'login': '5/15min',
+}
+```
+
+### Middleware Custom
+
+```python
+# users/throttling.py
+from rest_framework.throttling import SimpleRateThrottle
+from django.core.cache import cache
+
+class RegisterThrottle(SimpleRateThrottle):
+    rate = '3/hour'
+    
+    def get_cache_key(self, request, view):
+        if request.user.is_authenticated:
+            return None
+        ident = self.get_ident(request)  # IP address
+        return f'throttle_register_{ident}'
+
+class OTPThrottle(SimpleRateThrottle):
+    rate = '5/hour'
+    
+    def get_cache_key(self, request, view):
+        phone = request.data.get('phone_number')
+        if phone:
+            return f'throttle_otp_{phone}'
+        return None
+```
+
+---
+
+## 💾 3. Configuration Redis Cache {#redis-cache}
+
+### Setup Redis
+
+```python
+# core/cache.py
+import redis
+from django.conf import settings
+
+redis_client = redis.from_url(
+    settings.REDIS_URL,
+    decode_responses=True
+)
+
+# Utilitaires cache
+def cache_feed_events(university=None, limit=20):
+    """Cache le feed d'événements populaires"""
+    cache_key = f'feed_events:{university or "all"}:{limit}'
+    cached = redis_client.get(cache_key)
+    
+    if cached:
+        return json.loads(cached)
+    
+    # Query DB
+    events = Event.objects.filter(status='published').order_by('-created_at')[:limit]
+    data = EventSerializer(events, many=True).data
+    
+    # Cache 5 minutes
+    redis_client.setex(cache_key, 300, json.dumps(data))
+    return data
+
+def invalidate_feed_cache():
+    """Invalidate tous les caches feed"""
+    keys = redis_client.keys('feed_events:*')
+    if keys:
+        redis_client.delete(*keys)
+```
+
+### Utilisation dans Views
+
+```python
+# events/views.py
+from core.cache import cache_feed_events, invalidate_feed_cache
+
+class EventListView(APIView):
+    def get(self, request):
+        university = request.query_params.get('university')
+        
+        # Utiliser cache
+        events = cache_feed_events(university=university)
+        return Response(events)
+    
+    def post(self, request):
+        # Après création, invalider cache
+        serializer = EventSerializer(data=request.data)
+        if serializer.is_valid():
+            event = serializer.save(organizer=request.user)
+            invalidate_feed_cache()  # Invalider cache
+            return Response(EventSerializer(event).data, 201)
+```
+
+---
+
+## 📱 4. Intégration OTP SMS {#otp-sms}
+
+### Configuration Twilio
+
+```python
+# notifications/tasks.py
+from celery import shared_task
+from twilio.rest import Client
+from django.conf import settings
+import random
+
+@shared_task
+def send_otp_sms(phone_number):
+    """Génère et envoie OTP via SMS"""
+    # Générer OTP (6 chiffres)
+    otp_code = str(random.randint(100000, 999999))
+    
+    # Stocker dans Redis (TTL 10 minutes)
+    redis_client.setex(f'otp:{phone_number}', 600, otp_code)
+    
+    # Envoyer SMS via Twilio
+    client = Client(settings.TWILIO_ACCOUNT_SID, settings.TWILIO_AUTH_TOKEN)
+    
+    message = client.messages.create(
+        body=f'Votre code de vérification CampusLink : {otp_code}. Valide 10 minutes.',
+        from_=settings.TWILIO_PHONE_NUMBER,
+        to=phone_number
+    )
+    
+    return message.sid
+```
+
+### Alternative : Orange API (Sénégal)
+
+```python
+# notifications/tasks.py
+import requests
+
+@shared_task
+def send_otp_sms_orange(phone_number):
+    """Génère et envoie OTP via Orange API (Sénégal)"""
+    otp_code = str(random.randint(100000, 999999))
+    redis_client.setex(f'otp:{phone_number}', 600, otp_code)
+    
+    # Orange API endpoint
+    url = 'https://api.orange.com/smsmessaging/v1/outbound/...'
+    headers = {
+        'Authorization': f'Bearer {settings.ORANGE_ACCESS_TOKEN}',
+        'Content-Type': 'application/json'
+    }
+    data = {
+        'outboundSMSMessageRequest': {
+            'address': phone_number,
+            'senderAddress': 'CampusLink',
+            'outboundSMSTextMessage': {
+                'message': f'Code CampusLink : {otp_code}'
+            }
+        }
+    }
+    
+    response = requests.post(url, json=data, headers=headers)
+    return response.json()
+```
+
+---
+
+## 🛡️ 5. Système de Modération {#moderation}
+
+### Modération Automatique (Mots-clés)
+
+```python
+# moderation/tasks.py
+from celery import shared_task
+
+FORBIDDEN_WORDS = ['spam', 'scam', 'fraud', ...]  # Liste à compléter
+
+@shared_task
+def moderate_content(content, content_type, content_id):
+    """Modération automatique basée sur mots-clés"""
+    content_lower = content.lower()
+    
+    found_words = [word for word in FORBIDDEN_WORDS if word in content_lower]
+    
+    if found_words:
+        # Créer rapport automatique
+        Report.objects.create(
+            content_type=content_type,
+            content_id=content_id,
+            reason='forbidden_words',
+            details={'words': found_words},
+            status='pending'
+        )
+        
+        # Notifier admin
+        notify_admins.delay(f'Contenu suspect détecté: {content_type} #{content_id}')
+        
+        return False  # Contenu rejeté
+    
+    return True  # Contenu approuvé
+```
+
+### Workflow de Signalement
+
+```python
+# moderation/views.py
+class ReportView(APIView):
+    permission_classes = [IsAuthenticated]
+    
+    def post(self, request):
+        """Signaler un contenu ou utilisateur"""
+        serializer = ReportSerializer(data=request.data)
+        if serializer.is_valid():
+            report = serializer.save(reporter=request.user)
+            
+            # Log audit
+            AuditLog.objects.create(
+                user=request.user,
+                action_type='report',
+                resource_type=report.content_type,
+                resource_id=report.content_id,
+                ip_address=get_client_ip(request),
+                details={'reason': report.reason}
+            )
+            
+            # Notifier admin
+            notify_admins.delay(f'Nouveau signalement: {report.content_type} #{report.content_id}')
+            
+            return Response(ReportSerializer(report).data, 201)
+```
+
+---
+
+## 🧪 6. Tests d'Exemple {#tests-exemple}
+
+### Test Vérification Utilisateur
+
+```python
+# users/tests/test_verification.py
+from django.test import TestCase
+from rest_framework.test import APIClient
+from users.models import User
+
+class VerificationTestCase(TestCase):
+    def setUp(self):
+        self.client = APIClient()
+        self.user_data = {
+            'email': 'test@esmt.sn',
+            'username': 'testuser',
+            'password': 'testpass123',
+            'phone_number': '+221771234567',
+            'role': 'student'
+        }
+    
+    def test_register_creates_unverified_user(self):
+        """Test que l'inscription crée un utilisateur non vérifié"""
+        response = self.client.post('/api/auth/register/', self.user_data)
+        self.assertEqual(response.status_code, 201)
+        
+        user = User.objects.get(email=self.user_data['email'])
+        self.assertFalse(user.is_verified)
+        self.assertEqual(user.verification_status, 'pending')
+    
+    def test_verify_phone_updates_status(self):
+        """Test vérification téléphone"""
+        user = User.objects.create_user(**self.user_data)
+        
+        # Simuler OTP dans Redis
+        redis_client.setex(f'otp:{user.phone_number}', 600, '123456')
+        
+        response = self.client.post('/api/auth/verify-phone/', {
+            'phone_number': user.phone_number,
+            'otp_code': '123456'
+        })
+        
+        self.assertEqual(response.status_code, 200)
+        user.refresh_from_db()
+        self.assertTrue(user.phone_verified)
+    
+    def test_unverified_user_cannot_create_event(self):
+        """Test restriction création événement"""
+        user = User.objects.create_user(**self.user_data)
+        user.is_verified = False
+        user.save()
+        
+        self.client.force_authenticate(user=user)
+        
+        event_data = {
+            'title': 'Test Event',
+            'description': 'Test',
+            'start_date': '2024-12-31T10:00:00Z',
+            'location': 'Test Location'
+        }
+        
+        response = self.client.post('/api/events/', event_data)
+        self.assertEqual(response.status_code, 403)
+        self.assertIn('verified', str(response.data))
+```
+
+### Test Rate Limiting
+
+```python
+# users/tests/test_throttling.py
+from django.test import TestCase
+from rest_framework.test import APIClient
+
+class ThrottlingTestCase(TestCase):
+    def test_register_rate_limit(self):
+        """Test rate limiting sur inscription"""
+        client = APIClient()
+        
+        # 4 tentatives (limite = 3/heure)
+        for i in range(4):
+            response = client.post('/api/auth/register/', {
+                'email': f'test{i}@esmt.sn',
+                'username': f'test{i}',
+                'password': 'test123',
+                'phone_number': '+221771234567'
+            })
+        
+        # 4ème devrait être bloquée
+        self.assertEqual(response.status_code, 429)  # Too Many Requests
+```
+
+---
+
+## 🛠️ 7. Commandes Utiles {#commandes}
+
+### Backend (Django)
+
+```bash
+# Setup
+python manage.py migrate
+python manage.py createsuperuser
+
+# Tests
+pytest
+pytest --cov=users --cov=events
+pytest users/tests/test_verification.py -v
+
+# Lint
+black .
+flake8 .
+
+# Shell Django
+python manage.py shell
+
+# Créer migrations
+python manage.py makemigrations
+python manage.py migrate
+
+# Collect static
+python manage.py collectstatic
+```
+
+### Frontend (Next.js)
+
+```bash
+# Setup
+npm install
+npm run dev
+
+# Build
+npm run build
+npm start
+
+# Tests
+npm test
+npm run test:e2e
+
+# Lint
+npm run lint
+```
+
+### Redis
+
+```bash
+# Vérifier OTP stocké
+redis-cli GET otp:+221771234567
+
+# Voir toutes les clés OTP
+redis-cli KEYS "otp:*"
+
+# Vider cache
+redis-cli FLUSHDB
+```
+
+### Docker (Développement Local)
+
+```bash
+# Démarrer services
+docker-compose up -d
+
+# Voir logs
+docker-compose logs -f backend
+
+# Arrêter
+docker-compose down
+```
+
+---
+
+## 📝 Notes d'Implémentation
+
+### Priorités MVP
+
+1. **Semaine 1-2** : Setup projet, modèles de base, authentification
+2. **Semaine 3-4** : Vérification email + téléphone (OTP)
+3. **Semaine 5-6** : CRUD événements avec restrictions vérification
+4. **Semaine 7-8** : Frontend intégration, feed social basique
+5. **Semaine 9-10** : PWA, notifications push
+6. **Semaine 11-12** : Tests, optimisations, déploiement
+
+### Points d'Attention
+
+- **Sécurité** : Toujours valider côté serveur, jamais faire confiance au frontend
+- **Performance** : Utiliser cache Redis dès le début pour éviter refactoring
+- **Tests** : Écrire tests en parallèle du code, pas après
+- **Documentation** : Documenter API avec Swagger/OpenAPI dès le début
+
+---
+
+**Document créé le :** 2024
+**Version :** 2.0 (Guide d'implémentation pratique)

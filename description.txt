@@ -1,0 +1,316 @@
+# CampusLink : Réseau Social Étudiant pour Événements et Sorties
+
+---
+
+## 1️⃣ Vision et Concept
+
+**CampusLink** est une plateforme sociale destinée aux étudiants sénégalais (ESMT, UCAD, UGB, etc.) pour :
+
+* Découvrir et participer à des événements culturels, sportifs, éducatifs et festifs
+* Favoriser les rencontres entre étudiants de différentes filières, universités et nationalités
+* Créer un réseau dynamique et sécurisé pour la vie étudiante
+* Centraliser l'information événementielle des campus
+
+**Slogan :** « Connecte ton campus, partage ta vie »
+
+---
+
+## 2️⃣ Objectifs Principaux
+
+### Pour les Étudiants :
+* Découvrir facilement des événements pertinents autour de leur campus
+* Rencontrer des personnes partageant leurs centres d'intérêt
+* Créer et rejoindre des groupes ou clubs autour de passions communes
+* Participer à la vie étudiante de manière sécurisée et vérifiée
+
+### Pour les Associations / Clubs Étudiants :
+* Gérer et promouvoir leurs événements efficacement
+* Communiquer directement avec les participants
+* Suivre la fréquentation et l'engagement
+* Obtenir des statistiques sur leurs événements
+
+### Pour les Partenaires / Sponsors :
+* Promouvoir des événements ciblés pour étudiants
+* Attirer du trafic et générer des ventes ou des réservations
+* Proposer des offres exclusives aux étudiants
+* Bénéficier d'une audience qualifiée et vérifiée
+
+---
+
+## 3️⃣ Utilisateurs et Rôles
+
+| Rôle                   | Description                | Fonctions principales                                                          | Vérification requise                    |
+| ---------------------- | -------------------------- | ------------------------------------------------------------------------------ | -------------------------------------- |
+| Étudiants              | Utilisateurs réguliers     | S'inscrire, participer à des événements, discuter, partager, créer des groupes | Email universitaire + Téléphone (OTP) |
+| Associations / Clubs   | Organisateurs d'événements | Créer et gérer événements, inviter étudiants, modérer les participants         | Email + Téléphone + Validation admin  |
+| Partenaires / Sponsors | Bars, restaurants, marques | Créer événements sponsorisés, promotions et offres spéciales                   | Email + Téléphone + Documents + Admin |
+| Administrateurs        | Équipe CampusLink          | Modérer contenu, valider partenaires, suivre performances, gérer vérifications  | Accès complet                          |
+
+---
+
+## 4️⃣ Fonctionnement de la Plateforme
+
+### Découverte des Événements
+* Filtrage avancé par université, campus, date, type d'événement, centres d'intérêt
+* Carte interactive pour visualiser les événements géolocalisés
+* Recommandations personnalisées basées sur les intérêts et l'historique
+* Feed d'événements trié par pertinence et popularité
+
+### Participation
+* "Je participe" ou "Réserver un billet" (si payant)
+* Ajout aux favoris et calendrier personnel
+* Invitation d'amis et partage sur la plateforme
+* Notifications push pour rappels d'événements
+
+### Création d'Événements
+* **MVP** : Seuls les utilisateurs vérifiés peuvent créer des événements
+* Formulaire complet : titre, description, date/heure, lieu, catégorie, image/vidéo, capacité, prix
+* Validation automatique pour utilisateurs vérifiés, modération admin pour nouveaux organisateurs
+* Géolocalisation automatique pour affichage sur carte
+
+### Interaction Sociale
+* Posts texte, images, vidéos avec commentaires et likes
+* Chats privés et groupes thématiques
+* Système d'amis et de followers
+* Notifications push en temps réel
+
+---
+
+## 5️⃣ Monétisation et Revenus (Priorisé)
+
+### Phase 1 - MVP (Focus Billetterie)
+1. **Billetterie** (Priorité #1)
+   * Commission de 5-10% sur les billets vendus via la plateforme
+   * Intégration Stripe/PayPal pour paiements sécurisés
+   * Gestion automatique des remboursements
+
+### Phase 2 - Post-MVP
+2. **Sponsoring d'Événements**
+   * Les partenaires paient pour mettre en avant leurs événements ou promotions
+   * Tarification basée sur la visibilité et la portée
+
+3. **Publicité Ciblée**
+   * Bannières ou annonces segmentées selon campus, filière, centres d'intérêt
+   * Publicité native dans le feed
+
+### Phase 3 - Expansion
+4. **Abonnement Premium**
+   * Fonctionnalités supplémentaires pour étudiants (ex : statistiques avancées, événements privés)
+   * Abonnements pour associations (analytics détaillés, création illimitée d'événements)
+
+---
+
+## 6️⃣ Technologie et Architecture (Stack Unifiée) 🏁
+
+### Frontend (PWA)
+* **React 18 + Next.js 14** (déployé sur Vercel) ⭐
+* **TailwindCSS** - Framework CSS utilitaire moderne
+* **TypeScript** - Typage statique pour plus de robustesse
+* **React Query** - Gestion d'état serveur optimisée
+* **Zustand** - Gestion d'état client légère
+* Fonctionnalités : responsive, installable sur mobile, notifications push, mode offline
+* Service Worker pour cache et notifications
+* Optimisation SEO et performance
+
+### Backend
+* **Django 4.2 + Django REST Framework** (déployé sur Railway) ⭐
+* API REST sécurisée avec JWT (SimpleJWT)
+* Gestion complète : utilisateurs, événements, inscriptions, partenaires
+* WebSockets pour chat temps réel (Django Channels)
+* Celery pour tâches asynchrones (OTP, emails)
+
+### Base de Données
+* **PostgreSQL** pour fiabilité et relations complexes ⭐
+* Index optimisés pour performances (verification_status, phone_number, student_id, etc.)
+* Table audit_log pour traçabilité complète
+
+### Cache et Performance
+* **Redis** pour : ⭐
+  * Cache du feed d'événements populaires
+  * Cache des sessions utilisateurs
+  * Rate limiting
+  * Queue pour tâches asynchrones (Celery)
+  * Stockage OTP temporaire
+
+### Notifications
+* **Firebase Cloud Messaging (FCM)** pour notifications push ciblées ⭐
+* Service Worker pour notifications offline
+* Notifications en temps réel via WebSockets
+
+### Monitoring et Observabilité
+* **Sentry** pour suivi d'erreurs et performance ⭐
+* Logs structurés pour debugging
+* Métriques de performance (temps de réponse API)
+
+### Stockage Médias
+* **Cloudinary** pour images/vidéos ⭐
+* CDN pour distribution rapide
+* Upload optimisé avec compression automatique
+
+### Architecture Complète
+```
+[ PWA React/Next.js + TailwindCSS - Vercel ] ⭐
+         ↕ HTTPS
+[ Django + DRF Backend - Railway ] ⭐
+         ↕
+[ PostgreSQL - Railway/Supabase ] ⭐
+         ↕
+[ Redis Cache - Railway/Upstash ] ⭐
+         ↕
+[ Cloudinary - Stockage Médias ] ⭐
+         ↕
+[ Firebase FCM - Notifications ] ⭐
+         ↕
+[ Sentry - Monitoring ] ⭐
+```
+
+### 🎯 Stack Finale Recommandée (Optimale)
+
+👉 **Frontend** : React + Next.js + TailwindCSS  
+👉 **Backend** : Django + DRF  
+👉 **Websocket** : Django Channels  
+👉 **Stockage** : PostgreSQL + Redis  
+👉 **Notifications** : Firebase  
+👉 **Images** : Cloudinary  
+👉 **Déploiement** : Vercel + Railway  
+
+🔥 **C'est la stack parfaite pour CampusLink.**
+
+---
+
+## 7️⃣ Sécurité et Modération (Renforcée)
+
+### Authentification et Autorisation
+* **JWT Tokens** avec refresh tokens (rotation automatique)
+* **Rate Limiting** sur tous les endpoints sensibles :
+  * Inscription : 3 tentatives/heure par IP
+  * OTP : 5 tentatives/heure par téléphone
+  * Login : 5 tentatives/15 minutes
+* **MFA optionnel** pour comptes sensibles (admins, sponsors)
+* Validation côté serveur des domaines d'email universitaires
+
+### Vérification des Utilisateurs (Simplifiée - Phase 1)
+* **Phase 1 (MVP)** : Email universitaire + Téléphone (OTP)
+  * Validation automatique des domaines d'email (@esmt.sn, @ucad.sn, etc.)
+  * OTP SMS via Twilio ou Orange API
+  * Utilisateurs non vérifiés : accès limité (lecture seule)
+* **Phase 2 (Post-MVP)** : Ajout vérification matricule (optionnel, validation manuelle admin)
+
+### Protection des Données
+* Chiffrement des données sensibles (matricules) en base
+* HTTPS obligatoire partout
+* Protection CSRF, XSS, SQL Injection
+* Mots de passe hashés avec bcrypt/Argon2
+* Conformité RGPD pour données personnelles
+
+### Modération
+* **Système de signalement** avec workflow admin
+* **Modération automatique** :
+  * Filtrage de mots-clés interdits
+  * Détection d'images inappropriées (API de modération)
+  * Limites par utilisateur (événements/jour, posts/jour)
+* **Modération manuelle** pour cas complexes
+* **Audit log** pour traçabilité complète
+
+### Gestion des Abus
+* Limites strictes pour utilisateurs non vérifiés
+* Système de réputation/score utilisateur
+* Bannissement temporaire ou permanent
+* Notifications aux admins pour activités suspectes
+
+---
+
+## 8️⃣ Roadmap de Développement (Priorisée)
+
+### Phase 1 - MVP (12 semaines)
+
+| Phase   | Durée         | Objectif principal                                     | Priorité |
+| ------- | ------------- | ------------------------------------------------------ | -------- |
+| Phase 1 | Semaine 1–2   | Setup projet, définition fonctionnalités, design UI/UX | Critique |
+| Phase 2 | Semaine 3–5   | Backend Django : modèles, authentification, vérification | Critique |
+| Phase 3 | Semaine 6–7   | API REST : endpoints utilisateurs et événements        | Critique |
+| Phase 4 | Semaine 8–9   | Frontend React + Next.js, intégration API              | Critique |
+| Phase 5 | Semaine 10    | PWA : service workers, offline, notifications push    | Haute    |
+| Phase 6 | Semaine 11    | Tests, sécurité, optimisations                         | Haute    |
+| Phase 7 | Semaine 12    | Test bêta avec étudiants, lancement MVP                | Critique |
+
+**Fonctionnalités MVP :**
+* ✅ Authentification + vérification (email + téléphone)
+* ✅ CRUD événements (utilisateurs vérifiés uniquement)
+* ✅ Feed social simple (posts, commentaires, likes)
+* ✅ Profils utilisateurs basiques
+* ✅ Notifications push pour événements
+* ✅ Recherche et filtres événements
+
+### Phase 2 - Post-MVP (8 semaines)
+
+**Fonctionnalités à ajouter :**
+* Système de groupes/clubs
+* Messagerie temps réel
+* Système de paiement/billetterie
+* Dashboard analytics pour organisateurs
+* Vérification matricule (optionnel)
+
+### Phase 3 - Expansion (Ongoing)
+
+**Améliorations continues :**
+* Gamification (badges, classements)
+* Recommandations IA
+* Intégrations externes (calendriers, réseaux sociaux)
+* Application mobile native (optionnel)
+
+---
+
+## 9️⃣ Stratégie Marketing Initiale
+
+1. **Partenariat avec universités locales** → clubs étudiants, BDE, associations
+2. **Offres exclusives pour premiers utilisateurs** → gratuité billets, goodies, événements VIP
+3. **Campagne sur réseaux sociaux** → Instagram, TikTok, Facebook (ciblage étudiants)
+4. **Ambassadeurs étudiants** → promouvoir CampusLink sur le terrain, récompenses
+5. **Événements de lancement** → organiser des événements phares pour attirer les utilisateurs
+
+---
+
+## 🔟 Points Clés pour Convaincre Investisseurs
+
+* **Marché clair et ciblé** : étudiants sénégalais (ESMT, UCAD, UGB) - marché de niche mais engagé
+* **Produit unique** : réseau social + organisation d'événements + socialisation vérifiée
+* **Modèle économique viable** : billetterie (commission), sponsoring, publicité ciblée
+* **Technologie moderne et scalable** : PWA + Django + PostgreSQL + Redis
+* **Sécurité renforcée** : vérification multi-niveaux, modération, protection des données
+* **Potentiel d'expansion** : autres villes sénégalaises, universités, Afrique de l'Ouest
+* **Barrière à l'entrée** : réseau d'utilisateurs vérifiés difficile à reproduire
+
+---
+
+## 1️⃣1️⃣ Métriques de Succès (KPIs)
+
+### MVP (3 premiers mois)
+* 1,000 utilisateurs inscrits
+* 500 utilisateurs vérifiés
+* 100 événements créés
+* 2,000 participations totales
+* 50 événements avec billetterie
+
+### Post-MVP (6-12 mois)
+* 10,000 utilisateurs actifs
+* 5,000 utilisateurs vérifiés
+* 500 événements/mois
+* 10,000 participations/mois
+* Revenus : 500,000 FCFA/mois (billetterie)
+
+---
+
+## 1️⃣2️⃣ Risques et Mitigation
+
+| Risque                    | Impact | Probabilité | Mitigation                                    |
+| ------------------------- | ------ | ----------- | --------------------------------------------- |
+| Faible adoption initiale  | Élevé  | Moyenne     | Marketing agressif, partenariats universités |
+| Problèmes de vérification | Élevé  | Faible      | Tests approfondis, support utilisateur       |
+| Concurrence               | Moyen  | Moyenne     | Focus sur qualité et sécurité                 |
+| Problèmes techniques      | Moyen  | Faible      | Tests, monitoring, équipe technique solide    |
+
+---
+
+**Document créé le :** 2024
+**Version :** 2.0 (Améliorée avec suggestions techniques)
