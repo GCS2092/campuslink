@@ -1,71 +1,88 @@
-# CampusLink - Réseau Social Étudiant
+# CampusLink - Plateforme de Communication Étudiante
 
-Plateforme sociale destinée aux étudiants sénégalais pour découvrir et participer à des événements culturels, sportifs, éducatifs et festifs.
+CampusLink est une plateforme complète de communication et de gestion pour les étudiants, permettant la création d'événements, la gestion de groupes/clubs, la messagerie en temps réel, et bien plus encore.
 
-## 🚀 Stack Technologique
+## 🚀 Fonctionnalités Principales
 
-### Frontend
-- **React 18** + **Next.js 14** - Framework moderne et performant
-- **TailwindCSS** - Framework CSS utilitaire
-- **TypeScript** - Typage statique
-- **React Query** - Gestion d'état serveur
-- **Zustand** - Gestion d'état client
-- **Firebase** - Notifications push
+### 👥 Gestion des Utilisateurs
+- Inscription et authentification sécurisée
+- Vérification par OTP (email/téléphone)
+- Système d'amitié avec demandes d'amis
+- Profils utilisateurs personnalisables
+- Gestion des rôles (étudiant, responsable de classe, admin)
+
+### 📅 Événements
+- Création et gestion d'événements
+- Système de participation et d'invitations
+- Commentaires et likes
+- Géolocalisation et recherche par proximité
+- Analytics pour organisateurs
+
+### 👨‍👩‍👧‍👦 Groupes/Clubs
+- Création de groupes publics/privés
+- Système de membres avec rôles (admin, modérateur, membre)
+- Posts dans les groupes
+- Invitations et demandes d'adhésion
+
+### 💬 Messagerie
+- **Conversations privées** : Discutez directement avec vos amis
+- **Conversations de groupes** : Communiquez avec tous les membres d'un groupe
+- Interface style WhatsApp avec séparation claire
+- Notifications en temps réel pour nouveaux messages
+- Support des messages texte
+
+### 📢 Feed/Actualités
+- Feed d'actualités et annonces
+- Posts sociaux avec commentaires et likes
+- Modération de contenu
+
+### 🔔 Notifications
+- Notifications pour demandes d'amis (envoi, acceptation, rejet)
+- Notifications pour nouveaux messages
+- Notifications pour événements et groupes
+- Système de notifications en temps réel
+
+### 👨‍💼 Administration
+- Dashboard admin avec statistiques
+- Gestion des utilisateurs (vérification, bannissement)
+- Modération de contenu (posts, événements, groupes)
+- Audit logs pour traçabilité
+- Gestion des responsables de classe
+
+## 🛠️ Technologies
 
 ### Backend
 - **Django 4.2** - Framework Python
 - **Django REST Framework** - API REST
-- **Django Channels** - WebSockets pour chat temps réel
-- **Celery** - Tâches asynchrones
 - **PostgreSQL** - Base de données
-- **Redis** - Cache et queue
+- **Django Channels** - WebSockets pour temps réel
+- **JWT** - Authentification
+- **Celery** - Tâches asynchrones
 
-### Services Externes
-- **Cloudinary** - Stockage d'images
-- **Twilio** - SMS/OTP
-- **Firebase** - Notifications push
-- **Sentry** - Monitoring d'erreurs
+### Frontend
+- **Next.js 14** - Framework React
+- **TypeScript** - Typage statique
+- **Tailwind CSS** - Styling
+- **Axios** - Client HTTP
+- **React Hook Form** - Gestion de formulaires
+- **Zod** - Validation de schémas
 
-## 📁 Structure du Projet
+## 📋 Prérequis
 
-```
-campusLink/
-├── backend/          # Django Backend
-│   ├── campuslink/   # Configuration Django
-│   ├── users/        # App Utilisateurs
-│   ├── events/       # App Événements
-│   ├── social/       # App Social
-│   ├── notifications/# App Notifications
-│   └── moderation/   # App Modération
-│
-├── frontend/         # Next.js Frontend
-│   ├── src/
-│   │   ├── app/      # Pages Next.js
-│   │   ├── components/# Composants React
-│   │   ├── services/ # Services API
-│   │   └── context/  # Context API
-│   └── public/       # Assets statiques
-│
-└── docs/            # Documentation
-```
-
-## 🛠️ Installation
-
-### Prérequis
 - Python 3.10+
 - Node.js 18+
-- PostgreSQL
-- Redis
+- PostgreSQL 14+
+- Redis (pour WebSockets et cache)
+
+## 🔧 Installation
 
 ### Backend
 
 ```bash
 cd backend
 python -m venv venv
-source venv/bin/activate  # Windows: venv\Scripts\activate
+source venv/bin/activate  # Sur Windows: venv\Scripts\activate
 pip install -r requirements.txt
-cp .env.example .env
-# Configurer .env avec vos paramètres
 python manage.py migrate
 python manage.py createsuperuser
 python manage.py runserver
@@ -76,75 +93,125 @@ python manage.py runserver
 ```bash
 cd frontend
 npm install
-cp .env.local.example .env.local
-# Configurer .env.local avec vos paramètres
 npm run dev
 ```
 
-## 🗄️ Base de Données
+## 📁 Structure du Projet
 
-La base de données PostgreSQL doit être créée et configurée dans `backend/.env`:
-
-```env
-DB_HOST=localhost
-DB_PORT=5432
-DB_USERNAME=postgres
-DB_PASSWORD=your_password
-DB_DATABASE=campuslink
+```
+campusLink/
+├── backend/              # API Django
+│   ├── users/           # Gestion des utilisateurs
+│   ├── events/          # Gestion des événements
+│   ├── groups/          # Gestion des groupes
+│   ├── messaging/       # Système de messagerie
+│   ├── notifications/   # Système de notifications
+│   ├── moderation/      # Modération de contenu
+│   └── ...
+├── frontend/            # Application Next.js
+│   ├── src/
+│   │   ├── app/        # Pages Next.js
+│   │   ├── components/ # Composants React
+│   │   ├── services/   # Services API
+│   │   └── context/    # Contextes React
+│   └── ...
+└── README.md
 ```
 
-## 🔐 Authentification
+## 🔐 Configuration
 
-L'authentification utilise JWT (JSON Web Tokens):
-- Access token: 15 minutes
-- Refresh token: 7 jours
+### Variables d'Environnement Backend
 
-## ✅ Vérification Utilisateur
+Créez un fichier `.env` dans `backend/` :
 
-Phase 1 (MVP):
-- Email universitaire (validation automatique des domaines)
-- Téléphone (OTP SMS via Twilio)
+```env
+SECRET_KEY=your-secret-key
+DEBUG=True
+DATABASE_URL=postgresql://user:password@localhost:5432/campuslink
+REDIS_URL=redis://localhost:6379/0
+```
 
-Phase 2 (Post-MVP):
-- Matricule (optionnel, validation manuelle)
+### Variables d'Environnement Frontend
 
-## 📚 Documentation
+Créez un fichier `.env.local` dans `frontend/` :
 
-- [Architecture Technique](./ARCHITECTURE.txt)
-- [Description du Projet](./description.txt)
-- [Guide d'Implémentation](./decriptionAjout.txt)
+```env
+NEXT_PUBLIC_API_URL=http://localhost:8000/api
+```
+
+## 🎯 Utilisation
+
+### Compte de Test
+
+- **Email** : `etudiant@esmt.sn`
+- **Mot de passe** : `Etudiant123!`
+
+### Workflow Messagerie
+
+1. **Conversations Privées** :
+   - Aller dans Messages → Onglet "Privées"
+   - Cliquer sur un ami pour démarrer une conversation
+   - Ou utiliser le bouton "+" pour créer une nouvelle conversation
+
+2. **Conversations de Groupes** :
+   - Rejoindre un groupe depuis la page Groupes
+   - Cliquer sur "Discuter" pour accéder à la conversation
+   - Tous les membres peuvent voir et répondre aux messages
+
+### Workflow Amitiés
+
+1. Envoyer une demande d'ami → Notification envoyée
+2. Accepter/Refuser → Notification envoyée à l'expéditeur
+3. Une fois amis, vous pouvez démarrer une conversation
+
+## 📝 API Endpoints Principaux
+
+### Authentification
+- `POST /api/auth/register/` - Inscription
+- `POST /api/auth/login/` - Connexion
+- `POST /api/auth/verify-otp/` - Vérification OTP
+
+### Messagerie
+- `GET /api/messaging/conversations/` - Liste des conversations
+- `GET /api/messaging/conversations/group_conversation/?group_id=...` - Conversation de groupe
+- `POST /api/messaging/conversations/create_private/` - Créer conversation privée
+- `GET /api/messaging/messages/?conversation=...` - Messages d'une conversation
+- `POST /api/messaging/messages/` - Envoyer un message
+
+### Groupes
+- `GET /api/groups/` - Liste des groupes
+- `POST /api/groups/{id}/join/` - Rejoindre un groupe
+- `POST /api/groups/{id}/leave/` - Quitter un groupe
 
 ## 🧪 Tests
 
-### Backend
 ```bash
+# Backend
 cd backend
 pytest
-pytest --cov
-```
 
-### Frontend
-```bash
+# Frontend
 cd frontend
 npm test
-npm run test:e2e
 ```
 
-## 🚀 Déploiement
+## 📄 Licence
 
-### Backend
-- **Railway** ou **Render** pour Django
-- Variables d'environnement configurées sur la plateforme
+Ce projet est sous licence MIT.
 
-### Frontend
-- **Vercel** pour Next.js
-- Déploiement automatique depuis GitHub
+## 👥 Contributeurs
 
-## 📝 License
+- GCS2092
 
-MIT License
+## 🔗 Liens
 
-## 👥 Équipe
+- **Repository GitHub** : https://github.com/GCS2092/campuslink
+- **Documentation** : Voir les fichiers `.md` dans le projet
 
-CampusLink Team
+## 🆘 Support
 
+Pour toute question ou problème, ouvrez une issue sur GitHub.
+
+---
+
+**Développé avec ❤️ pour la communauté étudiante**
