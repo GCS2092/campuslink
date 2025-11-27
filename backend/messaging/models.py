@@ -100,3 +100,23 @@ class Message(models.Model):
     
     def __str__(self):
         return f"{self.sender.username}: {self.content[:50]}"
+
+
+class MessageReaction(models.Model):
+    """Reaction to a message (emoji)."""
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    message = models.ForeignKey(Message, on_delete=models.CASCADE, related_name='reactions', db_index=True)
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='message_reactions', db_index=True)
+    emoji = models.CharField(max_length=10)  # Emoji unicode or shortcode
+    created_at = models.DateTimeField(default=timezone.now)
+    
+    class Meta:
+        db_table = 'messaging_messagereaction'
+        unique_together = ['message', 'user', 'emoji']  # One reaction per user per emoji per message
+        indexes = [
+            models.Index(fields=['message']),
+            models.Index(fields=['user']),
+        ]
+    
+    def __str__(self):
+        return f"{self.user.username} reacted {self.emoji} to message {self.message.id}"

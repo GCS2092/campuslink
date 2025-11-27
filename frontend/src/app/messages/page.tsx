@@ -2,11 +2,12 @@
 
 import { useAuth } from '@/context/AuthContext'
 import { useRouter } from 'next/navigation'
-import { useEffect, useState, useRef } from 'react'
-import { FiMessageSquare, FiSend, FiSearch, FiRadio, FiX, FiUsers, FiGlobe, FiUser, FiHash, FiPlus } from 'react-icons/fi'
+import { useEffect, useState, useRef, useCallback } from 'react'
+import { FiMessageSquare, FiSend, FiSearch, FiRadio, FiX, FiUsers, FiGlobe, FiUser, FiHash, FiPlus, FiSmile } from 'react-icons/fi'
 import { messagingService, Conversation, Message } from '@/services/messagingService'
 import { userService } from '@/services/userService'
 import { groupService, Group } from '@/services/groupService'
+import { useWebSocket } from '@/hooks/useWebSocket'
 import toast from 'react-hot-toast'
 
 type TabType = 'all' | 'groups' | 'private'
@@ -38,6 +39,10 @@ export default function MessagesPage() {
   const [myGroups, setMyGroups] = useState<Group[]>([])
   const [isLoadingGroups, setIsLoadingGroups] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
+  const [typingUsers, setTypingUsers] = useState<Map<string, { username: string; timeout: NodeJS.Timeout }>>(new Map())
+  const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+  const [showReactionPicker, setShowReactionPicker] = useState<string | null>(null)
+  const reactionEmojis = ['👍', '❤️', '😂', '😮', '😢', '🙏']
 
   useEffect(() => {
     setMounted(true)
@@ -70,6 +75,113 @@ export default function MessagesPage() {
       }
     }
   }, [mounted, user, conversations])
+
+  // WebSocket handlers
+  const handleWebSocketMessage = useCallback((message: any) => {
+    setMessages((prev) => {
+      // Check if message already exists
+      if (prev.find((m) => m.id === message.id)) {
+        return prev
+      }
+      return [...prev, message]
+    })
+    // Mark as read if it's not our message
+    if (message.sender_id !== user?.id && ws.markMessageRead) {
+      ws.markMessageRead(message.id)
+    }
+  }, [user])
+
+  const handleTyping = useCallback((userId: string, username: string, typing: boolean) => {
+    if (userId === user?.id) return // Don't show own typing indicator
+    
+    setTypingUsers((prev) => {
+      const newMap = new Map(prev)
+      if (typing) {
+        // Clear existing timeout for this user
+        const existing = newMap.get(userId)
+        if (existing?.timeout) {
+          clearTimeout(existing.timeout)
+        }
+        // Set new timeout to remove typing indicator after 3 seconds
+        const timeout = setTimeout(() => {
+          setTypingUsers((prev) => {
+            const updated = new Map(prev)
+            updated.delete(userId)
+            return updated
+          })
+        }, 3000)
+        newMap.set(userId, { username, timeout })
+      } else {
+        const existing = newMap.get(userId)
+        if (existing?.timeout) {
+          clearTimeout(existing.timeout)
+        }
+        newMap.delete(userId)
+      }
+      return newMap
+    })
+  }, [user])
+
+  const handleReadReceipt = useCallback((messageId: string, userId: string, username: string) => {
+    setMessages((prev) =>
+      prev.map((msg) => {
+        if (msg.id === messageId && msg.sender.id === user?.id) {
+          // Add to read_by if not already present
+          const readBy = msg.read_by || []
+          if (!readBy.find((u: any) => u.id === userId)) {
+            return {
+              ...msg,
+              read_by: [...readBy, { id: userId, username }],
+              is_read: true,
+            }
+          }
+        }
+        return msg
+      })
+    )
+  }, [user])
+
+  const handleReactionAdded = useCallback((messageId: string, reaction: any) => {
+    setMessages((prev) =>
+      prev.map((msg) => {
+        if (msg.id === messageId) {
+          const reactions = msg.reactions || []
+          return {
+            ...msg,
+            reactions: [...reactions, reaction],
+          }
+        }
+        return msg
+      })
+    )
+  }, [])
+
+  const handleReactionRemoved = useCallback((messageId: string, userId: string, emoji: string) => {
+    setMessages((prev) =>
+      prev.map((msg) => {
+        if (msg.id === messageId) {
+          const reactions = (msg.reactions || []).filter(
+            (r: any) => !(r.user.id === userId && r.emoji === emoji)
+          )
+          return {
+            ...msg,
+            reactions,
+          }
+        }
+        return msg
+      })
+    )
+  }, [])
+
+  // WebSocket connection
+  const ws = useWebSocket({
+    conversationId: selectedConversation?.id || null,
+    onMessage: handleWebSocketMessage,
+    onTyping: handleTyping,
+    onReadReceipt: handleReadReceipt,
+    onReactionAdded: handleReactionAdded,
+    onReactionRemoved: handleReactionRemoved,
+  })
 
   // Charger les messages quand une conversation est sélectionnée
   useEffect(() => {
@@ -248,10 +360,20 @@ export default function MessagesPage() {
 
     setIsSendingMessage(true)
     try {
-      await messagingService.sendMessage(selectedConversation.id, messageInput.trim())
-      setMessageInput('')
-      // Recharger les messages
-      await loadMessages(selectedConversation.id)
+      // Send via WebSocket if connected, otherwise fallback to REST API
+      if (ws.isConnected && ws.sendMessage) {
+        ws.sendMessage(messageInput.trim())
+        setMessageInput('')
+        // Stop typing indicator
+        if (ws.sendTyping) {
+          ws.sendTyping(false)
+        }
+      } else {
+        // Fallback to REST API
+        await messagingService.sendMessage(selectedConversation.id, messageInput.trim())
+        setMessageInput('')
+        await loadMessages(selectedConversation.id)
+      }
       // Recharger les conversations pour mettre à jour le dernier message
       await loadConversations()
     } catch (error: any) {
@@ -259,6 +381,56 @@ export default function MessagesPage() {
       toast.error(error.response?.data?.error || 'Erreur lors de l\'envoi du message')
     } finally {
       setIsSendingMessage(false)
+    }
+  }
+
+  // Handle typing indicator
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setMessageInput(e.target.value)
+    
+    // Send typing indicator
+    if (ws.sendTyping && selectedConversation) {
+      if (typingTimeoutRef.current) {
+        clearTimeout(typingTimeoutRef.current)
+      }
+      
+      ws.sendTyping(true)
+      
+      // Stop typing after 3 seconds of inactivity
+      typingTimeoutRef.current = setTimeout(() => {
+        if (ws.sendTyping) {
+          ws.sendTyping(false)
+        }
+      }, 3000)
+    }
+  }
+
+  const handleAddReaction = async (messageId: string, emoji: string) => {
+    try {
+      if (ws.isConnected && ws.addReaction) {
+        ws.addReaction(messageId, emoji)
+      } else {
+        await messagingService.addReaction(messageId, emoji)
+        await loadMessages(selectedConversation!.id)
+      }
+      setShowReactionPicker(null)
+    } catch (error: any) {
+      console.error('Error adding reaction:', error)
+      toast.error('Erreur lors de l\'ajout de la réaction')
+    }
+  }
+
+  const handleRemoveReaction = async (messageId: string, emoji: string) => {
+    try {
+      if (ws.isConnected && ws.removeReaction) {
+        ws.removeReaction(messageId, emoji)
+      } else {
+        await messagingService.removeReaction(messageId, emoji)
+        await loadMessages(selectedConversation!.id)
+      }
+    } catch (error: any) {
+      console.error('Error removing reaction:', error)
+      toast.error('Erreur lors de la suppression de la réaction')
     }
   }
 
@@ -646,37 +818,115 @@ export default function MessagesPage() {
                       </div>
                     ) : (
                       <>
-                        {messages.map((message: Message) => {
-                          const isOwnMessage = message.sender.id === user?.id
+                        {messages.map((message: any) => {
+                          const isOwnMessage = message.sender?.id === user?.id || message.sender_id === user?.id
+                          const senderName = message.sender?.username || message.sender?.first_name || message.sender || 'Utilisateur'
+                          const readBy = message.read_by || []
+                          const reactions = message.reactions || []
+                          
                           return (
                             <div
                               key={message.id}
-                              className={`flex ${isOwnMessage ? 'justify-end' : 'justify-start'}`}
+                              className={`flex ${isOwnMessage ? 'justify-end' : 'justify-start'} group`}
                             >
-                              <div
-                                className={`max-w-[70%] rounded-lg px-4 py-2 ${
-                                  isOwnMessage
-                                    ? 'bg-primary-600 text-white'
-                                    : 'bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-white'
-                                }`}
-                              >
-                                {!isOwnMessage && selectedConversation?.conversation_type === 'group' && (
-                                  <p className="text-xs font-semibold mb-1 opacity-80">
-                                    {message.sender.username}
-                                  </p>
-                                )}
-                                <p className="text-sm whitespace-pre-wrap break-words">{message.content}</p>
-                                <p
-                                  className={`text-xs mt-1 ${
-                                    isOwnMessage ? 'text-primary-100' : 'text-gray-500 dark:text-gray-400'
+                              <div className={`max-w-[70%] ${isOwnMessage ? 'flex flex-col items-end' : ''}`}>
+                                <div
+                                  className={`rounded-lg px-4 py-2 ${
+                                    isOwnMessage
+                                      ? 'bg-primary-600 text-white'
+                                      : 'bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-white'
                                   }`}
                                 >
-                                  {formatMessageTime(message.created_at)}
-                                </p>
+                                  {!isOwnMessage && selectedConversation?.conversation_type === 'group' && (
+                                    <p className="text-xs font-semibold mb-1 opacity-80">
+                                      {senderName}
+                                    </p>
+                                  )}
+                                  <p className="text-sm whitespace-pre-wrap break-words">{message.content}</p>
+                                  <div className="flex items-center justify-between gap-2 mt-1">
+                                    <p
+                                      className={`text-xs ${
+                                        isOwnMessage ? 'text-primary-100' : 'text-gray-500 dark:text-gray-400'
+                                      }`}
+                                    >
+                                      {formatMessageTime(message.created_at)}
+                                    </p>
+                                    {isOwnMessage && (
+                                      <div className="flex items-center gap-1">
+                                        {readBy.length > 0 ? (
+                                          <span className="text-primary-100 text-xs">✓✓</span>
+                                        ) : (
+                                          <span className="text-primary-200 text-xs">✓</span>
+                                        )}
+                                      </div>
+                                    )}
+                                  </div>
+                                </div>
+                                {reactions.length > 0 && (
+                                  <div className="flex flex-wrap gap-1 mt-1">
+                                    {reactions.map((reaction: any, idx: number) => (
+                                      <button
+                                        key={idx}
+                                        onClick={() => {
+                                          const isMyReaction = reaction.user?.id === user?.id || reaction.user_id === user?.id
+                                          if (isMyReaction) {
+                                            handleRemoveReaction(message.id, reaction.emoji)
+                                          } else {
+                                            handleAddReaction(message.id, reaction.emoji)
+                                          }
+                                        }}
+                                        className={`text-xs px-2 py-1 rounded-full border ${
+                                          reaction.user?.id === user?.id || reaction.user_id === user?.id
+                                            ? 'bg-primary-100 dark:bg-primary-900 border-primary-300 dark:border-primary-700'
+                                            : 'bg-gray-200 dark:bg-gray-600 border-gray-300 dark:border-gray-500'
+                                        }`}
+                                      >
+                                        {reaction.emoji}
+                                      </button>
+                                    ))}
+                                    <button
+                                      onClick={() => setShowReactionPicker(showReactionPicker === message.id ? null : message.id)}
+                                      className="text-xs px-2 py-1 rounded-full border bg-gray-200 dark:bg-gray-600 border-gray-300 dark:border-gray-500 hover:bg-gray-300 dark:hover:bg-gray-500"
+                                    >
+                                      <FiSmile className="w-3 h-3 inline" />
+                                    </button>
+                                  </div>
+                                )}
+                                {reactions.length === 0 && (
+                                  <button
+                                    onClick={() => setShowReactionPicker(showReactionPicker === message.id ? null : message.id)}
+                                    className="opacity-0 group-hover:opacity-100 text-xs px-2 py-1 rounded-full border bg-gray-200 dark:bg-gray-600 border-gray-300 dark:border-gray-500 hover:bg-gray-300 dark:hover:bg-gray-500 mt-1 transition"
+                                  >
+                                    <FiSmile className="w-3 h-3 inline" />
+                                  </button>
+                                )}
+                                {showReactionPicker === message.id && (
+                                  <div className="absolute bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg p-2 shadow-lg flex gap-1 z-10">
+                                    {reactionEmojis.map((emoji) => (
+                                      <button
+                                        key={emoji}
+                                        onClick={() => handleAddReaction(message.id, emoji)}
+                                        className="text-lg hover:scale-125 transition"
+                                      >
+                                        {emoji}
+                                      </button>
+                                    ))}
+                                  </div>
+                                )}
                               </div>
                             </div>
                           )
                         })}
+                        {typingUsers.size > 0 && (
+                          <div className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400 italic">
+                            {Array.from(typingUsers.values()).map((typing, idx) => (
+                              <span key={idx}>
+                                {typing.username} {typingUsers.size > 1 && idx < typingUsers.size - 1 ? ',' : ''} 
+                              </span>
+                            ))}
+                            {typingUsers.size === 1 ? ' est en train d\'écrire...' : ' sont en train d\'écrire...'}
+                          </div>
+                        )}
                         <div ref={messagesEndRef} />
                       </>
                     )}
@@ -687,7 +937,7 @@ export default function MessagesPage() {
                         type="text"
                         placeholder="Tapez un message..."
                         value={messageInput}
-                        onChange={(e) => setMessageInput(e.target.value)}
+                        onChange={handleInputChange}
                         onKeyPress={(e) => {
                           if (e.key === 'Enter' && !e.shiftKey) {
                             e.preventDefault()

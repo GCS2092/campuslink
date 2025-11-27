@@ -388,3 +388,91 @@ class MessageViewSet(viewsets.ModelViewSet):
             'message': f'Broadcast message sent to {len(created_conversations)} users.',
             'conversations': created_conversations
         }, status=status.HTTP_201_CREATED)
+    
+    @action(detail=True, methods=['post'], permission_classes=[IsAuthenticated()])
+    def add_reaction(self, request, pk=None):
+        """Add reaction to a message."""
+        message = self.get_object()
+        emoji = request.data.get('emoji')
+        
+        if not emoji:
+            return Response(
+                {'error': 'Emoji is required.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        from .models import MessageReaction
+        reaction, created = MessageReaction.objects.get_or_create(
+            message=message,
+            user=request.user,
+            emoji=emoji
+        )
+        
+        if not created:
+            return Response(
+                {'error': 'Reaction already exists.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        from .serializers import MessageReactionSerializer
+        serializer = MessageReactionSerializer(reaction)
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
+    
+    @action(detail=True, methods=['delete'], permission_classes=[IsAuthenticated()])
+    def remove_reaction(self, request, pk=None):
+        """Remove reaction from a message."""
+        message = self.get_object()
+        emoji = request.data.get('emoji')
+        
+        if not emoji:
+            return Response(
+                {'error': 'Emoji is required.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        from .models import MessageReaction
+        MessageReaction.objects.filter(
+            message=message,
+            user=request.user,
+            emoji=emoji
+        ).delete()
+        
+        return Response({'message': 'Reaction removed.'}, status=status.HTTP_200_OK)
+    
+    @action(detail=True, methods=['post'], permission_classes=[IsAuthenticated()])
+    def mark_read(self, request, pk=None):
+        """Mark a specific message as read."""
+        message = self.get_object()
+        
+        # Don't mark own messages as read
+        if message.sender == request.user:
+            return Response({'message': 'Cannot mark own message as read.'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        # Check if user is participant
+        is_participant = Participant.objects.filter(
+            conversation=message.conversation,
+            user=request.user,
+            is_active=True
+        ).exists()
+        
+        if not is_participant:
+            return Response(
+                {'error': 'You are not a participant in this conversation.'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+        
+        # Mark as read
+        message.read_by.add(request.user)
+        
+        # Update participant last_read_at
+        participant = Participant.objects.get(
+            conversation=message.conversation,
+            user=request.user,
+            is_active=True
+        )
+        participant.last_read_at = timezone.now()
+        if participant.unread_count > 0:
+            participant.unread_count -= 1
+        participant.save()
+        
+        return Response({'message': 'Message marked as read.'}, status=status.HTTP_200_OK)

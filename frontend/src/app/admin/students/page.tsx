@@ -2,6 +2,7 @@
 
 import { useAuth } from '@/context/AuthContext'
 import { useRouter } from 'next/navigation'
+import Link from 'next/link'
 import { useEffect, useState } from 'react'
 import { FiUser, FiCheck, FiX, FiUsers, FiMail, FiCalendar, FiUserCheck, FiLogOut, FiArrowLeft } from 'react-icons/fi'
 import FilterBar, { type FilterOption } from '@/components/FilterBar'
@@ -189,6 +190,15 @@ export default function AdminStudentsPage() {
     setCurrentPage(1)
   }
 
+  const handleLogout = () => {
+    logout()
+    router.push('/login')
+  }
+
+  const handleGoBack = () => {
+    router.push('/admin/dashboard')
+  }
+
   if (!mounted || loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary-50 to-secondary-50">
@@ -202,15 +212,6 @@ export default function AdminStudentsPage() {
 
   if (!user || (user.role !== 'admin' && user.role !== 'class_leader')) {
     return null
-  }
-
-  const handleLogout = () => {
-    logout()
-    router.push('/login')
-  }
-
-  const handleGoBack = () => {
-    router.push('/admin/dashboard')
   }
 
   return (
@@ -327,21 +328,21 @@ export default function AdminStudentsPage() {
               {students.map((student) => (
                 <div
                   key={student.id}
-                  className="bg-white rounded-xl shadow-md p-4 sm:p-6 hover:shadow-lg transition"
+                  className="bg-white dark:bg-gray-800 rounded-xl shadow-md p-4 sm:p-6 hover:shadow-lg transition"
                 >
                   <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-                    <div className="flex-1 min-w-0">
+                    <Link href={`/users/${student.id}`} className="flex-1 min-w-0 cursor-pointer">
                       <div className="flex items-center gap-3 mb-2">
-                        <div className="w-10 h-10 sm:w-12 sm:h-12 bg-primary-100 rounded-full flex items-center justify-center flex-shrink-0">
-                          <FiUser className="w-5 h-5 sm:w-6 sm:h-6 text-primary-600" />
+                        <div className="w-10 h-10 sm:w-12 sm:h-12 bg-primary-100 dark:bg-primary-900/30 rounded-full flex items-center justify-center flex-shrink-0">
+                          <FiUser className="w-5 h-5 sm:w-6 sm:h-6 text-primary-600 dark:text-primary-400" />
                         </div>
                         <div className="min-w-0 flex-1">
-                          <h3 className="text-base sm:text-lg font-semibold text-gray-900 truncate">
+                          <h3 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-white truncate hover:text-primary-600 dark:hover:text-primary-400 transition">
                             {student.first_name && student.last_name
                               ? `${student.first_name} ${student.last_name}`
                               : student.username}
                           </h3>
-                          <div className="flex flex-wrap items-center gap-2 text-xs sm:text-sm text-gray-600">
+                          <div className="flex flex-wrap items-center gap-2 text-xs sm:text-sm text-gray-600 dark:text-gray-400">
                             <span className="flex items-center gap-1">
                               <FiMail className="w-3 h-3 sm:w-4 sm:h-4" />
                               {student.email}
@@ -355,7 +356,7 @@ export default function AdminStudentsPage() {
                       </div>
 
                       {student.profile?.university && (
-                        <p className="text-xs sm:text-sm text-gray-600 ml-14 sm:ml-16">
+                        <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400 ml-14 sm:ml-16">
                           {student.profile.university}
                           {student.profile.field_of_study && ` - ${student.profile.field_of_study}`}
                         </p>
@@ -385,9 +386,9 @@ export default function AdminStudentsPage() {
                             : 'En attente'}
                         </span>
                       </div>
-                    </div>
+                    </Link>
 
-                    <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
+                    <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto" onClick={(e) => e.stopPropagation()}>
                       {student.is_active ? (
                         <>
                           <button

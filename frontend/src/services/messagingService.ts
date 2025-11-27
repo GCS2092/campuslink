@@ -113,5 +113,22 @@ export const messagingService = {
     const response = await api.post('/messaging/messages/broadcast/', data)
     return response.data
   },
+
+  addReaction: async (messageId: string, emoji: string) => {
+    const response = await api.post(`/messaging/messages/${messageId}/add_reaction/`, { emoji })
+    return response.data
+  },
+
+  removeReaction: async (messageId: string, emoji: string) => {
+    const response = await api.delete(`/messaging/messages/${messageId}/remove_reaction/`, {
+      data: { emoji },
+    })
+    return response.data
+  },
+
+  markMessageRead: async (messageId: string) => {
+    const response = await api.post(`/messaging/messages/${messageId}/mark_read/`)
+    return response.data
+  },
 }
 

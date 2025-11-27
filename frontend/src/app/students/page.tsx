@@ -2,6 +2,7 @@
 
 import { useAuth } from '@/context/AuthContext'
 import { useRouter } from 'next/navigation'
+import Link from 'next/link'
 import { useEffect, useState, useCallback } from 'react'
 import { FiUserPlus, FiCheck, FiX, FiUsers, FiMapPin, FiUser, FiLogOut, FiArrowLeft } from 'react-icons/fi'
 import { userService, type User, type FriendshipStatus } from '@/services/userService'
@@ -304,43 +305,55 @@ export default function StudentsPage() {
               {students.map((student) => (
                 <div
                   key={student.id}
-                  className="bg-white rounded-xl shadow-md overflow-hidden hover:shadow-lg transition"
+                  className="bg-white dark:bg-gray-800 rounded-xl shadow-md overflow-hidden hover:shadow-lg transition"
                 >
-                  <div className="p-4 sm:p-6">
-                    {/* Avatar */}
-                    <div className="flex items-center gap-3 sm:gap-4 mb-4">
-                      <div className="w-12 h-12 sm:w-16 sm:h-16 bg-primary-100 rounded-full flex items-center justify-center flex-shrink-0">
-                        <FiUser className="w-6 h-6 sm:w-8 sm:h-8 text-primary-600" />
+                  <Link href={`/users/${student.id}`} className="block">
+                    <div className="p-4 sm:p-6 cursor-pointer">
+                      {/* Avatar */}
+                      <div className="flex items-center gap-3 sm:gap-4 mb-4">
+                        <div className="w-12 h-12 sm:w-16 sm:h-16 bg-primary-100 dark:bg-primary-900/30 rounded-full flex items-center justify-center flex-shrink-0">
+                          {student.profile?.profile_picture ? (
+                            <img
+                              src={student.profile.profile_picture}
+                              alt={student.first_name && student.last_name
+                                ? `${student.first_name} ${student.last_name}`
+                                : student.username}
+                              className="w-full h-full rounded-full object-cover"
+                            />
+                          ) : (
+                            <FiUser className="w-6 h-6 sm:w-8 sm:h-8 text-primary-600 dark:text-primary-400" />
+                          )}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <h3 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-white truncate hover:text-primary-600 dark:hover:text-primary-400 transition">
+                            {student.first_name && student.last_name
+                              ? `${student.first_name} ${student.last_name}`
+                              : student.username}
+                          </h3>
+                          <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400 truncate">@{student.username}</p>
+                        </div>
                       </div>
-                      <div className="flex-1 min-w-0">
-                        <h3 className="text-base sm:text-lg font-semibold text-gray-900 truncate">
-                          {student.first_name && student.last_name
-                            ? `${student.first_name} ${student.last_name}`
-                            : student.username}
-                        </h3>
-                        <p className="text-xs sm:text-sm text-gray-600 truncate">@{student.username}</p>
-                      </div>
+
+                      {/* University */}
+                      {student.profile?.university && (
+                        <div className="flex items-center gap-2 mb-3 text-xs sm:text-sm text-gray-600 dark:text-gray-400">
+                          <FiMapPin className="w-3 h-3 sm:w-4 sm:h-4 flex-shrink-0" />
+                          <span className="truncate">{student.profile.university}</span>
+                        </div>
+                      )}
+
+                      {/* Field of Study */}
+                      {student.profile?.field_of_study && (
+                        <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 mb-4 truncate">
+                          {student.profile.field_of_study}
+                        </p>
+                      )}
                     </div>
-
-                    {/* University */}
-                    {student.profile?.university && (
-                      <div className="flex items-center gap-2 mb-3 text-xs sm:text-sm text-gray-600">
-                        <FiMapPin className="w-3 h-3 sm:w-4 sm:h-4 flex-shrink-0" />
-                        <span className="truncate">{student.profile.university}</span>
-                      </div>
-                    )}
-
-                    {/* Field of Study */}
-                    {student.profile?.field_of_study && (
-                      <p className="text-xs sm:text-sm text-gray-500 mb-4 truncate">
-                        {student.profile.field_of_study}
-                      </p>
-                    )}
-
-                    {/* Friend Button */}
-                    <div className="flex justify-center">
-                      {getFriendButton(student)}
-                    </div>
+                  </Link>
+                  
+                  {/* Friend Button - Outside Link to prevent navigation */}
+                  <div className="px-4 sm:px-6 pb-4 sm:pb-6 flex justify-center" onClick={(e) => e.stopPropagation()}>
+                    {getFriendButton(student)}
                   </div>
                 </div>
               ))}

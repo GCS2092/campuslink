@@ -2,21 +2,41 @@
 Serializers for messaging app.
 """
 from rest_framework import serializers
-from .models import Conversation, Participant, Message
+from .models import Conversation, Participant, Message, MessageReaction
 from users.serializers import UserSerializer
+
+
+class MessageReactionSerializer(serializers.ModelSerializer):
+    """Serializer for MessageReaction model."""
+    user = UserSerializer(read_only=True)
+    
+    class Meta:
+        model = MessageReaction
+        fields = ['id', 'user', 'emoji', 'created_at']
+        read_only_fields = ['id', 'user', 'created_at']
 
 
 class MessageSerializer(serializers.ModelSerializer):
     """Serializer for Message model."""
     sender = UserSerializer(read_only=True)
+    read_by = UserSerializer(many=True, read_only=True)
+    reactions = MessageReactionSerializer(many=True, read_only=True)
+    is_read_by_me = serializers.SerializerMethodField()
     
     class Meta:
         model = Message
         fields = [
             'id', 'conversation', 'sender', 'content', 'message_type',
-            'is_read', 'created_at', 'edited_at'
+            'is_read', 'read_by', 'reactions', 'is_read_by_me', 'created_at', 'edited_at'
         ]
-        read_only_fields = ['id', 'sender', 'is_read', 'created_at', 'edited_at']
+        read_only_fields = ['id', 'sender', 'is_read', 'read_by', 'reactions', 'created_at', 'edited_at']
+    
+    def get_is_read_by_me(self, obj):
+        """Check if message is read by current user."""
+        request = self.context.get('request')
+        if request and request.user.is_authenticated:
+            return obj.read_by.filter(id=request.user.id).exists()
+        return False
 
 
 class ParticipantSerializer(serializers.ModelSerializer):

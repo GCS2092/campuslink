@@ -8,7 +8,7 @@ from django.conf import settings
 from django.utils import timezone
 from django.db.models import Q
 from rest_framework import status, generics, viewsets
-from rest_framework.decorators import api_view, permission_classes, throttle_classes
+from rest_framework.decorators import api_view, permission_classes, throttle_classes, action
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework_simplejwt.tokens import RefreshToken
@@ -255,6 +255,60 @@ class UserViewSet(viewsets.ReadOnlyModelViewSet):
         queryset = queryset.exclude(id=self.request.user.id)
         
         return queryset.select_related('profile')
+    
+    @action(detail=True, methods=['get'], permission_classes=[IsAuthenticated])
+    def public_profile(self, request, pk=None):
+        """Get public profile of a user (without phone number)."""
+        try:
+            user = User.objects.select_related('profile').get(id=pk, is_active=True)
+        except User.DoesNotExist:
+            return Response(
+                {'error': 'User not found.'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+        except Exception as e:
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.error(f'Error in public_profile: {str(e)}', exc_info=True)
+            return Response(
+                {'error': 'An error occurred while fetching the profile.'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+        
+        try:
+            # Get friendship status
+            friendship_status_value = 'none'
+            friendship_id = None
+            friendship = Friendship.objects.filter(
+                Q(from_user=request.user, to_user=user) | Q(from_user=user, to_user=request.user)
+            ).first()
+            
+            if friendship:
+                friendship_status_value = friendship.status
+                friendship_id = str(friendship.id)
+            
+            # Serialize user data (excluding phone number)
+            from .serializers import UserSerializer
+            serializer = UserSerializer(user, context={'request': request})
+            user_data = serializer.data
+            
+            # Remove phone number from response
+            user_data.pop('phone_number', None)
+            user_data.pop('phone_verified', None)
+            
+            # Add friendship status
+            user_data['friendship_status'] = friendship_status_value
+            user_data['friendship_id'] = friendship_id
+            
+            return Response(user_data, status=status.HTTP_200_OK)
+        except Exception as e:
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.error(f'Error serializing user profile: {str(e)}', exc_info=True)
+            return Response(
+                {'error': 'An error occurred while processing the profile data.'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
 
 
 @api_view(['GET'])

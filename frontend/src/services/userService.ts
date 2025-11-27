@@ -71,5 +71,10 @@ export const userService = {
     const response = await api.get(`/users/friends/status/${user_id}/`)
     return response.data
   },
+
+  getPublicProfile: async (userId: string) => {
+    const response = await api.get(`/users/${userId}/public_profile/`)
+    return response.data
+  },
 }
 
