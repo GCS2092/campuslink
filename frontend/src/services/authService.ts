@@ -29,12 +29,16 @@ export const authService = {
 
   login: async (data: LoginData) => {
     const response = await api.post('/auth/login/', data)
-    const { access, refresh } = response.data
+    const { access, refresh, account_status } = response.data
     if (typeof window !== 'undefined') {
       localStorage.setItem('access_token', access)
       localStorage.setItem('refresh_token', refresh)
     }
-    return response.data
+    // Retourner aussi le statut du compte si présent
+    return {
+      ...response.data,
+      account_status,
+    }
   },
 
   logout: () => {

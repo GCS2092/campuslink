@@ -19,7 +19,7 @@ type LoginFormData = z.infer<typeof loginSchema>
 
 export default function LoginPage() {
   const router = useRouter()
-  const { login } = useAuth()
+  const { login, refreshUser } = useAuth()
   const [isLoading, setIsLoading] = useState(false)
   const [lockoutMessage, setLockoutMessage] = useState<string | null>(null)
 
@@ -36,7 +36,27 @@ export default function LoginPage() {
     setLockoutMessage(null)
 
     try {
-      await login(data.email, data.password)
+      // Appeler directement authService.login pour avoir accès à account_status
+      const result = await authService.login({ email: data.email, password: data.password })
+      
+      // Vérifier si le compte nécessite une activation
+      if (result?.account_status?.requires_activation) {
+        toast.info('⏳ Votre compte est en attente de validation.', { duration: 4000 })
+        // Rediriger vers la page d'attente
+        setTimeout(() => {
+          router.push('/pending-approval')
+        }, 1000)
+        return
+      }
+      
+      // Si le compte est activé, charger le profil
+      // Le token est déjà stocké par authService.login()
+      try {
+        await refreshUser()
+      } catch (refreshError) {
+        // Si refreshUser échoue, ce n'est pas grave, on a déjà le token
+        console.log('Profile refresh skipped, but login successful')
+      }
       toast.success('Connexion réussie!')
       router.push('/dashboard')
     } catch (error: any) {
@@ -53,6 +73,11 @@ export default function LoginPage() {
           setLockoutMessage(message)
           toast.error(message, { duration: 5000 })
         }
+      } else if (error.response?.status === 403) {
+        // Compte banni
+        const errorData = error.response.data?.error
+        const message = errorData?.message || 'Votre compte a été banni.'
+        toast.error(`🚫 ${message}`, { duration: 5000 })
       } else if (error.response?.status === 401) {
         const message = '❌ Email ou mot de passe incorrect. Vérifiez vos identifiants et réessayez.'
         toast.error(message, { duration: 4000 })

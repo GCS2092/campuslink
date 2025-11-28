@@ -13,12 +13,14 @@ from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.views import TokenObtainPairView
-from .models import User, Profile, Friendship, Follow
+from .models import User, Profile, Friendship, Follow, University, Campus, Department
 from .serializers import (
     UserRegistrationSerializer, UserSerializer, ProfileSerializer,
-    FriendshipSerializer, FollowSerializer, UserBasicSerializer
+    FriendshipSerializer, FollowSerializer, UserBasicSerializer,
+    UniversitySerializer, UniversityBasicSerializer, CampusSerializer, CampusBasicSerializer,
+    DepartmentSerializer, DepartmentBasicSerializer
 )
-from .permissions import IsVerified, IsActiveAndVerified, IsAdminOrClassLeader
+from .permissions import IsVerified, IsActiveAndVerified, IsAdminOrClassLeader, IsAdmin, IsUniversityAdmin
 from .throttling import RegisterThrottle, OTPThrottle, LoginThrottle
 from .security import check_account_lockout, record_failed_login_attempt, clear_login_attempts
 from core.cache import get_otp, set_otp, delete_otp
@@ -34,6 +36,7 @@ class CustomTokenObtainPairView(TokenObtainPairView):
     def post(self, request, *args, **kwargs):
         """Handle login with account lockout protection."""
         email = request.data.get('email')
+        password = request.data.get('password')
         
         # Vérifier le verrouillage de compte
         if email:
@@ -52,15 +55,105 @@ class CustomTokenObtainPairView(TokenObtainPairView):
                     status=status.HTTP_423_LOCKED
                 )
         
+        # Vérifier d'abord si l'utilisateur existe et si le mot de passe est correct
+        # même si is_active=False
+        if email and password:
+            try:
+                user = User.objects.get(email=email)
+                if user.check_password(password):
+                    # Vérifier si le compte est banni
+                    if user.is_banned:
+                        return Response(
+                            {
+                                'error': {
+                                    'status_code': 403,
+                                    'message': 'Votre compte a été banni.',
+                                    'ban_reason': user.ban_reason,
+                                }
+                            },
+                            status=status.HTTP_403_FORBIDDEN
+                        )
+                    
+                    # Si le compte n'est pas activé, retourner un code spécial
+                    if not user.is_active or not user.is_verified:
+                        # Générer quand même un token pour permettre l'accès à la page d'attente
+                        # On utilise une méthode qui fonctionne même si is_active=False
+                        try:
+                            # Temporairement activer l'utilisateur pour générer le token
+                            original_is_active = user.is_active
+                            user.is_active = True
+                            refresh = RefreshToken.for_user(user)
+                            user.is_active = original_is_active  # Restaurer l'état original
+                            
+                            return Response(
+                                {
+                                    'access': str(refresh.access_token),
+                                    'refresh': str(refresh),
+                                    'account_status': {
+                                        'is_active': user.is_active,
+                                        'is_verified': user.is_verified,
+                                        'verification_status': user.verification_status,
+                                        'requires_activation': True,
+                                        'message': 'Votre compte est en attente de validation par un administrateur.'
+                                    }
+                                },
+                                status=status.HTTP_200_OK
+                            )
+                        except Exception as token_error:
+                            # Si la génération du token échoue, retourner quand même une réponse
+                            logger.warning(f"Token generation failed for inactive user {email}: {str(token_error)}")
+                            return Response(
+                                {
+                                    'account_status': {
+                                        'is_active': user.is_active,
+                                        'is_verified': user.is_verified,
+                                        'verification_status': user.verification_status,
+                                        'requires_activation': True,
+                                        'message': 'Votre compte est en attente de validation par un administrateur.'
+                                    }
+                                },
+                                status=status.HTTP_200_OK
+                            )
+                    
+                    # Compte activé, procéder normalement
+                    try:
+                        response = super().post(request, *args, **kwargs)
+                        # Succès - effacer les tentatives
+                        if email:
+                            clear_login_attempts(email)
+                            logger.info(f"Successful login for {email}")
+                        return response
+                    except Exception as e:
+                        # Si l'authentification échoue pour une autre raison
+                        if email:
+                            record_failed_login_attempt(email)
+                            logger.warning(f"Failed login for {email}: {str(e)}")
+                        raise
+                else:
+                    # Mot de passe incorrect
+                    if email:
+                        record_failed_login_attempt(email)
+                    return Response(
+                        {'detail': 'Email ou mot de passe incorrect.'},
+                        status=status.HTTP_401_UNAUTHORIZED
+                    )
+            except User.DoesNotExist:
+                # Utilisateur n'existe pas
+                if email:
+                    record_failed_login_attempt(email)
+                return Response(
+                    {'detail': 'Email ou mot de passe incorrect.'},
+                    status=status.HTTP_401_UNAUTHORIZED
+                )
+        
+        # Si pas d'email/password, laisser le comportement par défaut
         try:
             response = super().post(request, *args, **kwargs)
-            # Succès - effacer les tentatives
             if email:
                 clear_login_attempts(email)
                 logger.info(f"Successful login for {email}")
             return response
         except Exception as e:
-            # Échec - enregistrer la tentative
             if email:
                 record_failed_login_attempt(email)
                 logger.warning(f"Failed login for {email}: {str(e)}")
@@ -197,6 +290,7 @@ def verification_status(request):
 def profile(request):
     """Get or update user profile."""
     if request.method == 'GET':
+        # Allow inactive users to see their own profile
         serializer = UserSerializer(request.user)
         return Response(serializer.data)
     
@@ -218,11 +312,15 @@ class UserViewSet(viewsets.ReadOnlyModelViewSet):
     
     def get_queryset(self):
         # Admins, superusers, and staff can see all users (including inactive)
+        # University admins can only see users from their university
         # Regular users can only see active users
         if (self.request.user.is_staff or 
             self.request.user.is_superuser or 
             self.request.user.role == 'admin'):
             queryset = User.objects.all()
+        elif self.request.user.role == 'university_admin' and self.request.user.managed_university:
+            # University admin can only see users from their university
+            queryset = User.objects.filter(profile__university=self.request.user.managed_university)
         else:
             queryset = User.objects.filter(is_active=True)
         
@@ -241,7 +339,17 @@ class UserViewSet(viewsets.ReadOnlyModelViewSet):
             queryset = queryset.filter(is_active=is_active_bool)
         
         if university:
-            queryset = queryset.filter(profile__university__icontains=university)
+            # Support both UUID and name/slug
+            try:
+                from uuid import UUID
+                UUID(university)  # Check if it's a UUID
+                queryset = queryset.filter(profile__university_id=university)
+            except ValueError:
+                # It's a name or slug
+                queryset = queryset.filter(
+                    Q(profile__university__name__icontains=university) |
+                    Q(profile__university__slug__icontains=university)
+                )
         
         if search:
             queryset = queryset.filter(
@@ -314,19 +422,20 @@ class UserViewSet(viewsets.ReadOnlyModelViewSet):
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def friends_list(request):
-    """Get list of friends (accepted friendships)."""
+    """Get list of friends (accepted friendships) with friendship IDs."""
     friendships = Friendship.objects.filter(
         Q(from_user=request.user) | Q(to_user=request.user),
         status='accepted'
     ).select_related('from_user__profile', 'to_user__profile')
     
-    friends = []
+    friends_data = []
     for friendship in friendships:
         friend = friendship.to_user if friendship.from_user == request.user else friendship.from_user
-        friends.append(friend)
+        friend_data = UserBasicSerializer(friend).data
+        friend_data['friendship_id'] = str(friendship.id)  # Add friendship ID
+        friends_data.append(friend_data)
     
-    serializer = UserBasicSerializer(friends, many=True)
-    return Response(serializer.data)
+    return Response(friends_data)
 
 
 @api_view(['POST'])
@@ -537,19 +646,31 @@ def friendship_status(request, user_id):
 # ==================== ADMIN / CLASS LEADER ENDPOINTS ====================
 
 @api_view(['GET'])
-@permission_classes([IsAuthenticated, IsAdminOrClassLeader])
+@permission_classes([IsAuthenticated])
 def pending_students(request):
-    """Get list of students pending activation (for admin/class leader)."""
+    """Get list of students pending activation (for admin/class leader/university admin)."""
+    # Check permissions: admin, class_leader, or university_admin
+    if not (request.user.is_staff or request.user.role == 'admin' or 
+            request.user.role == 'class_leader' or 
+            (request.user.role == 'university_admin' and request.user.managed_university)):
+        return Response(
+            {'error': 'Permission denied. Admin, class leader, or university admin access required.'},
+            status=status.HTTP_403_FORBIDDEN
+        )
     queryset = User.objects.filter(
-        role='student'
+        role='student',
+        profile__isnull=False  # Only students with profiles
     ).select_related('profile')
     
-    # Si c'est un responsable de classe, filtrer par son école et sa classe
-    if request.user.role == 'class_leader' and hasattr(request.user, 'profile'):
+    # Si c'est un admin d'université, filtrer par son université
+    if request.user.role == 'university_admin' and request.user.managed_university:
+        queryset = queryset.filter(profile__university=request.user.managed_university)
+    # Si c'est un responsable de classe, filtrer par son école (université) ET sa classe
+    elif request.user.role == 'class_leader' and hasattr(request.user, 'profile'):
         user_profile = request.user.profile
+        # Filtrer par école (université) ET classe (field_of_study + academic_year)
         if user_profile.university:
             queryset = queryset.filter(profile__university=user_profile.university)
-        # Filtrer par classe si spécifiée (field_of_study + academic_year)
         if user_profile.field_of_study:
             queryset = queryset.filter(profile__field_of_study=user_profile.field_of_study)
         if user_profile.academic_year:
@@ -560,10 +681,10 @@ def pending_students(request):
     search = request.query_params.get('search')
     verification_status = request.query_params.get('verification_status')
     is_active_filter = request.query_params.get('is_active')
-    field_of_study = request.query_params.get('field_of_study')  # Nouveau filtre
-    academic_year = request.query_params.get('academic_year')  # Nouveau filtre
+    academic_year = request.query_params.get('academic_year')  # Filtre par classe
     
-    if university:
+    # Only allow university filter for admins (class leaders are already filtered by their university)
+    if university and (request.user.is_staff or request.user.role == 'admin'):
         queryset = queryset.filter(profile__university__icontains=university)
     
     if search:
@@ -581,12 +702,9 @@ def pending_students(request):
         is_active_bool = is_active_filter.lower() == 'true'
         queryset = queryset.filter(is_active=is_active_bool)
     
-    # Filtres par classe (pour responsables)
-    if field_of_study:
-        queryset = queryset.filter(profile__field_of_study__icontains=field_of_study)
-    
+    # Filtre par classe
     if academic_year:
-        queryset = queryset.filter(profile__academic_year__icontains=academic_year)
+        queryset = queryset.filter(profile__academic_year=academic_year)
     
     # Tri (ordering)
     ordering = request.query_params.get('ordering', '-date_joined')
@@ -628,6 +746,19 @@ def activate_student(request, user_id):
     except User.DoesNotExist:
         return Response({'error': 'Student not found.'}, 
                        status=status.HTTP_404_NOT_FOUND)
+    
+    # Vérifier que l'admin d'université ne peut activer que ses étudiants
+    if request.user.role == 'university_admin' and request.user.managed_university:
+        if not hasattr(student, 'profile') or not student.profile.university:
+            return Response(
+                {'error': 'Cet étudiant n\'appartient à aucune université.'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+        if student.profile.university != request.user.managed_university:
+            return Response(
+                {'error': 'Vous ne pouvez activer que les étudiants de votre université.'},
+                status=status.HTTP_403_FORBIDDEN
+            )
     
     student.is_active = True
     student.save(update_fields=['is_active'])
@@ -675,6 +806,19 @@ def deactivate_student(request, user_id):
         return Response({'error': 'Student not found.'}, 
                        status=status.HTTP_404_NOT_FOUND)
     
+    # Vérifier que l'admin d'université ne peut désactiver que ses étudiants
+    if request.user.role == 'university_admin' and request.user.managed_university:
+        if not hasattr(student, 'profile') or not student.profile.university:
+            return Response(
+                {'error': 'Cet étudiant n\'appartient à aucune université.'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+        if student.profile.university != request.user.managed_university:
+            return Response(
+                {'error': 'Vous ne pouvez désactiver que les étudiants de votre université.'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+    
     reason = request.data.get('reason', '')
     
     student.is_active = False
@@ -720,30 +864,422 @@ def deactivate_student(request, user_id):
 
 
 @api_view(['GET'])
-@permission_classes([IsAuthenticated, IsAdminOrClassLeader])
+@permission_classes([IsAuthenticated, IsAdmin])
 def admin_dashboard_stats(request):
-    """Get dashboard statistics for admin/class leader."""
-    from events.models import Event
-    from groups.models import Group
+    """Get dashboard statistics for admin only (global platform stats)."""
+    # Explicitly reject university_admin and class_leader
+    if request.user.role == 'university_admin' or request.user.role == 'class_leader':
+        return Response(
+            {'error': 'Only global administrators can access this endpoint.'},
+            status=status.HTTP_403_FORBIDDEN
+        )
+    from events.models import Event, Participation
+    from groups.models import Group, Membership
     from social.models import Post
+    from django.db.models import Count, Q
+    from django.utils import timezone
+    from datetime import timedelta
     
-    # For class leaders, filter by their university
-    if request.user.role == 'class_leader' and hasattr(request.user, 'profile') and request.user.profile:
-        user_university = request.user.profile.university
-        students_queryset = User.objects.filter(role='student')
-        if user_university:
-            students_queryset = students_queryset.filter(profile__university=user_university)
-    else:
-        # Admins and superusers see all
-        students_queryset = User.objects.filter(role='student')
+    # Admin sees all data (no filtering)
+    students_queryset = User.objects.filter(role='student')
+    events_queryset = Event.objects.all()
+    groups_queryset = Group.objects.all()
+    posts_queryset = Post.objects.all()
+    
+    # Time-based statistics
+    now = timezone.now()
+    last_7_days = now - timedelta(days=7)
+    last_30_days = now - timedelta(days=30)
+    this_month_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+    
+    # Registration trends
+    registrations_last_7_days = students_queryset.filter(date_joined__gte=last_7_days).count()
+    registrations_last_30_days = students_queryset.filter(date_joined__gte=last_30_days).count()
+    registrations_this_month = students_queryset.filter(date_joined__gte=this_month_start).count()
+    
+    # Activity statistics
+    active_students_last_7_days = students_queryset.filter(
+        is_active=True,
+        last_activity__gte=last_7_days
+    ).count()
+    
+    # Events statistics
+    upcoming_events = events_queryset.filter(start_date__gte=now, status='published').count()
+    past_events = events_queryset.filter(start_date__lt=now).count()
+    events_this_month = events_queryset.filter(created_at__gte=this_month_start).count()
+    
+    # Groups statistics
+    verified_groups = groups_queryset.filter(is_verified=True).count()
+    public_groups = groups_queryset.filter(is_public=True).count()
+    groups_this_month = groups_queryset.filter(created_at__gte=this_month_start).count()
+    
+    # Top groups by members
+    top_groups = groups_queryset.annotate(
+        active_members=Count('memberships', filter=Q(memberships__status='active'))
+    ).order_by('-active_members')[:5].values('id', 'name', 'active_members')
+    
+    # Top events by participants
+    top_events = events_queryset.annotate(
+        participants=Count('participations')
+    ).order_by('-participants')[:5].values('id', 'title', 'participants', 'start_date')
+    
+    # Verification rate
+    total_students = students_queryset.count()
+    verified_count = students_queryset.filter(is_verified=True).count()
+    verification_rate = (verified_count / total_students * 100) if total_students > 0 else 0
+    
+    # Activity rate (students active in last 30 days)
+    active_in_30_days = students_queryset.filter(
+        is_active=True,
+        last_activity__gte=last_30_days
+    ).count()
+    activity_rate = (active_in_30_days / total_students * 100) if total_students > 0 else 0
     
     stats = {
+        # Basic counts
         'pending_students_count': students_queryset.filter(is_active=False).count(),
         'active_students_count': students_queryset.filter(is_active=True).count(),
-        'total_students_count': students_queryset.count(),
-        'events_count': Event.objects.count(),
-        'groups_count': Group.objects.count(),
-        'posts_count': Post.objects.count(),
+        'total_students_count': total_students,
+        'verified_students_count': verified_count,
+        'unverified_students_count': students_queryset.filter(is_verified=False).count(),
+        'events_count': events_queryset.count(),
+        'groups_count': groups_queryset.count(),
+        'posts_count': posts_queryset.count(),
+        
+        # Trends
+        'registrations_last_7_days': registrations_last_7_days,
+        'registrations_last_30_days': registrations_last_30_days,
+        'registrations_this_month': registrations_this_month,
+        
+        # Activity metrics
+        'active_students_last_7_days': active_students_last_7_days,
+        'active_students_last_30_days': active_in_30_days,
+        'activity_rate': round(activity_rate, 2),
+        'verification_rate': round(verification_rate, 2),
+        
+        # Events details
+        'upcoming_events': upcoming_events,
+        'past_events': past_events,
+        'events_this_month': events_this_month,
+        
+        # Groups details
+        'verified_groups': verified_groups,
+        'public_groups': public_groups,
+        'groups_this_month': groups_this_month,
+        
+        # Top content
+        'top_groups': list(top_groups),
+        'top_events': list(top_events),
+        
+        # Recent registrations
+        'recent_registrations': list(students_queryset.order_by('-date_joined')[:10].values('id', 'username', 'email', 'date_joined', 'is_active', 'is_verified'))
+    }
+    
+    return Response(stats)
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def class_leader_dashboard_stats(request):
+    """Get dashboard statistics for class leader (filtered by their university AND class)."""
+    # Explicitly reject university_admin and global admin
+    if request.user.role != 'class_leader':
+        return Response(
+            {'error': 'Only class leaders can access this endpoint.'},
+            status=status.HTTP_403_FORBIDDEN
+        )
+    if request.user.role == 'university_admin' or request.user.role == 'admin':
+        return Response(
+            {'error': 'University admins and global admins cannot access class leader dashboard.'},
+            status=status.HTTP_403_FORBIDDEN
+        )
+    
+    from events.models import Event, Participation
+    from groups.models import Group, Membership
+    from social.models import Post
+    from django.db.models import Count, Q
+    from django.utils import timezone
+    from datetime import timedelta
+    
+    # Get class leader's university and class info from profile
+    user_profile = request.user.profile if hasattr(request.user, 'profile') else None
+    
+    if not user_profile or not user_profile.university:
+        return Response(
+            {'error': 'Class leader must have a university in their profile.'},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+    
+    user_university = user_profile.university
+    
+    # Filter by class leader's university AND class (field_of_study + academic_year)
+    students_filter = {'role': 'student', 'profile__university': user_university}
+    if user_profile.field_of_study:
+        students_filter['profile__field_of_study'] = user_profile.field_of_study
+    if user_profile.academic_year:
+        students_filter['profile__academic_year'] = user_profile.academic_year
+    
+    students_queryset = User.objects.filter(**students_filter)
+    
+    # Events: filter by university AND organizer's class
+    events_filter = Q(university=user_university) | Q(university__isnull=True, organizer__profile__university=user_university)
+    if user_profile.field_of_study:
+        events_filter &= Q(organizer__profile__field_of_study=user_profile.field_of_study)
+    if user_profile.academic_year:
+        events_filter &= Q(organizer__profile__academic_year=user_profile.academic_year)
+    events_queryset = Event.objects.filter(events_filter)
+    
+    # Groups: filter by university AND members' class
+    groups_filter = Q(university=user_university)
+    if user_profile.field_of_study:
+        groups_filter &= Q(memberships__user__profile__field_of_study=user_profile.field_of_study)
+    if user_profile.academic_year:
+        groups_filter &= Q(memberships__user__profile__academic_year=user_profile.academic_year)
+    groups_queryset = Group.objects.filter(groups_filter).distinct()
+    
+    # Posts: filter by author's university AND class
+    posts_filter = Q(author__profile__university=user_university)
+    if user_profile.field_of_study:
+        posts_filter &= Q(author__profile__field_of_study=user_profile.field_of_study)
+    if user_profile.academic_year:
+        posts_filter &= Q(author__profile__academic_year=user_profile.academic_year)
+    posts_queryset = Post.objects.filter(posts_filter)
+    
+    # Time-based statistics
+    now = timezone.now()
+    last_7_days = now - timedelta(days=7)
+    last_30_days = now - timedelta(days=30)
+    this_month_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+    
+    # Registration trends
+    registrations_last_7_days = students_queryset.filter(date_joined__gte=last_7_days).count()
+    registrations_last_30_days = students_queryset.filter(date_joined__gte=last_30_days).count()
+    registrations_this_month = students_queryset.filter(date_joined__gte=this_month_start).count()
+    
+    # Activity statistics
+    active_students_last_7_days = students_queryset.filter(
+        is_active=True,
+        last_activity__gte=last_7_days
+    ).count()
+    
+    # Events statistics
+    upcoming_events = events_queryset.filter(start_date__gte=now, status='published').count()
+    past_events = events_queryset.filter(start_date__lt=now).count()
+    events_this_month = events_queryset.filter(created_at__gte=this_month_start).count()
+    
+    # Groups statistics
+    verified_groups = groups_queryset.filter(is_verified=True).count()
+    public_groups = groups_queryset.filter(is_public=True).count()
+    groups_this_month = groups_queryset.filter(created_at__gte=this_month_start).count()
+    
+    # Top groups by members
+    top_groups = groups_queryset.annotate(
+        active_members=Count('memberships', filter=Q(memberships__status='active'))
+    ).order_by('-active_members')[:5].values('id', 'name', 'active_members')
+    
+    # Top events by participants
+    top_events = events_queryset.annotate(
+        participants=Count('participations')
+    ).order_by('-participants')[:5].values('id', 'title', 'participants', 'start_date')
+    
+    # Verification rate
+    total_students = students_queryset.count()
+    verified_count = students_queryset.filter(is_verified=True).count()
+    verification_rate = (verified_count / total_students * 100) if total_students > 0 else 0
+    
+    # Activity rate (students active in last 30 days)
+    active_in_30_days = students_queryset.filter(
+        is_active=True,
+        last_activity__gte=last_30_days
+    ).count()
+    activity_rate = (active_in_30_days / total_students * 100) if total_students > 0 else 0
+    
+    stats = {
+        # Basic counts
+        'pending_students_count': students_queryset.filter(is_active=False).count(),
+        'active_students_count': students_queryset.filter(is_active=True).count(),
+        'total_students_count': total_students,
+        'verified_students_count': verified_count,
+        'unverified_students_count': students_queryset.filter(is_verified=False).count(),
+        'events_count': events_queryset.count(),
+        'groups_count': groups_queryset.count(),
+        'posts_count': posts_queryset.count(),
+        
+        # Trends
+        'registrations_last_7_days': registrations_last_7_days,
+        'registrations_last_30_days': registrations_last_30_days,
+        'registrations_this_month': registrations_this_month,
+        
+        # Activity metrics
+        'active_students_last_7_days': active_students_last_7_days,
+        'active_students_last_30_days': active_in_30_days,
+        'activity_rate': round(activity_rate, 2),
+        'verification_rate': round(verification_rate, 2),
+        
+        # Events details
+        'upcoming_events': upcoming_events,
+        'past_events': past_events,
+        'events_this_month': events_this_month,
+        
+        # Groups details
+        'verified_groups': verified_groups,
+        'public_groups': public_groups,
+        'groups_this_month': groups_this_month,
+        
+        # Top content
+        'top_groups': list(top_groups),
+        'top_events': list(top_events),
+        
+        # University and class info
+        'university': {
+            'id': str(user_university.id),
+            'name': user_university.name,
+            'short_name': user_university.short_name
+        },
+        'class_info': {
+            'field_of_study': user_profile.field_of_study if user_profile else None,
+            'academic_year': user_profile.academic_year if user_profile else None
+        },
+        
+        # Recent registrations
+        'recent_registrations': list(students_queryset.order_by('-date_joined')[:10].values('id', 'username', 'email', 'date_joined', 'is_active', 'is_verified'))
+    }
+    
+    return Response(stats)
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated, IsUniversityAdmin])
+def university_admin_dashboard_stats(request):
+    """Get dashboard statistics for university admin (filtered by their managed university)."""
+    # Additional check: ensure managed_university exists
+    if not request.user.managed_university:
+        return Response(
+            {'error': 'University admin must have a managed university assigned.'},
+            status=status.HTTP_403_FORBIDDEN
+        )
+    
+    from events.models import Event, Participation
+    from groups.models import Group, Membership
+    from social.models import Post
+    from django.db.models import Count, Q
+    from django.utils import timezone
+    from datetime import timedelta
+    
+    # Get university admin's managed university
+    user_university = request.user.managed_university
+    
+    # Filter by university admin's managed university
+    students_queryset = User.objects.filter(
+        role='student',
+        profile__university=user_university
+    )
+    events_queryset = Event.objects.filter(
+        Q(university=user_university) | Q(university__isnull=True, organizer__profile__university=user_university)
+    )
+    groups_queryset = Group.objects.filter(university=user_university)
+    posts_queryset = Post.objects.filter(author__profile__university=user_university)
+    
+    # Time-based statistics
+    now = timezone.now()
+    last_7_days = now - timedelta(days=7)
+    last_30_days = now - timedelta(days=30)
+    this_month_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+    
+    # Registration trends
+    registrations_last_7_days = students_queryset.filter(date_joined__gte=last_7_days).count()
+    registrations_last_30_days = students_queryset.filter(date_joined__gte=last_30_days).count()
+    registrations_this_month = students_queryset.filter(date_joined__gte=this_month_start).count()
+    
+    # Activity statistics
+    active_students_last_7_days = students_queryset.filter(
+        is_active=True,
+        last_activity__gte=last_7_days
+    ).count()
+    
+    # Events statistics
+    upcoming_events = events_queryset.filter(start_date__gte=now, status='published').count()
+    past_events = events_queryset.filter(start_date__lt=now).count()
+    events_this_month = events_queryset.filter(created_at__gte=this_month_start).count()
+    
+    # Groups statistics
+    verified_groups = groups_queryset.filter(is_verified=True).count()
+    public_groups = groups_queryset.filter(is_public=True).count()
+    groups_this_month = groups_queryset.filter(created_at__gte=this_month_start).count()
+    
+    # Top groups by members
+    top_groups = groups_queryset.annotate(
+        active_members=Count('memberships', filter=Q(memberships__status='active'))
+    ).order_by('-active_members')[:5].values('id', 'name', 'active_members')
+    
+    # Top events by participants
+    top_events = events_queryset.annotate(
+        participants=Count('participations')
+    ).order_by('-participants')[:5].values('id', 'title', 'participants', 'start_date')
+    
+    # Verification rate
+    total_students = students_queryset.count()
+    verified_count = students_queryset.filter(is_verified=True).count()
+    verification_rate = (verified_count / total_students * 100) if total_students > 0 else 0
+    
+    # Activity rate (students active in last 30 days)
+    active_in_30_days = students_queryset.filter(
+        is_active=True,
+        last_activity__gte=last_30_days
+    ).count()
+    activity_rate = (active_in_30_days / total_students * 100) if total_students > 0 else 0
+    
+    # Class leaders count for this university
+    class_leaders_count = User.objects.filter(
+        role='class_leader',
+        profile__university=user_university
+    ).count()
+    
+    stats = {
+        # Basic counts
+        'pending_students_count': students_queryset.filter(is_active=False).count(),
+        'active_students_count': students_queryset.filter(is_active=True).count(),
+        'total_students_count': total_students,
+        'verified_students_count': verified_count,
+        'unverified_students_count': students_queryset.filter(is_verified=False).count(),
+        'events_count': events_queryset.count(),
+        'groups_count': groups_queryset.count(),
+        'posts_count': posts_queryset.count(),
+        'class_leaders_count': class_leaders_count,
+        
+        # Trends
+        'registrations_last_7_days': registrations_last_7_days,
+        'registrations_last_30_days': registrations_last_30_days,
+        'registrations_this_month': registrations_this_month,
+        
+        # Activity metrics
+        'active_students_last_7_days': active_students_last_7_days,
+        'active_students_last_30_days': active_in_30_days,
+        'activity_rate': round(activity_rate, 2),
+        'verification_rate': round(verification_rate, 2),
+        
+        # Events details
+        'upcoming_events': upcoming_events,
+        'past_events': past_events,
+        'events_this_month': events_this_month,
+        
+        # Groups details
+        'verified_groups': verified_groups,
+        'public_groups': public_groups,
+        'groups_this_month': groups_this_month,
+        
+        # Top content
+        'top_groups': list(top_groups),
+        'top_events': list(top_events),
+        
+        # University info
+        'university': {
+            'id': str(user_university.id),
+            'name': user_university.name,
+            'short_name': user_university.short_name
+        },
+        
+        # Recent registrations
         'recent_registrations': list(students_queryset.order_by('-date_joined')[:10].values('id', 'username', 'email', 'date_joined', 'is_active', 'is_verified'))
     }
     
@@ -753,15 +1289,20 @@ def admin_dashboard_stats(request):
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def class_leaders_list(request):
-    """Get list of class leaders (for admin only)."""
-    # Only admin can see all class leaders
-    if not (request.user.is_staff or request.user.role == 'admin'):
+    """Get list of class leaders (for admin or university admin)."""
+    # Admin can see all class leaders, university admin only their university's
+    if not (request.user.is_staff or request.user.role == 'admin' or 
+            (request.user.role == 'university_admin' and request.user.managed_university)):
         return Response(
-            {'error': 'Permission denied. Admin access required.'},
+            {'error': 'Permission denied. Admin or university admin access required.'},
             status=status.HTTP_403_FORBIDDEN
         )
     
     queryset = User.objects.filter(role='class_leader').select_related('profile')
+    
+    # University admin can only see class leaders from their managed university
+    if request.user.role == 'university_admin' and request.user.managed_university:
+        queryset = queryset.filter(profile__university=request.user.managed_university)
     
     # Filtres
     university = request.query_params.get('university')
@@ -815,10 +1356,11 @@ def class_leaders_list(request):
 @api_view(['PUT'])
 @permission_classes([IsAuthenticated])
 def assign_class_leader(request, user_id):
-    """Assign class leader role to a user (admin only)."""
-    if not (request.user.is_staff or request.user.role == 'admin'):
+    """Assign class leader role to a user (admin or university admin)."""
+    if not (request.user.is_staff or request.user.role == 'admin' or 
+            (request.user.role == 'university_admin' and request.user.managed_university)):
         return Response(
-            {'error': 'Permission denied. Admin access required.'},
+            {'error': 'Permission denied. Admin or university admin access required.'},
             status=status.HTTP_403_FORBIDDEN
         )
     
@@ -834,6 +1376,19 @@ def assign_class_leader(request, user_id):
             {'error': 'Seuls les étudiants peuvent être assignés comme responsables de classe.'},
             status=status.HTTP_400_BAD_REQUEST
         )
+    
+    # University admin can only assign class leaders from their managed university
+    if request.user.role == 'university_admin' and request.user.managed_university:
+        if not hasattr(user, 'profile') or not user.profile.university:
+            return Response(
+                {'error': 'Cet utilisateur n\'appartient à aucune université.'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+        if user.profile.university != request.user.managed_university:
+            return Response(
+                {'error': 'Vous ne pouvez assigner que les étudiants de votre université comme responsables de classe.'},
+                status=status.HTTP_403_FORBIDDEN
+            )
     
     user.role = 'class_leader'
     user.is_active = True  # Activer automatiquement
@@ -860,10 +1415,11 @@ def assign_class_leader(request, user_id):
 @api_view(['PUT'])
 @permission_classes([IsAuthenticated])
 def revoke_class_leader(request, user_id):
-    """Revoke class leader role from a user (admin only)."""
-    if not (request.user.is_staff or request.user.role == 'admin'):
+    """Revoke class leader role from a user (admin or university admin)."""
+    if not (request.user.is_staff or request.user.role == 'admin' or 
+            (request.user.role == 'university_admin' and request.user.managed_university)):
         return Response(
-            {'error': 'Permission denied. Admin access required.'},
+            {'error': 'Permission denied. Admin or university admin access required.'},
             status=status.HTTP_403_FORBIDDEN
         )
     
@@ -872,6 +1428,19 @@ def revoke_class_leader(request, user_id):
     except User.DoesNotExist:
         return Response({'error': 'Responsable de classe non trouvé.'}, 
                        status=status.HTTP_404_NOT_FOUND)
+    
+    # University admin can only revoke class leaders from their managed university
+    if request.user.role == 'university_admin' and request.user.managed_university:
+        if not hasattr(user, 'profile') or not user.profile.university:
+            return Response(
+                {'error': 'Cet utilisateur n\'appartient à aucune université.'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+        if user.profile.university != request.user.managed_university:
+            return Response(
+                {'error': 'Vous ne pouvez révoquer que les responsables de classe de votre université.'},
+                status=status.HTTP_403_FORBIDDEN
+            )
     
     user.role = 'student'
     user.save(update_fields=['role'])
@@ -932,5 +1501,337 @@ def class_leaders_by_university(request):
         serializer = UserSerializer(leaders, many=True)
         universities[uni_name]['leaders'] = serializer.data
     
-    return Response(list(universities.values()))
+        return Response(list(universities.values()))
+
+
+class CampusViewSet(viewsets.ModelViewSet):
+    """ViewSet for managing campuses."""
+    queryset = Campus.objects.all()
+    serializer_class = CampusSerializer
+    permission_classes = [IsAuthenticated]
+    
+    def get_queryset(self):
+        """Filter campuses based on user role."""
+        university_id = self.request.query_params.get('university')
+        
+        if university_id:
+            queryset = Campus.objects.filter(university_id=university_id)
+        elif self.request.user.role == 'university_admin' and self.request.user.managed_university:
+            # University admin can only see campuses of their university
+            queryset = Campus.objects.filter(university=self.request.user.managed_university)
+        elif self.request.user.role == 'admin' or self.request.user.is_staff:
+            # Global admin can see all campuses
+            queryset = Campus.objects.all()
+        else:
+            # Regular users can only see active campuses
+            queryset = Campus.objects.filter(is_active=True)
+        
+        return queryset.order_by('-is_main', 'name')
+    
+    def perform_create(self, serializer):
+        """Create campus with university validation."""
+        from .permissions import IsUniversityAdminOrGlobalAdmin
+        permission = IsUniversityAdminOrGlobalAdmin()
+        
+        if not permission.has_permission(self.request, self):
+            from rest_framework.exceptions import PermissionDenied
+            raise PermissionDenied(permission.message)
+        
+        # If university admin, ensure they can only create for their university
+        if (self.request.user.role == 'university_admin' and 
+            self.request.user.managed_university):
+            # Auto-assign university for university admins
+            serializer.validated_data['university'] = self.request.user.managed_university
+            serializer.validated_data.pop('university_id', None)
+        
+        serializer.save()
+    
+    def perform_update(self, serializer):
+        """Update campus with university validation."""
+        from .permissions import IsUniversityAdminOrGlobalAdmin
+        permission = IsUniversityAdminOrGlobalAdmin()
+        
+        if not permission.has_permission(self.request, self):
+            from rest_framework.exceptions import PermissionDenied
+            raise PermissionDenied(permission.message)
+        
+        campus = self.get_object()
+        
+        # If university admin, ensure they can only update campuses of their university
+        if (self.request.user.role == 'university_admin' and 
+            self.request.user.managed_university):
+            if campus.university != self.request.user.managed_university:
+                from rest_framework.exceptions import PermissionDenied
+                raise PermissionDenied('Vous ne pouvez modifier que les campus de votre université.')
+            
+            # Prevent changing university
+            if 'university' in serializer.validated_data:
+                new_university = serializer.validated_data['university']
+                if new_university != self.request.user.managed_university:
+                    from rest_framework.exceptions import PermissionDenied
+                    raise PermissionDenied('Vous ne pouvez pas changer l\'université d\'un campus.')
+        
+        serializer.save()
+    
+    def get_permissions(self):
+        """Set permissions based on action."""
+        if self.action in ['list', 'retrieve']:
+            return [IsAuthenticated()]
+        else:
+            # Only global admins and university admins can create/update/delete
+            from .permissions import IsUniversityAdminOrGlobalAdmin
+            return [IsUniversityAdminOrGlobalAdmin()]
+
+
+class DepartmentViewSet(viewsets.ModelViewSet):
+    """ViewSet for managing departments."""
+    queryset = Department.objects.all()
+    serializer_class = DepartmentSerializer
+    permission_classes = [IsAuthenticated]
+    
+    def get_queryset(self):
+        """Filter departments based on user role."""
+        university_id = self.request.query_params.get('university')
+        
+        if university_id:
+            queryset = Department.objects.filter(university_id=university_id)
+        elif self.request.user.role == 'university_admin' and self.request.user.managed_university:
+            # University admin can only see departments of their university
+            queryset = Department.objects.filter(university=self.request.user.managed_university)
+        elif self.request.user.role == 'admin' or self.request.user.is_staff:
+            # Global admin can see all departments
+            queryset = Department.objects.all()
+        else:
+            # Regular users can only see active departments
+            queryset = Department.objects.filter(is_active=True)
+        
+        return queryset.order_by('name')
+    
+    def get_permissions(self):
+        """Set permissions based on action."""
+        from .permissions import IsUniversityAdminOrReadOnly
+        if self.action in ['list', 'retrieve']:
+            return [IsAuthenticated()]
+        else:
+            # University admins can manage departments of their university, global admins can manage all
+            from .permissions import IsUniversityAdminOrGlobalAdmin
+            return [IsUniversityAdminOrGlobalAdmin()]
+    
+    def perform_create(self, serializer):
+        """Create department with university validation."""
+        from .permissions import IsUniversityAdminOrGlobalAdmin
+        permission = IsUniversityAdminOrGlobalAdmin()
+        
+        if not permission.has_permission(self.request, self):
+            from rest_framework.exceptions import PermissionDenied
+            raise PermissionDenied(permission.message)
+        
+        # If university admin, ensure they can only create for their university
+        if (self.request.user.role == 'university_admin' and 
+            self.request.user.managed_university):
+            # Auto-assign university for university admins
+            serializer.validated_data['university'] = self.request.user.managed_university
+            serializer.validated_data.pop('university_id', None)
+        
+        serializer.save()
+    
+    def perform_update(self, serializer):
+        """Update department with university validation."""
+        from .permissions import IsUniversityAdminOrGlobalAdmin
+        permission = IsUniversityAdminOrGlobalAdmin()
+        
+        if not permission.has_permission(self.request, self):
+            from rest_framework.exceptions import PermissionDenied
+            raise PermissionDenied(permission.message)
+        
+        department = self.get_object()
+        
+        # If university admin, ensure they can only update departments of their university
+        if (self.request.user.role == 'university_admin' and 
+            self.request.user.managed_university):
+            if department.university != self.request.user.managed_university:
+                from rest_framework.exceptions import PermissionDenied
+                raise PermissionDenied('Vous ne pouvez modifier que les départements de votre université.')
+            
+            # Prevent changing university
+            if 'university' in serializer.validated_data:
+                new_university = serializer.validated_data['university']
+                if new_university != self.request.user.managed_university:
+                    from rest_framework.exceptions import PermissionDenied
+                    raise PermissionDenied('Vous ne pouvez pas changer l\'université d\'un département.')
+        
+        serializer.save()
+
+
+class UniversityViewSet(viewsets.ModelViewSet):
+    """ViewSet for managing universities (admin only)."""
+    queryset = University.objects.all()
+    serializer_class = UniversitySerializer
+    permission_classes = [IsAuthenticated]
+    
+    def get_queryset(self):
+        """Filter universities based on user role."""
+        if self.request.user.role == 'admin':
+            # Global admin can see all universities
+            return University.objects.all().order_by('name')
+        elif self.request.user.role == 'university_admin':
+            # University admin can only see their own university
+            if self.request.user.managed_university:
+                return University.objects.filter(id=self.request.user.managed_university.id)
+            return University.objects.none()
+        else:
+            # Regular users can only see active universities
+            return University.objects.filter(is_active=True).order_by('name')
+    
+    def get_permissions(self):
+        """Set permissions based on action."""
+        if self.action in ['list', 'retrieve', 'my_university']:
+            # Anyone authenticated can view, university admins can see their university
+            return [IsAuthenticated()]
+        else:
+            # Only global admins can create/update/delete
+            from .permissions import IsAdmin
+            return [IsAdmin()]
+    
+    @action(detail=True, methods=['get', 'put', 'patch'], permission_classes=[IsAuthenticated])
+    def settings(self, request, pk=None):
+        """Get or update university settings."""
+        from .models import UniversitySettings
+        from .serializers import UniversitySettingsSerializer
+        from .permissions import IsUniversityAdminOrGlobalAdmin
+        
+        university = self.get_object()
+        
+        # Check permissions
+        permission = IsUniversityAdminOrGlobalAdmin()
+        if not permission.has_permission(request, self):
+            from rest_framework.exceptions import PermissionDenied
+            raise PermissionDenied(permission.message)
+        
+        # If university admin, ensure they can only manage their own university
+        if (request.user.role == 'university_admin' and 
+            request.user.managed_university != university):
+            from rest_framework.exceptions import PermissionDenied
+            raise PermissionDenied('Vous ne pouvez modifier que les paramètres de votre université.')
+        
+        # Get or create settings
+        settings, created = UniversitySettings.objects.get_or_create(university=university)
+        
+        if request.method == 'GET':
+            serializer = UniversitySettingsSerializer(settings)
+            return Response(serializer.data)
+        
+        # Update settings
+        serializer = UniversitySettingsSerializer(settings, data=request.data, partial=request.method == 'PATCH')
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    
+    @action(detail=True, methods=['post'], permission_classes=[IsAuthenticated])
+    def assign_admin(self, request, pk=None):
+        """Assign a university admin to this university (global admin only)."""
+        if request.user.role != 'admin':
+            return Response(
+                {'error': 'Only global admins can assign university admins.'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+        
+        university = self.get_object()
+        user_id = request.data.get('user_id')
+        
+        if not user_id:
+            return Response(
+                {'error': 'user_id is required.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        try:
+            user = User.objects.get(id=user_id)
+        except User.DoesNotExist:
+            return Response(
+                {'error': 'User not found.'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+        
+        # Check if user is already admin of another university
+        if user.managed_university and user.managed_university != university:
+            return Response(
+                {'error': f'User is already admin of {user.managed_university.name}.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Assign university admin role
+        user.role = 'university_admin'
+        user.managed_university = university
+        user.is_active = True
+        user.is_verified = True
+        user.save()
+        
+        serializer = UserSerializer(user)
+        return Response({
+            'message': f'{user.username} is now admin of {university.name}',
+            'user': serializer.data
+        }, status=status.HTTP_200_OK)
+    
+    @action(detail=True, methods=['delete'], permission_classes=[IsAuthenticated])
+    def remove_admin(self, request, pk=None):
+        """Remove university admin from this university (global admin only)."""
+        if request.user.role != 'admin':
+            return Response(
+                {'error': 'Only global admins can remove university admins.'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+        
+        university = self.get_object()
+        user_id = request.data.get('user_id')
+        
+        if not user_id:
+            return Response(
+                {'error': 'user_id is required.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        try:
+            user = User.objects.get(id=user_id, managed_university=university, role='university_admin')
+        except User.DoesNotExist:
+            return Response(
+                {'error': 'University admin not found.'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+        
+        # Remove university admin role
+        user.role = 'student'  # Or keep as is, just remove managed_university
+        user.managed_university = None
+        user.save()
+        
+        return Response({
+            'message': f'{user.username} is no longer admin of {university.name}'
+        }, status=status.HTTP_200_OK)
+    
+    @action(detail=False, methods=['get'], permission_classes=[IsAuthenticated])
+    def my_university(self, request):
+        """Get current user's university (for university admins)."""
+        if request.user.role != 'university_admin' or not request.user.managed_university:
+            return Response(
+                {'error': 'You are not a university admin.'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+        
+        try:
+            university = request.user.managed_university
+            if not university:
+                return Response(
+                    {'error': 'No managed university found.'},
+                    status=status.HTTP_404_NOT_FOUND
+                )
+            serializer = UniversitySerializer(university, context={'request': request})
+            return Response(serializer.data, status=status.HTTP_200_OK)
+        except Exception as e:
+            import traceback
+            logger.error(f"Error in my_university endpoint: {e}\n{traceback.format_exc()}")
+            return Response(
+                {'error': f'An error occurred while retrieving university information: {str(e)}'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
 

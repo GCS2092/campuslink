@@ -6,6 +6,7 @@
     "dev": "node auto-config.js && next dev",
     "dev:mobile": "node start-mobile.js",
     "dev:auto": "node auto-config.js && next dev -H 0.0.0.0",
+    "dev:network": "node auto-config.js && next dev -H 0.0.0.0",
     "build": "node auto-config.js && next build",
     "start": "next start",
     "lint": "next lint",

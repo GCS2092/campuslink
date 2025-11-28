@@ -37,13 +37,13 @@ export default function AdminUsersPage() {
   useEffect(() => {
     if (mounted && !loading && !user) {
       router.push('/login')
-    } else if (mounted && user && user.role !== 'admin' && user.role !== 'class_leader') {
+    } else if (mounted && user && user.role !== 'admin') {
       router.push('/dashboard')
     }
   }, [mounted, user, loading, router])
 
   useEffect(() => {
-    if (user && (user.role === 'admin' || user.role === 'class_leader')) {
+    if (user && user.role === 'admin') {
       loadData()
     }
   }, [user, activeTab])
@@ -157,7 +157,7 @@ export default function AdminUsersPage() {
     )
   }
 
-  if (!user || (user.role !== 'admin' && user.role !== 'class_leader')) {
+  if (!user || user.role !== 'admin') {
     return null
   }
 

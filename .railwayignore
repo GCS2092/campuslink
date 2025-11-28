@@ -1,0 +1,15 @@
+venv/
+__pycache__/
+*.pyc
+.env
+*.log
+node_modules/
+.next/
+.git/
+*.md
+!README.md
+!SETUP.md
+!GUIDE_HEBERGEMENT.md
+backend/logs/
+frontend/.next/
+

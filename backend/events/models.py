@@ -39,12 +39,37 @@ class Event(models.Model):
     description = models.TextField()
     organizer = models.ForeignKey(User, on_delete=models.CASCADE, related_name='organized_events', db_index=True)
     category = models.ForeignKey(Category, on_delete=models.SET_NULL, null=True, blank=True, db_index=True)
+    university = models.ForeignKey(
+        'users.University',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='events',
+        db_index=True,
+        help_text="Université associée à l'événement"
+    )
     start_date = models.DateTimeField(db_index=True)
     end_date = models.DateTimeField(null=True, blank=True)
     location = models.CharField(max_length=500)
     location_lat = models.DecimalField(max_digits=9, decimal_places=6, null=True, blank=True)
     location_lng = models.DecimalField(max_digits=9, decimal_places=6, null=True, blank=True)
-    image_url = models.URLField(max_length=500, blank=True)
+    
+    # Image field - Use CloudinaryField if available, otherwise use regular ImageField
+    try:
+        from cloudinary.models import CloudinaryField
+        CLOUDINARY_AVAILABLE = True
+    except ImportError:
+        CLOUDINARY_AVAILABLE = False
+        CloudinaryField = None
+    
+    if CLOUDINARY_AVAILABLE and CloudinaryField:
+        image = CloudinaryField('image', folder='campuslink/event_images', null=True, blank=True, help_text="Image de l'événement")
+    else:
+        image = models.ImageField(upload_to='event_images/', null=True, blank=True, help_text="Image de l'événement")
+    
+    # Legacy URL field for migration
+    image_url_legacy = models.URLField(max_length=500, blank=True, help_text="Ancienne URL de l'image (pour migration)")
+    
     capacity = models.IntegerField(null=True, blank=True)
     price = models.DecimalField(max_digits=10, decimal_places=2, default=0.00)
     is_free = models.BooleanField(default=True)
@@ -62,6 +87,7 @@ class Event(models.Model):
         indexes = [
             models.Index(fields=['organizer']),
             models.Index(fields=['category']),
+            models.Index(fields=['university']),
             models.Index(fields=['start_date']),
             models.Index(fields=['status']),
             models.Index(fields=['created_at']),

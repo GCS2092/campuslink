@@ -1,7 +1,34 @@
 import axios from 'axios'
 
+// Auto-detect API URL based on environment
+const getApiUrl = () => {
+  // Priority 1: Use environment variable if set (from auto-config.js or .env.local)
+  if (process.env.NEXT_PUBLIC_API_URL) {
+    return process.env.NEXT_PUBLIC_API_URL;
+  }
+  
+  if (typeof window !== 'undefined') {
+    // In browser, use the current hostname
+    const hostname = window.location.hostname;
+    const protocol = window.location.protocol;
+    
+    // If accessing from localhost, use localhost for backend
+    if (hostname === 'localhost' || hostname === '127.0.0.1') {
+      return 'http://localhost:8000/api';
+    }
+    
+    // For network access (mobile, other devices), use the same hostname but port 8000
+    // This allows the frontend and backend to be on the same machine
+    // Use http:// even if frontend is https:// (for local development)
+    return `http://${hostname}:8000/api`;
+  }
+  
+  // Server-side default - try to use environment variable or fallback
+  return process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api';
+};
+
 const api = axios.create({
-  baseURL: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api',
+  baseURL: getApiUrl(),
   headers: {
     'Content-Type': 'application/json',
   },
@@ -37,7 +64,7 @@ api.interceptors.response.use(
         try {
           const refreshToken = localStorage.getItem('refresh_token')
           if (refreshToken) {
-            const baseURL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api'
+            const baseURL = getApiUrl()
             const response = await axios.post(
               `${baseURL}/auth/token/refresh/`,
               { refresh: refreshToken }

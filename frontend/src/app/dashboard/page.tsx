@@ -22,11 +22,16 @@ export default function DashboardPage() {
   useEffect(() => {
     if (mounted && !loading && !user) {
       router.push('/login')
-    } else if (mounted && user && user.role === 'admin') {
-      // Seuls les admins sont redirigés vers le dashboard admin
-      // Les responsables de classe restent sur le dashboard normal avec accès aux actualités
-      router.push('/admin/dashboard')
+    } else if (mounted && user) {
+      if (user.role === 'admin') {
+        // Seuls les admins globaux sont redirigés vers le dashboard admin
+        router.push('/admin/dashboard')
+      } else if (user.role === 'university_admin') {
+        // Les admins d'université sont redirigés vers leur dashboard
+        router.push('/university-admin/dashboard')
+      }
     }
+    // Les responsables de classe restent sur le dashboard normal avec accès aux actualités
   }, [mounted, user, loading, router])
 
   useEffect(() => {
@@ -217,7 +222,7 @@ export default function DashboardPage() {
                               <span className="text-gray-400">•</span>
                               <div className="flex items-center gap-1 text-gray-600">
                                 <FiMapPin className="w-3 h-3 sm:w-4 sm:h-4" />
-                                <span>{item.university}</span>
+                                <span>{typeof item.university === 'string' ? item.university : item.university?.name || item.university?.short_name || 'Université'}</span>
                               </div>
                             </>
                           )}

@@ -4,13 +4,27 @@ Validators for User app.
 import re
 from django.core.exceptions import ValidationError
 from django.contrib.auth.password_validation import validate_password
-from core.utils import is_university_email, is_valid_phone
+from core.utils import is_university_email, is_valid_phone, get_university_from_email
 
 
 def validate_university_email(email):
-    """Validate that email is from a university domain."""
+    """Validate that email is from a university domain with improved error messages."""
+    if not email:
+        raise ValidationError('Email is required.')
+    
+    if '@' not in email:
+        raise ValidationError('Email format is invalid.')
+    
     if not is_university_email(email):
-        raise ValidationError('Email must be from a valid university domain.')
+        # Try to provide helpful error message
+        email_domain = '@' + email.split('@')[1] if '@' in email else ''
+        university = get_university_from_email(email)
+        if not university:
+            raise ValidationError(
+                f'Email must be from a valid university domain. '
+                f'Domain "{email_domain}" is not recognized. '
+                f'Please use an email from your university.'
+            )
 
 
 def validate_phone_number(phone):

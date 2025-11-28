@@ -10,7 +10,7 @@ from django.db.models import Q
 from .models import Report, AuditLog
 from .serializers import ReportSerializer, AuditLogSerializer
 from .utils import create_audit_log
-from users.permissions import IsAdminOrClassLeader
+from users.permissions import IsAdminOrClassLeader, IsUniversityAdminOrGlobalAdmin
 from users.models import User
 from social.models import Post, PostComment
 from feed.models import FeedItem
@@ -21,13 +21,39 @@ logger = logging.getLogger(__name__)
 
 
 class AdminReportViewSet(viewsets.ModelViewSet):
-    """ViewSet for admin to manage reports."""
+    """ViewSet for admin to manage reports (admin only)."""
     serializer_class = ReportSerializer
-    permission_classes = [IsAuthenticated, IsAdminOrClassLeader]
+    permission_classes = [IsAuthenticated]
     
     def get_queryset(self):
-        """Get all reports for admins, filtered by status if provided."""
+        """Get all reports for admins/university admins, filtered by status if provided."""
+        # Only admins and university admins can access
+        if not (self.request.user.is_staff or 
+                self.request.user.role == 'admin' or
+                (self.request.user.role == 'university_admin' and self.request.user.managed_university)):
+            return Report.objects.none()
+        
         queryset = Report.objects.all().select_related('reporter', 'reviewed_by').order_by('-created_at')
+        
+        # Auto-filter for university admins - only show reports from their university
+        if (self.request.user.role == 'university_admin' and 
+            self.request.user.managed_university):
+            # Filter reports by content from users in the university
+            from users.models import User
+            university_user_ids = User.objects.filter(
+                profile__university=self.request.user.managed_university
+            ).values_list('id', flat=True)
+            
+            # Filter reports where reporter or content author is from the university
+            queryset = queryset.filter(
+                Q(reporter_id__in=university_user_ids) |
+                Q(content_type='post', content_id__in=Post.objects.filter(
+                    author_id__in=university_user_ids
+                ).values_list('id', flat=True)) |
+                Q(content_type='feed_item', content_id__in=FeedItem.objects.filter(
+                    author_id__in=university_user_ids
+                ).values_list('id', flat=True))
+            )
         
         # Filter by status
         status_filter = self.request.query_params.get('status')
@@ -107,14 +133,31 @@ class AdminReportViewSet(viewsets.ModelViewSet):
 
 
 class AdminAuditLogViewSet(viewsets.ReadOnlyModelViewSet):
-    """ViewSet for admin to view audit logs."""
+    """ViewSet for admin to view audit logs (admin only)."""
     serializer_class = AuditLogSerializer
-    permission_classes = [IsAuthenticated, IsAdminOrClassLeader]
+    permission_classes = [IsAuthenticated]
     queryset = AuditLog.objects.all().select_related('user').order_by('-created_at')
     
     def get_queryset(self):
-        """Filter audit logs."""
+        """Filter audit logs - only admins and university admins can access."""
+        # Only admins and university admins can access audit logs
+        if not (self.request.user.is_staff or 
+                self.request.user.role == 'admin' or
+                (self.request.user.role == 'university_admin' and self.request.user.managed_university)):
+            return AuditLog.objects.none()
+        
         queryset = super().get_queryset()
+        
+        # Auto-filter for university admins - only show logs from their university
+        if (self.request.user.role == 'university_admin' and 
+            self.request.user.managed_university):
+            from users.models import User
+            university_user_ids = User.objects.filter(
+                profile__university=self.request.user.managed_university
+            ).values_list('id', flat=True)
+            
+            # Filter logs where user is from the university
+            queryset = queryset.filter(user_id__in=university_user_ids)
         
         # Filter by user
         user_id = self.request.query_params.get('user_id')
@@ -143,13 +186,26 @@ class AdminAuditLogViewSet(viewsets.ReadOnlyModelViewSet):
 
 
 @api_view(['POST'])
-@permission_classes([IsAuthenticated, IsAdminOrClassLeader])
+@permission_classes([IsAuthenticated, IsUniversityAdminOrGlobalAdmin])
 def moderate_post(request, post_id):
     """Moderate a post (delete, hide, approve)."""
     try:
         post = Post.objects.get(id=post_id)
     except Post.DoesNotExist:
         return Response({'error': 'Post introuvable.'}, status=status.HTTP_404_NOT_FOUND)
+    
+    # Vérifier que l'admin d'université ne peut modérer que les posts de son université
+    if request.user.role == 'university_admin' and request.user.managed_university:
+        if not hasattr(post.author, 'profile') or not post.author.profile.university:
+            return Response(
+                {'error': 'L\'auteur de ce post n\'appartient à aucune université.'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+        if post.author.profile.university != request.user.managed_university:
+            return Response(
+                {'error': 'Vous ne pouvez modérer que les posts des utilisateurs de votre université.'},
+                status=status.HTTP_403_FORBIDDEN
+            )
     
     action_type = request.data.get('action')  # 'delete', 'hide', 'unhide', 'approve'
     reason = request.data.get('reason', '')
@@ -233,13 +289,26 @@ def moderate_post(request, post_id):
 
 
 @api_view(['POST'])
-@permission_classes([IsAuthenticated, IsAdminOrClassLeader])
+@permission_classes([IsAuthenticated, IsUniversityAdminOrGlobalAdmin])
 def moderate_feed_item(request, feed_item_id):
     """Moderate a feed item (delete, hide, approve)."""
     try:
         feed_item = FeedItem.objects.get(id=feed_item_id)
     except FeedItem.DoesNotExist:
         return Response({'error': 'Actualité introuvable.'}, status=status.HTTP_404_NOT_FOUND)
+    
+    # Vérifier que l'admin d'université ne peut modérer que les feed items de son université
+    if request.user.role == 'university_admin' and request.user.managed_university:
+        if not hasattr(feed_item.author, 'profile') or not feed_item.author.profile.university:
+            return Response(
+                {'error': 'L\'auteur de cette actualité n\'appartient à aucune université.'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+        if feed_item.author.profile.university != request.user.managed_university:
+            return Response(
+                {'error': 'Vous ne pouvez modérer que les actualités des utilisateurs de votre université.'},
+                status=status.HTTP_403_FORBIDDEN
+            )
     
     action_type = request.data.get('action')  # 'delete', 'hide', 'unhide', 'approve'
     reason = request.data.get('reason', '')
@@ -322,13 +391,26 @@ def moderate_feed_item(request, feed_item_id):
 
 
 @api_view(['POST'])
-@permission_classes([IsAuthenticated, IsAdminOrClassLeader])
+@permission_classes([IsAuthenticated, IsUniversityAdminOrGlobalAdmin])
 def moderate_comment(request, comment_id):
     """Moderate a comment (delete)."""
     try:
         comment = PostComment.objects.get(id=comment_id)
     except PostComment.DoesNotExist:
         return Response({'error': 'Commentaire introuvable.'}, status=status.HTTP_404_NOT_FOUND)
+    
+    # Vérifier que l'admin d'université ne peut modérer que les commentaires de son université
+    if request.user.role == 'university_admin' and request.user.managed_university:
+        if not hasattr(comment.user, 'profile') or not comment.user.profile.university:
+            return Response(
+                {'error': 'L\'auteur de ce commentaire n\'appartient à aucune université.'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+        if comment.user.profile.university != request.user.managed_university:
+            return Response(
+                {'error': 'Vous ne pouvez modérer que les commentaires des utilisateurs de votre université.'},
+                status=status.HTTP_403_FORBIDDEN
+            )
     
     reason = request.data.get('reason', '')
     

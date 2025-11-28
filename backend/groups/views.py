@@ -23,10 +23,16 @@ class GroupViewSet(viewsets.ModelViewSet):
     
     def get_queryset(self):
         """Return groups based on user role."""
-        queryset = Group.objects.select_related('creator').prefetch_related('memberships__user')
+        queryset = Group.objects.select_related('creator', 'university').prefetch_related('memberships__user')
         
-        # Admins can see all groups (including private ones)
+        # Auto-filter for university admins
         if (hasattr(self.request, 'user') and 
+            self.request.user.is_authenticated and
+            self.request.user.role == 'university_admin' and
+            self.request.user.managed_university):
+            queryset = queryset.filter(university=self.request.user.managed_university)
+        # Admins can see all groups (including private ones)
+        elif (hasattr(self.request, 'user') and 
             self.request.user.is_authenticated and 
             (self.request.user.is_staff or 
              self.request.user.is_superuser or 
@@ -76,7 +82,12 @@ class GroupViewSet(viewsets.ModelViewSet):
             from rest_framework.exceptions import PermissionDenied
             raise PermissionDenied('Les administrateurs ne peuvent pas créer de groupes directement. Les étudiants et responsables de classe gèrent les groupes.')
         
-        group = serializer.save(creator=self.request.user)
+        # Auto-assign university from creator's profile
+        user_university = None
+        if hasattr(self.request.user, 'profile') and self.request.user.profile:
+            user_university = self.request.user.profile.university
+        
+        group = serializer.save(creator=self.request.user, university=user_university)
         
         # Add creator as admin
         Membership.objects.create(

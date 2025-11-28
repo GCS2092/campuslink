@@ -411,7 +411,11 @@ export default function GroupsPage() {
                     {group.creator && (
                       <div className="text-xs text-gray-500">
                         Par {group.creator.username}
-                        {group.university && ` • ${group.university}`}
+                        {group.university && ` • ${
+                          typeof group.university === 'string' 
+                            ? group.university 
+                            : group.university?.name || group.university?.short_name || 'Université'
+                        }`}
                       </div>
                     )}
                   </div>

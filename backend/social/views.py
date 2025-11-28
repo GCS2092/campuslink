@@ -12,13 +12,26 @@ from users.permissions import IsVerified
 
 class PostViewSet(viewsets.ModelViewSet):
     """ViewSet for posts."""
-    queryset = Post.objects.filter(is_public=True, is_deleted=False, is_hidden=False).select_related('author')
+    queryset = Post.objects.filter(is_public=True, is_deleted=False, is_hidden=False).select_related('author', 'author__profile')
     serializer_class = PostSerializer
     permission_classes = [IsVerified]  # Only verified users can create posts
     filterset_fields = ['post_type', 'is_public']
     search_fields = ['content']
     ordering_fields = ['created_at', 'likes_count']
     ordering = ['-created_at']
+    
+    def get_queryset(self):
+        """Filter posts based on user role."""
+        queryset = super().get_queryset()
+        
+        # Auto-filter for university admins - only show posts from their university
+        if (hasattr(self.request, 'user') and 
+            self.request.user.is_authenticated and
+            self.request.user.role == 'university_admin' and
+            self.request.user.managed_university):
+            queryset = queryset.filter(author__profile__university=self.request.user.managed_university)
+        
+        return queryset
     
     def get_permissions(self):
         """Allow read-only for unauthenticated users."""

@@ -3,9 +3,10 @@
 import { useAuth } from '@/context/AuthContext'
 import { useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
-import { FiCalendar, FiMapPin, FiClock, FiUsers, FiSearch, FiTrash2, FiEye, FiEyeOff, FiX, FiCheck } from 'react-icons/fi'
+import { FiCalendar, FiMapPin, FiClock, FiUsers, FiSearch, FiTrash2, FiEye, FiEyeOff, FiX, FiCheck, FiArrowRight } from 'react-icons/fi'
 import { eventService, type Event } from '@/services/eventService'
 import toast from 'react-hot-toast'
+import Link from 'next/link'
 
 export default function EventsPage() {
   const { user, loading } = useAuth()
@@ -15,6 +16,7 @@ export default function EventsPage() {
   const [isLoadingEvents, setIsLoadingEvents] = useState(true)
   const [searchTerm, setSearchTerm] = useState('')
   const [statusFilter, setStatusFilter] = useState<string>('')
+  const [joiningEventId, setJoiningEventId] = useState<string | null>(null)
   const isAdmin = user?.role === 'admin' || user?.role === 'class_leader'
 
   useEffect(() => {
@@ -46,7 +48,11 @@ export default function EventsPage() {
       }
       const response = await eventService.getEvents(params)
       const eventsList = response.results || response.data || response || []
-      setEvents(Array.isArray(eventsList) ? eventsList : [])
+      // Filter out events without valid IDs
+      const validEvents = Array.isArray(eventsList) 
+        ? eventsList.filter((e: Event) => e && e.id && typeof e.id === 'string')
+        : []
+      setEvents(validEvents)
     } catch (error: any) {
       console.error('Error loading events:', error)
       // Handle error object from custom exception handler
@@ -103,6 +109,50 @@ export default function EventsPage() {
     }
   }
 
+  const handleJoinEvent = async (eventId: string) => {
+    if (!eventId) {
+      toast.error('ID d\'événement invalide')
+      return
+    }
+    
+    setJoiningEventId(eventId)
+    try {
+      await eventService.joinEvent(eventId)
+      toast.success('Vous avez rejoint l\'événement avec succès')
+      await loadEvents()
+    } catch (error: any) {
+      console.error('Error joining event:', error)
+      const errorMessage = error?.response?.data?.error || error?.response?.data?.message || 'Erreur lors de la jointure'
+      toast.error(typeof errorMessage === 'string' ? errorMessage : 'Erreur lors de la jointure')
+    } finally {
+      setJoiningEventId(null)
+    }
+  }
+
+  const handleLeaveEvent = async (eventId: string) => {
+    if (!eventId) {
+      toast.error('ID d\'événement invalide')
+      return
+    }
+    
+    if (!confirm('Êtes-vous sûr de vouloir quitter cet événement ?')) {
+      return
+    }
+    
+    setJoiningEventId(eventId)
+    try {
+      await eventService.leaveEvent(eventId)
+      toast.success('Vous avez quitté l\'événement')
+      await loadEvents()
+    } catch (error: any) {
+      console.error('Error leaving event:', error)
+      const errorMessage = error?.response?.data?.error || error?.response?.data?.message || 'Erreur lors de la sortie'
+      toast.error(typeof errorMessage === 'string' ? errorMessage : 'Erreur lors de la sortie')
+    } finally {
+      setJoiningEventId(null)
+    }
+  }
+
   if (!mounted || loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary-50 to-secondary-50">
@@ -123,14 +173,27 @@ export default function EventsPage() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Header */}
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">
-            {isAdmin ? 'Gestion des Événements' : 'Événements'}
-          </h1>
-          <p className="text-gray-600">
-            {isAdmin 
-              ? 'Surveillez et modérez les événements créés par les étudiants' 
-              : 'Découvrez les événements près de chez vous'}
-          </p>
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-3xl font-bold text-gray-900 mb-2">
+                {isAdmin ? 'Gestion des Événements' : 'Événements'}
+              </h1>
+              <p className="text-gray-600">
+                {isAdmin 
+                  ? 'Surveillez et modérez les événements créés par les étudiants' 
+                  : 'Découvrez les événements près de chez vous'}
+              </p>
+            </div>
+            {!isAdmin && user?.is_verified && (
+              <Link
+                href="/events/create"
+                className="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition font-medium flex items-center gap-2"
+              >
+                <FiCalendar className="w-4 h-4" />
+                Créer un événement
+              </Link>
+            )}
+          </div>
         </div>
 
         {/* Filters (Admin only) */}
@@ -233,44 +296,78 @@ export default function EventsPage() {
                       <div className="flex items-center gap-2 text-xs text-gray-500">
                         <span>Par {event.organizer.username}</span>
                         {event.organizer.profile?.university && (
-                          <span>• {event.organizer.profile.university}</span>
+                          <span>• {
+                            typeof event.organizer.profile.university === 'string' 
+                              ? event.organizer.profile.university 
+                              : event.organizer.profile.university?.name || event.organizer.profile.university?.short_name || 'Université'
+                          }</span>
                         )}
                       </div>
                     )}
                   </div>
                   
-                  {isAdmin ? (
-                    <div className="flex gap-2">
-                      {event.status === 'draft' && (
+                  {/* Action Buttons */}
+                  <div className="flex gap-2 mt-4">
+                    {isAdmin ? (
+                      <>
+                        {event.status === 'draft' && (
+                          <button
+                            onClick={() => handleModerate(event.id, 'publish')}
+                            className="flex-1 flex items-center justify-center gap-2 bg-green-600 text-white py-2 rounded-lg hover:bg-green-700 transition text-sm"
+                          >
+                            <FiCheck className="w-4 h-4" />
+                            Publier
+                          </button>
+                        )}
+                        {event.status === 'published' && (
+                          <button
+                            onClick={() => handleModerate(event.id, 'cancel')}
+                            className="flex-1 flex items-center justify-center gap-2 bg-yellow-600 text-white py-2 rounded-lg hover:bg-yellow-700 transition text-sm"
+                          >
+                            <FiX className="w-4 h-4" />
+                            Annuler
+                          </button>
+                        )}
                         <button
-                          onClick={() => handleModerate(event.id, 'publish')}
-                          className="flex-1 flex items-center justify-center gap-2 bg-green-600 text-white py-2 rounded-lg hover:bg-green-700 transition text-sm"
+                          onClick={() => handleModerate(event.id, 'delete')}
+                          className="flex items-center justify-center gap-2 bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 transition text-sm"
                         >
-                          <FiCheck className="w-4 h-4" />
-                          Publier
+                          <FiTrash2 className="w-4 h-4" />
                         </button>
-                      )}
-                      {event.status === 'published' && (
-                        <button
-                          onClick={() => handleModerate(event.id, 'cancel')}
-                          className="flex-1 flex items-center justify-center gap-2 bg-yellow-600 text-white py-2 rounded-lg hover:bg-yellow-700 transition text-sm"
-                        >
-                          <FiX className="w-4 h-4" />
-                          Annuler
-                        </button>
-                      )}
-                      <button
-                        onClick={() => handleModerate(event.id, 'delete')}
-                        className="flex items-center justify-center gap-2 bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 transition text-sm"
-                      >
-                        <FiTrash2 className="w-4 h-4" />
-                      </button>
-                    </div>
-                  ) : (
-                    <button className="mt-4 w-full bg-primary-600 text-white py-2 rounded-lg hover:bg-primary-700 transition">
-                      Voir détails
-                    </button>
-                  )}
+                      </>
+                    ) : (
+                      <>
+                        {event.status === 'published' && (
+                          <>
+                            <Link
+                              href={`/events/${event.id}`}
+                              className="flex-1 flex items-center justify-center gap-2 bg-gray-100 text-gray-700 py-2 rounded-lg hover:bg-gray-200 transition text-sm"
+                            >
+                              <FiArrowRight className="w-4 h-4" />
+                              Détails
+                            </Link>
+                            {event.is_participating ? (
+                              <button
+                                onClick={() => handleLeaveEvent(event.id)}
+                                disabled={joiningEventId === event.id}
+                                className="flex-1 flex items-center justify-center gap-2 bg-red-600 text-white py-2 rounded-lg hover:bg-red-700 transition text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                              >
+                                {joiningEventId === event.id ? 'Traitement...' : 'Quitter'}
+                              </button>
+                            ) : (
+                              <button
+                                onClick={() => handleJoinEvent(event.id)}
+                                disabled={joiningEventId === event.id || (event.capacity && (event.participants_count || 0) >= event.capacity)}
+                                className="flex-1 flex items-center justify-center gap-2 bg-primary-600 text-white py-2 rounded-lg hover:bg-primary-700 transition text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                              >
+                                {joiningEventId === event.id ? 'Traitement...' : (event.capacity && (event.participants_count || 0) >= event.capacity) ? 'Complet' : 'Rejoindre'}
+                              </button>
+                            )}
+                          </>
+                        )}
+                      </>
+                    )}
+                  </div>
                 </div>
               </div>
             ))}

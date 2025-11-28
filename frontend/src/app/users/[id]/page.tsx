@@ -3,9 +3,10 @@
 import { useAuth } from '@/context/AuthContext'
 import { useRouter, useParams } from 'next/navigation'
 import { useEffect, useState } from 'react'
-import { FiUser, FiMail, FiMapPin, FiBook, FiCalendar, FiUsers, FiUserPlus, FiUserMinus, FiCheck, FiX } from 'react-icons/fi'
+import { FiUser, FiMail, FiMapPin, FiBook, FiCalendar, FiUsers, FiUserPlus, FiUserMinus, FiCheck, FiX, FiArrowRight } from 'react-icons/fi'
 import { userService } from '@/services/userService'
 import toast from 'react-hot-toast'
+import Link from 'next/link'
 
 export default function UserProfilePage() {
   const { user: currentUser, loading } = useAuth()
@@ -18,6 +19,9 @@ export default function UserProfilePage() {
   const [friendshipStatus, setFriendshipStatus] = useState<string>('none')
   const [friendshipId, setFriendshipId] = useState<string | null>(null)
   const [isProcessing, setIsProcessing] = useState(false)
+  const [friends, setFriends] = useState<any[]>([])
+  const [isLoadingFriends, setIsLoadingFriends] = useState(false)
+  const [showFriendsSection, setShowFriendsSection] = useState(true) // Afficher par défaut
 
   useEffect(() => {
     if (!loading && !currentUser) {
@@ -28,6 +32,11 @@ export default function UserProfilePage() {
   useEffect(() => {
     if (userId && currentUser) {
       loadProfile()
+      // Si c'est le profil de l'utilisateur connecté, charger ses amis
+      // Comparer les IDs en string pour éviter les problèmes de type
+      if (String(userId) === String(currentUser.id)) {
+        loadFriends()
+      }
     }
   }, [userId, currentUser])
 
@@ -67,19 +76,45 @@ export default function UserProfilePage() {
     }
   }
 
-  const handleRemoveFriend = async () => {
-    if (!friendshipId || isProcessing) return
-    
+  const loadFriends = async () => {
+    setIsLoadingFriends(true)
+    try {
+      const data = await userService.getFriends()
+      console.log('Friends data received:', data) // Debug log
+      const friendsList = Array.isArray(data) ? data : []
+      console.log('Friends list:', friendsList) // Debug log
+      setFriends(friendsList)
+    } catch (error: any) {
+      console.error('Error loading friends:', error)
+      toast.error('Erreur lors du chargement des amis')
+      setFriends([]) // Set empty array on error
+    } finally {
+      setIsLoadingFriends(false)
+    }
+  }
+
+  const handleRemoveFriend = async (friendId: string, friendshipIdToRemove: string) => {
     if (!confirm('Êtes-vous sûr de vouloir supprimer cet ami ?')) {
       return
     }
     
     setIsProcessing(true)
     try {
-      await userService.removeFriend(friendshipId)
-      setFriendshipStatus('none')
-      setFriendshipId(null)
-      toast.success('Ami supprimé')
+      await userService.removeFriend(friendshipIdToRemove)
+      // Si on supprime depuis la liste d'amis
+      if (friendshipIdToRemove) {
+        setFriends(friends.filter(f => f.id !== friendId))
+        toast.success('Ami supprimé')
+      } else {
+        // Si on supprime depuis le profil
+        setFriendshipStatus('none')
+        setFriendshipId(null)
+        toast.success('Ami supprimé')
+        // Recharger la liste des amis si on est sur notre propre profil
+        if (userId === currentUser?.id) {
+          loadFriends()
+        }
+      }
     } catch (error: any) {
       console.error('Error removing friend:', error)
       toast.error(error.response?.data?.error || 'Erreur lors de la suppression')
@@ -243,9 +278,17 @@ export default function UserProfilePage() {
                   <div className="flex items-start gap-3">
                     <FiMapPin className="w-5 h-5 text-primary-600 dark:text-primary-400 mt-0.5" />
                     <div>
-                      <p className="font-medium text-gray-900 dark:text-white">{profile.university}</p>
+                      <p className="font-medium text-gray-900 dark:text-white">
+                        {typeof profile.university === 'string' 
+                          ? profile.university 
+                          : profile.university?.name || profile.university?.short_name || 'Université'}
+                      </p>
                       {profile.campus && (
-                        <p className="text-sm text-gray-500 dark:text-gray-400">{profile.campus}</p>
+                        <p className="text-sm text-gray-500 dark:text-gray-400">
+                          {typeof profile.campus === 'string' 
+                            ? profile.campus 
+                            : profile.campus?.name || 'Campus'}
+                        </p>
                       )}
                     </div>
                   </div>
@@ -315,6 +358,102 @@ export default function UserProfilePage() {
             </div>
           </div>
         </div>
+
+        {/* Friends Section - Only show for current user's own profile */}
+        {currentUser && String(userId) === String(currentUser.id) && (
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-6 mt-6">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-semibold text-gray-900 dark:text-white flex items-center gap-2">
+                <FiUsers className="w-5 h-5 text-primary-600 dark:text-primary-400" />
+                Mes Amis ({friends.length})
+              </h2>
+              <button
+                onClick={() => setShowFriendsSection(!showFriendsSection)}
+                className="text-primary-600 dark:text-primary-400 hover:text-primary-700 dark:hover:text-primary-300 text-sm font-medium"
+              >
+                {showFriendsSection ? 'Masquer' : 'Afficher'}
+              </button>
+            </div>
+
+            {showFriendsSection && (
+              <>
+                {isLoadingFriends ? (
+                  <div className="flex items-center justify-center py-8">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600"></div>
+                  </div>
+                ) : friends.length === 0 ? (
+                  <div className="text-center py-8">
+                    <FiUsers className="w-12 h-12 text-gray-400 dark:text-gray-500 mx-auto mb-3" />
+                    <p className="text-gray-500 dark:text-gray-400">Vous n'avez pas encore d'amis</p>
+                    <p className="text-sm text-gray-400 dark:text-gray-500 mt-1">
+                      Explorez la section "Étudiants" pour trouver des amis
+                    </p>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {friends.map((friend) => {
+                      const friendProfile = friend.profile || {}
+                      const friendName = friend.first_name && friend.last_name
+                        ? `${friend.first_name} ${friend.last_name}`
+                        : friend.username
+                      
+                      // Trouver l'ID de l'amitié pour ce friend
+                      // Note: L'API retourne les utilisateurs, pas les friendships directement
+                      // On devra peut-être modifier l'API pour retourner aussi l'ID de l'amitié
+                      
+                      return (
+                        <div
+                          key={friend.id}
+                          className="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-4 hover:bg-gray-100 dark:hover:bg-gray-700 transition"
+                        >
+                          <div className="flex items-center gap-3 mb-3">
+                            <div className="w-12 h-12 bg-primary-100 dark:bg-primary-900/30 rounded-full flex items-center justify-center flex-shrink-0">
+                              {friendProfile.profile_picture ? (
+                                <img
+                                  src={friendProfile.profile_picture}
+                                  alt={friendName}
+                                  className="w-full h-full rounded-full object-cover"
+                                />
+                              ) : (
+                                <FiUser className="w-6 h-6 text-primary-600 dark:text-primary-400" />
+                              )}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <h3 className="font-medium text-gray-900 dark:text-white truncate">
+                                {friendName}
+                              </h3>
+                              <p className="text-sm text-gray-500 dark:text-gray-400 truncate">
+                                @{friend.username}
+                              </p>
+                            </div>
+                          </div>
+                          
+                          <div className="flex gap-2">
+                            <Link
+                              href={`/users/${friend.id}`}
+                              className="flex-1 px-3 py-2 text-sm bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition text-center flex items-center justify-center gap-1"
+                            >
+                              Voir profil
+                              <FiArrowRight className="w-4 h-4" />
+                            </Link>
+                            <button
+                              onClick={() => handleRemoveFriend(friend.id, friend.friendship_id)}
+                              disabled={isProcessing}
+                              className="px-3 py-2 text-sm bg-red-600 text-white rounded-lg hover:bg-red-700 transition disabled:opacity-50 flex items-center gap-1"
+                              title="Supprimer l'ami"
+                            >
+                              <FiUserMinus className="w-4 h-4" />
+                            </button>
+                          </div>
+                        </div>
+                      )
+                    })}
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+        )}
       </div>
     </div>
   )

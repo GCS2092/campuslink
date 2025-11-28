@@ -219,7 +219,7 @@ export default function StudentsPage() {
 
   const handleLogout = () => {
     logout()
-    router.push('/login')
+    router.push('/')
   }
 
   const handleGoBack = () => {
@@ -338,7 +338,11 @@ export default function StudentsPage() {
                       {student.profile?.university && (
                         <div className="flex items-center gap-2 mb-3 text-xs sm:text-sm text-gray-600 dark:text-gray-400">
                           <FiMapPin className="w-3 h-3 sm:w-4 sm:h-4 flex-shrink-0" />
-                          <span className="truncate">{student.profile.university}</span>
+                          <span className="truncate">
+                            {typeof student.profile.university === 'string' 
+                              ? student.profile.university 
+                              : student.profile.university?.name || student.profile.university?.short_name || 'Université'}
+                          </span>
                         </div>
                       )}
 

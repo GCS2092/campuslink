@@ -4,6 +4,7 @@ import './globals.css'
 import { Providers } from './providers'
 import BottomNavigation from '@/components/BottomNavigation'
 import AdminBottomNavigation from '@/components/AdminBottomNavigation'
+import UniversityAdminBottomNavigation from '@/components/UniversityAdminBottomNavigation'
 
 const inter = Inter({ subsets: ['latin'] })
 
@@ -29,6 +30,7 @@ export default function RootLayout({
           {children}
           <BottomNavigation />
           <AdminBottomNavigation />
+          <UniversityAdminBottomNavigation />
         </Providers>
       </body>
     </html>

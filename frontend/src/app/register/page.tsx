@@ -81,7 +81,9 @@ const registerSchema = z.object({
     .regex(/^\+221[0-9]{9}$/, 'Le numéro de téléphone doit être au format +221XXXXXXXXX'),
   first_name: z.string().optional(),
   last_name: z.string().optional(),
-  role: z.enum(['student', 'organizer', 'sponsor']).optional(),
+  academic_year: z.enum(['Licence 1', 'Licence 2', 'Licence 3', 'Master 1', 'Master 2'], {
+    errorMap: () => ({ message: 'Veuillez sélectionner votre classe (Licence 1 à 3 ou Master 1 à 2)' }),
+  }),
 }).refine((data) => data.password === data.password_confirm, {
   message: 'Les mots de passe ne correspondent pas',
   path: ['password_confirm'],
@@ -109,7 +111,13 @@ export default function RegisterPage() {
     setIsLoading(true)
 
     try {
-      const response = await authService.register(data)
+      // Force role to 'student' and include academic_year
+      const registerData = {
+        ...data,
+        role: 'student',
+        academic_year: data.academic_year,
+      }
+      const response = await authService.register(registerData)
       setUserId(response.user_id)
       setPhoneNumber(data.phone_number)
       setStep('verification')
@@ -135,10 +143,11 @@ export default function RegisterPage() {
                 email: '📧 Email',
                 username: '👤 Nom d\'utilisateur',
                 password: '🔒 Mot de passe',
-                password_confirm: '🔒 Confirmation mot de passe',
+                password_confirm: '🔒 Confirmation du mot de passe',
                 phone_number: '📱 Numéro de téléphone',
                 first_name: 'Prénom',
-                last_name: 'Nom'
+                last_name: 'Nom',
+                academic_year: '📚 Classe'
               }
               const fieldName = fieldNames[key] || key
               toast.error(`${fieldName}: ${errorMessage}`, { duration: 5000 })
@@ -170,10 +179,10 @@ export default function RegisterPage() {
         phone_number: phoneNumber,
         otp_code: otp,
       })
-      toast.success('✅ Vérification réussie! Redirection...', { duration: 3000 })
-      // Auto-login après vérification
+      toast.success('✅ Vérification réussie!', { duration: 3000 })
+      // Rediriger vers l'écran d'attente de validation
       setTimeout(() => {
-        router.push('/login')
+        router.push('/pending-approval')
       }, 1000)
     } catch (error: any) {
       if (error.response?.status === 400) {
@@ -206,7 +215,7 @@ export default function RegisterPage() {
       <div className="max-w-md w-full bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-8 border border-gray-200 dark:border-gray-700">
         <div className="text-center mb-8">
           <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">Inscription</h1>
-          <p className="text-gray-600 dark:text-gray-300">Créez votre compte CampusLink</p>
+          <p className="text-gray-600 dark:text-gray-300">Créez votre compte étudiant sur CampusLink</p>
         </div>
 
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
@@ -229,7 +238,7 @@ export default function RegisterPage() {
               </div>
             )}
             <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-              Domaines acceptés: @esmt.sn, @ucad.sn, @ugb.sn, @esp.sn, @uasz.sn, @univ-thies.sn
+              Domaines acceptés : @esmt.sn, @ucad.sn, @ugb.sn, @esp.sn, @uasz.sn, @univ-thies.sn
             </p>
           </div>
 
@@ -302,24 +311,33 @@ export default function RegisterPage() {
               </div>
             )}
             <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-              Format: +221XXXXXXXXX (ex: +221771234567)
+              Format : +221XXXXXXXXX (exemple : +221771234567)
             </p>
           </div>
 
           <div>
-            <label htmlFor="role" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-              Rôle
+            <label htmlFor="academic_year" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              Classe <span className="text-red-500">*</span>
             </label>
             <select
-              {...register('role')}
-              id="role"
+              {...register('academic_year')}
+              id="academic_year"
               className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none transition bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
               disabled={isLoading}
             >
-              <option value="student">Étudiant</option>
-              <option value="organizer">Organisateur</option>
-              <option value="sponsor">Sponsor</option>
+              <option value="">Sélectionnez votre classe</option>
+              <option value="Licence 1">Licence 1</option>
+              <option value="Licence 2">Licence 2</option>
+              <option value="Licence 3">Licence 3</option>
+              <option value="Master 1">Master 1</option>
+              <option value="Master 2">Master 2</option>
             </select>
+            {errors.academic_year && (
+              <div className="mt-2 p-2 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded flex items-start gap-2">
+                <span className="text-red-600 dark:text-red-400">⚠️</span>
+                <p className="text-sm text-red-600 dark:text-red-400">{errors.academic_year.message}</p>
+              </div>
+            )}
           </div>
 
           <div>
@@ -341,7 +359,7 @@ export default function RegisterPage() {
               </div>
             )}
             <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-              Min. 8 caractères, 1 majuscule, 1 minuscule, 1 chiffre, 1 caractère spécial
+              Minimum 8 caractères, 1 majuscule, 1 minuscule, 1 chiffre, 1 caractère spécial
             </p>
           </div>
 
@@ -373,7 +391,7 @@ export default function RegisterPage() {
             {isLoading ? (
               <>
                 <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                <span>Inscription...</span>
+                <span>Inscription en cours...</span>
               </>
             ) : (
               'S&apos;inscrire'
@@ -383,9 +401,9 @@ export default function RegisterPage() {
 
         <div className="mt-6 text-center">
           <p className="text-sm text-gray-600 dark:text-gray-400">
-            Déjà un compte?{' '}
+            Vous avez déjà un compte ?{' '}
             <Link href="/login" className="text-primary-600 dark:text-primary-400 hover:text-primary-700 dark:hover:text-primary-300 font-semibold">
-              Se connecter
+              Connectez-vous
             </Link>
           </p>
         </div>
@@ -448,7 +466,7 @@ function OTPVerificationStep({
         <div className="text-center mb-8">
           <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">Vérification</h1>
           <p className="text-gray-600 dark:text-gray-300">
-            Entrez le code OTP envoyé à <br />
+            Entrez le code de vérification envoyé à <br />
             <span className="font-semibold text-gray-900 dark:text-white">{phoneNumber}</span>
           </p>
         </div>
@@ -488,10 +506,10 @@ function OTPVerificationStep({
             {isLoading ? (
               <>
                 <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                <span>Vérification...</span>
+                <span>Vérification en cours...</span>
               </>
             ) : (
-              'Vérifier'
+              'Vérifier le code'
             )}
           </button>
         </form>

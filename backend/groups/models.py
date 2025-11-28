@@ -14,10 +14,37 @@ class Group(models.Model):
     name = models.CharField(max_length=200, db_index=True)
     slug = models.SlugField(unique=True, db_index=True)
     description = models.TextField()
-    cover_image = models.URLField(max_length=500, blank=True)
-    profile_image = models.URLField(max_length=500, blank=True)
+    
+    # Image fields - Use CloudinaryField if available, otherwise use regular ImageField
+    try:
+        from cloudinary.models import CloudinaryField
+        CLOUDINARY_AVAILABLE = True
+    except ImportError:
+        CLOUDINARY_AVAILABLE = False
+        CloudinaryField = None
+    
+    if CLOUDINARY_AVAILABLE and CloudinaryField:
+        profile_image = CloudinaryField('image', folder='campuslink/group_profile_images', null=True, blank=True, help_text="Image de profil du groupe")
+        cover_image = CloudinaryField('image', folder='campuslink/group_cover_images', null=True, blank=True, help_text="Image de couverture du groupe")
+    else:
+        profile_image = models.ImageField(upload_to='group_profile_images/', null=True, blank=True, help_text="Image de profil du groupe")
+        cover_image = models.ImageField(upload_to='group_cover_images/', null=True, blank=True, help_text="Image de couverture du groupe")
+    
+    # Legacy URL fields for migration
+    profile_image_url_legacy = models.URLField(max_length=500, blank=True, help_text="Ancienne URL de l'image de profil (pour migration)")
+    cover_image_url_legacy = models.URLField(max_length=500, blank=True, help_text="Ancienne URL de l'image de couverture (pour migration)")
+    
     creator = models.ForeignKey(User, on_delete=models.CASCADE, related_name='groups_created', db_index=True)
-    university = models.CharField(max_length=200, blank=True, db_index=True)
+    university = models.ForeignKey(
+        'users.University',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='groups',
+        db_index=True,
+        help_text="Université associée au groupe"
+    )
+    university_name_legacy = models.CharField(max_length=200, blank=True, help_text="Ancien nom (pour migration)")
     category = models.CharField(max_length=100, blank=True)  # Sport, Culture, Académique, etc.
     is_public = models.BooleanField(default=True, db_index=True)
     is_verified = models.BooleanField(default=False, db_index=True)

@@ -68,13 +68,13 @@ export default function ClassLeadersPage() {
   useEffect(() => {
     if (mounted && !loading && !user) {
       router.push('/login')
-    } else if (mounted && user && user.role !== 'admin') {
+    } else if (mounted && user && user.role !== 'admin' && user.role !== 'university_admin') {
       router.push('/dashboard')
     }
   }, [mounted, user, loading, router])
 
   useEffect(() => {
-    if (user && user.role === 'admin') {
+    if (user && (user.role === 'admin' || user.role === 'university_admin')) {
       loadLeaders()
     }
   }, [user, searchTerm, selectedUniversity, selectedActive, selectedOrdering, currentPage])
@@ -94,7 +94,8 @@ export default function ClassLeadersPage() {
         params.search = searchTerm
       }
 
-      if (selectedUniversity) {
+      // Only admins can filter by university (university admins see only their university)
+      if (selectedUniversity && user?.role === 'admin') {
         params.university = selectedUniversity
       }
 
@@ -147,17 +148,23 @@ export default function ClassLeadersPage() {
     )
   }
 
-  if (!user || user.role !== 'admin') {
+  if (!user || (user.role !== 'admin' && user.role !== 'university_admin')) {
     return null
   }
 
   const handleLogout = () => {
     logout()
-    router.push('/login')
+    router.push('/')
   }
 
   const handleGoBack = () => {
-    router.push('/admin/dashboard')
+    if (user?.role === 'admin') {
+      router.push('/admin/dashboard')
+    } else if (user?.role === 'university_admin') {
+      router.push('/university-admin/dashboard')
+    } else {
+      router.push('/dashboard')
+    }
   }
 
   return (
@@ -204,7 +211,8 @@ export default function ClassLeadersPage() {
             setCurrentPage(1)
           }}
           filters={[
-            {
+            // Only show university filter for global admins, not for university admins
+            ...(user?.role === 'admin' ? [{
               label: 'Université',
               name: 'university',
               options: UNIVERSITIES.map((u) => ({ value: u, label: u })),
@@ -213,7 +221,7 @@ export default function ClassLeadersPage() {
                 setSelectedUniversity(value)
                 setCurrentPage(1)
               },
-            },
+            }] : []),
             {
               label: 'Statut',
               name: 'is_active',
@@ -299,7 +307,11 @@ export default function ClassLeadersPage() {
 
                       {leader.profile?.university && (
                         <p className="text-xs sm:text-sm text-gray-600 ml-14 sm:ml-16 mb-2">
-                          <span className="font-medium">École:</span> {leader.profile.university}
+                          <span className="font-medium">École:</span> {
+                            typeof leader.profile.university === 'string' 
+                              ? leader.profile.university 
+                              : leader.profile.university?.name || leader.profile.university?.short_name || 'Université'
+                          }
                           {leader.profile.field_of_study && ` - ${leader.profile.field_of_study}`}
                         </p>
                       )}

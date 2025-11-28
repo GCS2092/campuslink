@@ -32,7 +32,13 @@ const nextConfig = {
     return config;
   },
   images: {
-    domains: ['res.cloudinary.com', 'localhost'],
+    domains: ['res.cloudinary.com', 'localhost', '127.0.0.1'],
+    remotePatterns: [
+      {
+        protocol: 'http',
+        hostname: '**',
+      },
+    ],
   },
   // PWA Configuration
   async headers() {

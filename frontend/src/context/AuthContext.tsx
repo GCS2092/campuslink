@@ -59,8 +59,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [refreshUser])
 
   const login = async (email: string, password: string) => {
-    await authService.login({ email, password })
+    const result = await authService.login({ email, password })
+    
+    // Si le compte nécessite une activation, ne pas appeler refreshUser
+    // car cela échouera (l'utilisateur n'est pas actif)
+    if (result?.account_status?.requires_activation) {
+      // Retourner le résultat avec account_status pour que la page de login puisse gérer la redirection
+      return result
+    }
+    
+    // Sinon, charger le profil normalement
     await refreshUser()
+    return result
   }
 
   const logout = () => {

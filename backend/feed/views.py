@@ -32,21 +32,25 @@ class FeedItemViewSet(viewsets.ModelViewSet):
             is_hidden=False
         ).select_related('author', 'author__profile')
         
-        # Get user's university if available
-        user_university = None
-        if hasattr(user, 'profile') and user.profile:
-            user_university = user.profile.university
-        
-        # Filter by visibility
-        # Show public items OR private items from user's university
-        if user_university:
-            queryset = queryset.filter(
-                Q(visibility='public') | 
-                Q(visibility='private', university=user_university)
-            )
+        # Auto-filter for university admins - only show feed items from their university
+        if (user.role == 'university_admin' and user.managed_university):
+            queryset = queryset.filter(author__profile__university=user.managed_university)
         else:
-            # If user has no university, only show public items
-            queryset = queryset.filter(visibility='public')
+            # Get user's university if available
+            user_university = None
+            if hasattr(user, 'profile') and user.profile:
+                user_university = user.profile.university
+            
+            # Filter by visibility
+            # Show public items OR private items from user's university
+            if user_university:
+                queryset = queryset.filter(
+                    Q(visibility='public') | 
+                    Q(visibility='private', author__profile__university=user_university)
+                )
+            else:
+                # If user has no university, only show public items
+                queryset = queryset.filter(visibility='public')
         
         # Filter by type if provided
         feed_type = self.request.query_params.get('type')
@@ -58,7 +62,7 @@ class FeedItemViewSet(viewsets.ModelViewSet):
         if university:
             queryset = queryset.filter(
                 Q(visibility='public') | 
-                Q(visibility='private', university__icontains=university)
+                Q(visibility='private', author__profile__university__name__icontains=university)
             )
         
         return queryset.order_by('-created_at')

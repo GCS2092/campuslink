@@ -54,6 +54,18 @@ class IsVerifiedOrReadOnly(permissions.BasePermission):
         return request.user and request.user.is_authenticated and request.user.is_verified
 
 
+class IsAdmin(permissions.BasePermission):
+    """
+    Permission to allow only global admins.
+    """
+    message = 'Vous devez être administrateur global pour effectuer cette action.'
+    
+    def has_permission(self, request, view):
+        if not request.user or not request.user.is_authenticated:
+            return False
+        return request.user.is_staff or request.user.role == 'admin'
+
+
 class IsAdminOrClassLeader(permissions.BasePermission):
     """
     Permission to allow admin or class leader.
@@ -66,4 +78,75 @@ class IsAdminOrClassLeader(permissions.BasePermission):
         return (request.user.is_staff or 
                 request.user.role == 'admin' or 
                 request.user.role == 'class_leader')
+
+
+class IsUniversityAdmin(permissions.BasePermission):
+    """
+    Permission to allow only university administrators.
+    """
+    message = 'Vous devez être un administrateur d\'université pour effectuer cette action.'
+
+    def has_permission(self, request, view):
+        if not request.user or not request.user.is_authenticated:
+            return False
+        return request.user.role == 'university_admin' and request.user.managed_university is not None
+
+
+class IsUniversityAdminOrReadOnly(permissions.BasePermission):
+    """
+    Permission to allow read-only for all, but write only for university administrators.
+    """
+    message = 'Vous devez être un administrateur d\'université pour effectuer cette action.'
+
+    def has_permission(self, request, view):
+        if request.method in permissions.SAFE_METHODS:
+            return True
+        return request.user and request.user.is_authenticated and request.user.role == 'university_admin' and request.user.managed_university is not None
+
+
+class IsUniversityAdminOrClassLeader(permissions.BasePermission):
+    """
+    Permission to allow university admin or class leader (for their university only).
+    """
+    message = 'Vous devez être administrateur d\'université ou responsable de classe pour effectuer cette action.'
+
+    def has_permission(self, request, view):
+        if not request.user or not request.user.is_authenticated:
+            return False
+        
+        # Global admin always allowed
+        if request.user.is_staff or request.user.role == 'admin':
+            return True
+        
+        # University admin
+        if request.user.role == 'university_admin' and request.user.managed_university:
+            return True
+        
+        # Class leader (must have university in profile)
+        if request.user.role == 'class_leader':
+            if hasattr(request.user, 'profile') and request.user.profile and request.user.profile.university:
+                return True
+        
+        return False
+
+
+class IsUniversityAdminOrGlobalAdmin(permissions.BasePermission):
+    """
+    Permission to allow university admin (for their university) or global admin (for all).
+    """
+    message = 'Vous devez être administrateur global ou administrateur d\'université pour effectuer cette action.'
+
+    def has_permission(self, request, view):
+        if not request.user or not request.user.is_authenticated:
+            return False
+        
+        # Global admin always allowed
+        if request.user.is_staff or request.user.role == 'admin':
+            return True
+        
+        # University admin
+        if request.user.role == 'university_admin' and request.user.managed_university:
+            return True
+        
+        return False
 

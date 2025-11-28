@@ -77,6 +77,7 @@ export default function AdminStudentsPage() {
     if (mounted && !loading && !user) {
       router.push('/login')
     } else if (mounted && user && user.role !== 'admin' && user.role !== 'class_leader') {
+      // Class leaders can access students page for their class
       router.push('/dashboard')
     }
   }, [mounted, user, loading, router])
@@ -103,7 +104,8 @@ export default function AdminStudentsPage() {
         params.search = searchTerm
       }
 
-      if (selectedUniversity) {
+      // Only admins can filter by university (class leaders see only their university)
+      if (selectedUniversity && user?.role === 'admin') {
         params.university = selectedUniversity
       }
 
@@ -192,11 +194,15 @@ export default function AdminStudentsPage() {
 
   const handleLogout = () => {
     logout()
-    router.push('/login')
+    router.push('/')
   }
 
   const handleGoBack = () => {
-    router.push('/admin/dashboard')
+    if (user?.role === 'admin') {
+      router.push('/admin/dashboard')
+    } else {
+      router.push('/dashboard')
+    }
   }
 
   if (!mounted || loading) {
@@ -260,7 +266,8 @@ export default function AdminStudentsPage() {
             setCurrentPage(1)
           }}
           filters={[
-            {
+            // Only show university filter for admins, not for class leaders
+            ...(user?.role === 'admin' ? [{
               label: 'Université',
               name: 'university',
               options: UNIVERSITIES.map((u) => ({ value: u, label: u })),
@@ -269,7 +276,7 @@ export default function AdminStudentsPage() {
                 setSelectedUniversity(value)
                 setCurrentPage(1)
               },
-            },
+            }] : []),
             {
               label: 'Statut de vérification',
               name: 'verification_status',
@@ -357,7 +364,9 @@ export default function AdminStudentsPage() {
 
                       {student.profile?.university && (
                         <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400 ml-14 sm:ml-16">
-                          {student.profile.university}
+                          {typeof student.profile.university === 'string' 
+                            ? student.profile.university 
+                            : student.profile.university?.name || student.profile.university?.short_name || 'Université'}
                           {student.profile.field_of_study && ` - ${student.profile.field_of_study}`}
                         </p>
                       )}
@@ -389,6 +398,16 @@ export default function AdminStudentsPage() {
                     </Link>
 
                     <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto" onClick={(e) => e.stopPropagation()}>
+                      {/* View Profile Button - Available for all (admin and class leader) */}
+                      <Link
+                        href={`/users/${student.id}`}
+                        className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition text-sm sm:text-base w-full sm:w-auto justify-center"
+                      >
+                        <FiUser className="w-4 h-4" />
+                        Voir profil
+                      </Link>
+                      
+                      {/* Admin/Class Leader Actions */}
                       {student.is_active ? (
                         <>
                           <button
@@ -398,13 +417,16 @@ export default function AdminStudentsPage() {
                             <FiX className="w-4 h-4" />
                             Désactiver
                           </button>
-                          <button
-                            onClick={() => handleAssignClassLeader(student.id)}
-                            className="flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition text-sm sm:text-base w-full sm:w-auto justify-center"
-                          >
-                            <FiUserCheck className="w-4 h-4" />
-                            Assigner Responsable
-                          </button>
+                          {/* Only admins can promote to class leader */}
+                          {user?.role === 'admin' && (
+                            <button
+                              onClick={() => handleAssignClassLeader(student.id)}
+                              className="flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition text-sm sm:text-base w-full sm:w-auto justify-center"
+                            >
+                              <FiUserCheck className="w-4 h-4" />
+                              Assigner Responsable
+                            </button>
+                          )}
                         </>
                       ) : (
                         <button

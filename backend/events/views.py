@@ -89,10 +89,20 @@ class EventViewSet(viewsets.ModelViewSet):
             # Filters
             university = self.request.query_params.get('university')
             if university:
-                # Use a safe filter that handles missing profiles
+                # Use direct university field if available, otherwise fallback to organizer's university
                 queryset = queryset.filter(
-                    organizer__profile__isnull=False,
-                    organizer__profile__university=university
+                    Q(university_id=university) |
+                    Q(university__isnull=True, organizer__profile__university_id=university)
+                )
+            
+            # Auto-filter for university admins
+            if (hasattr(self.request, 'user') and 
+                self.request.user.is_authenticated and
+                self.request.user.role == 'university_admin' and
+                self.request.user.managed_university):
+                queryset = queryset.filter(
+                    Q(university=self.request.user.managed_university) |
+                    Q(university__isnull=True, organizer__profile__university=self.request.user.managed_university)
                 )
             
             status_filter = self.request.query_params.get('status')
@@ -148,7 +158,12 @@ class EventViewSet(viewsets.ModelViewSet):
             from rest_framework.exceptions import PermissionDenied
             raise PermissionDenied('Les administrateurs ne peuvent pas créer d\'événements directement. Les étudiants et responsables de classe gèrent les événements.')
         
-        event = serializer.save(organizer=self.request.user)
+        # Auto-assign university from organizer's profile
+        user_university = None
+        if hasattr(self.request.user, 'profile') and self.request.user.profile:
+            user_university = self.request.user.profile.university
+        
+        event = serializer.save(organizer=self.request.user, university=user_university)
         invalidate_feed_cache()
         
         # Create notification for organizer's friends/followers about new event
@@ -191,29 +206,82 @@ class EventViewSet(viewsets.ModelViewSet):
     
     def retrieve(self, request, *args, **kwargs):
         """Retrieve event and increment views."""
-        instance = self.get_object()
-        
-        # Check cache for popular events
-        from core.cache import get_cached_event_popular, cache_event_popular
-        
-        if instance.is_featured or instance.participants_count > 50:
-            cached = get_cached_event_popular(str(instance.id))
-            if cached:
-                # Return cached data but still increment views
-                instance.views_count += 1
-                instance.save(update_fields=['views_count'])
-                return Response(cached)
-        
-        instance.views_count += 1
-        instance.save(update_fields=['views_count'])
-        serializer = self.get_serializer(instance)
-        data = serializer.data
-        
-        # Cache if popular
-        if instance.is_featured or instance.participants_count > 50:
-            cache_event_popular(str(instance.id), data)
-        
-        return Response(data)
+        try:
+            instance = self.get_object()
+            
+            # Check cache for popular events
+            from core.cache import get_cached_event_popular, cache_event_popular
+            
+            if instance.is_featured or instance.participants_count > 50:
+                cached = get_cached_event_popular(str(instance.id))
+                if cached:
+                    # Return cached data but still increment views
+                    instance.views_count += 1
+                    instance.save(update_fields=['views_count'])
+                    return Response(cached)
+            
+            instance.views_count += 1
+            instance.save(update_fields=['views_count'])
+            
+            try:
+                serializer = self.get_serializer(instance)
+                data = serializer.data
+            except Exception as e:
+                # If serialization fails, try with minimal data
+                import logging
+                logger = logging.getLogger(__name__)
+                logger.error(f"Error serializing event {instance.id}: {str(e)}", exc_info=True)
+                # Return basic event data without nested serializers
+                data = {
+                    'id': str(instance.id),
+                    'title': instance.title,
+                    'description': instance.description,
+                    'start_date': instance.start_date.isoformat() if instance.start_date else None,
+                    'end_date': instance.end_date.isoformat() if instance.end_date else None,
+                    'location': instance.location,
+                    'status': instance.status,
+                    'capacity': instance.capacity,
+                    'price': float(instance.price) if instance.price else 0,
+                    'is_free': instance.is_free,
+                    'views_count': instance.views_count,
+                    'participants_count': instance.participants_count,
+                    'likes_count': instance.likes_count,
+                    'organizer': {
+                        'id': str(instance.organizer.id),
+                        'username': instance.organizer.username,
+                        'email': instance.organizer.email,
+                    } if instance.organizer else None,
+                    'university': None,  # Will be set by get_university if available
+                    'category': None,
+                    'is_participating': False,
+                    'is_liked': False,
+                }
+                # Try to get university safely
+                if instance.university:
+                    try:
+                        from users.serializers import UniversityBasicSerializer
+                        data['university'] = UniversityBasicSerializer(instance.university).data
+                    except:
+                        pass
+            
+            # Cache if popular
+            if instance.is_featured or instance.participants_count > 50:
+                try:
+                    cache_event_popular(str(instance.id), data)
+                except:
+                    pass  # Don't fail if caching fails
+            
+            return Response(data)
+        except Exception as e:
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.error(f"Error retrieving event {kwargs.get('pk')}: {str(e)}", exc_info=True)
+            from rest_framework.response import Response
+            from rest_framework import status
+            return Response(
+                {'error': 'Erreur lors de la récupération de l\'événement. Veuillez réessayer plus tard.'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
     
     @action(detail=True, methods=['post'], permission_classes=[IsAuthenticated])
     def participate(self, request, pk=None):
@@ -221,31 +289,81 @@ class EventViewSet(viewsets.ModelViewSet):
         event = self.get_object()
         user = request.user
         
-        participation, created = Participation.objects.get_or_create(
-            user=user,
-            event=event
+        # Validations
+        # 1. Check if event is published
+        if event.status != 'published':
+            return Response(
+                {'error': 'Vous ne pouvez participer qu\'aux événements publiés.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # 2. Check if event is not cancelled or completed
+        if event.status in ['cancelled', 'completed']:
+            return Response(
+                {'error': f'Cet événement est {event.status}.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # 3. Check if event has not passed
+        from django.utils import timezone
+        if event.start_date and event.start_date < timezone.now():
+            return Response(
+                {'error': 'Cet événement a déjà commencé ou est terminé.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # 4. Check if user is not the organizer
+        if event.organizer == user:
+            return Response(
+                {'error': 'Vous êtes l\'organisateur de cet événement.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # 5. Check if user is verified (optional, but recommended)
+        if not user.is_verified:
+            return Response(
+                {'error': 'Vous devez être vérifié pour participer à un événement.'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+        
+        # 6. Check capacity
+        if event.capacity and event.participants_count >= event.capacity:
+            return Response(
+                {'error': 'Cet événement est complet.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Check if already participating
+        if Participation.objects.filter(user=user, event=event).exists():
+            return Response(
+                {'message': 'Vous participez déjà à cet événement.'},
+                status=status.HTTP_200_OK
+            )
+        
+        # Create participation
+        participation = Participation.objects.create(user=user, event=event)
+        
+        # Update participants count
+        event.participants_count += 1
+        event.save(update_fields=['participants_count'])
+        invalidate_feed_cache()
+        
+        # Create notification for event organizer
+        from notifications.utils import create_notification
+        create_notification(
+            recipient=event.organizer,
+            notification_type='participation',
+            title=f'Nouvelle participation à {event.title}',
+            message=f'{user.username} participe à votre événement "{event.title}"',
+            related_object_type='event',
+            related_object_id=event.id,
+            use_async=True
         )
         
-        if created:
-            event.participants_count += 1
-            event.save(update_fields=['participants_count'])
-            invalidate_feed_cache()
-            
-            # Create notification for event organizer
-            from notifications.utils import create_notification
-            create_notification(
-                recipient=event.organizer,
-                notification_type='participation',
-                title=f'Nouvelle participation à {event.title}',
-                message=f'{user.username} participe à votre événement "{event.title}"',
-                related_object_type='event',
-                related_object_id=event.id,
-                use_async=True
-            )
-            
-            return Response({'message': 'Participation enregistrée.'}, status=status.HTTP_201_CREATED)
-        
-        return Response({'message': 'Déjà participant.'}, status=status.HTTP_200_OK)
+        return Response({
+            'message': 'Participation enregistrée.',
+            'participation': ParticipationSerializer(participation).data
+        }, status=status.HTTP_201_CREATED)
     
     @action(detail=True, methods=['delete'], permission_classes=[IsAuthenticated])
     def leave(self, request, pk=None):

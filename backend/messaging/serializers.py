@@ -70,30 +70,70 @@ class ConversationSerializer(serializers.ModelSerializer):
     
     def get_group(self, obj):
         """Get group information if this is a group conversation."""
-        if obj.group:
-            return {
-                'id': str(obj.group.id),
-                'name': obj.group.name,
-                'slug': obj.group.slug,
-                'profile_image': obj.group.profile_image
-            }
-        return None
+        try:
+            if obj.group:
+                return {
+                    'id': str(obj.group.id),
+                    'name': obj.group.name,
+                    'slug': getattr(obj.group, 'slug', None),
+                    'profile_image': getattr(obj.group, 'profile_image', None)
+                }
+            return None
+        except Exception as e:
+            # Log error but don't break the serializer
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.error(f"Error getting group for conversation {obj.id}: {str(e)}")
+            return None
     
     def get_last_message(self, obj):
         """Get last message in conversation."""
-        last_message = obj.messages.filter(deleted_at__isnull=True).last()
-        if last_message:
-            return MessageSerializer(last_message).data
-        return None
+        try:
+            # Use the prefetched messages if available, otherwise query
+            if hasattr(obj, '_prefetched_objects_cache') and 'messages' in obj._prefetched_objects_cache:
+                messages = obj._prefetched_objects_cache['messages']
+                last_message = [m for m in messages if m.deleted_at is None]
+                if last_message:
+                    last_message = max(last_message, key=lambda m: m.created_at)
+                else:
+                    last_message = None
+            else:
+                last_message = obj.messages.filter(deleted_at__isnull=True).order_by('-created_at').first()
+            
+            if last_message:
+                return MessageSerializer(last_message, context=self.context).data
+            return None
+        except Exception as e:
+            # Log error but don't break the serializer
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.error(f"Error getting last message for conversation {obj.id}: {str(e)}")
+            return None
     
     def get_unread_count(self, obj):
         """Get unread count for current user."""
         request = self.context.get('request')
         if request and request.user.is_authenticated:
             try:
-                participant = obj.participants.get(user=request.user, is_active=True)
-                return participant.unread_count
-            except Participant.DoesNotExist:
+                # Use prefetched participants if available
+                if hasattr(obj, '_prefetched_objects_cache') and 'participants' in obj._prefetched_objects_cache:
+                    participants = obj._prefetched_objects_cache['participants']
+                    participant = next(
+                        (p for p in participants if p.user.id == request.user.id and p.is_active),
+                        None
+                    )
+                    if participant:
+                        return participant.unread_count
+                else:
+                    participant = obj.participants.get(user=request.user, is_active=True)
+                    return participant.unread_count
+            except (Participant.DoesNotExist, StopIteration, AttributeError):
+                return 0
+            except Exception as e:
+                # Log error but don't break the serializer
+                import logging
+                logger = logging.getLogger(__name__)
+                logger.error(f"Error getting unread count for conversation {obj.id}: {str(e)}")
                 return 0
         return 0
 

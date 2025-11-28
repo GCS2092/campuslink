@@ -6,19 +6,22 @@ from rest_framework.routers import DefaultRouter
 from rest_framework_simplejwt.views import TokenRefreshView
 from .views import (
     register, verify_phone, resend_otp, verify_email, verification_status, profile,
-    CustomTokenObtainPairView, UserViewSet, friends_list, send_friend_request,
+    CustomTokenObtainPairView, UserViewSet, UniversityViewSet, CampusViewSet, friends_list, send_friend_request,
     accept_friend_request, reject_friend_request, remove_friend, friend_requests,
     friendship_status, pending_students, activate_student, deactivate_student,
-    admin_dashboard_stats, class_leaders_list, assign_class_leader, revoke_class_leader,
+    admin_dashboard_stats, class_leader_dashboard_stats, university_admin_dashboard_stats, class_leaders_list, assign_class_leader, revoke_class_leader,
     class_leaders_by_university
 )
 from .admin_views import (
     verify_user, reject_user, ban_user, unban_user,
-    get_pending_verifications, get_banned_users
+    get_pending_verifications, get_banned_users, create_student
 )
 
 router = DefaultRouter()
 router.register(r'', UserViewSet, basename='user')
+router.register(r'universities', UniversityViewSet, basename='university')
+router.register(r'campuses', CampusViewSet, basename='campus')
+# DepartmentViewSet removed as per user request
 
 urlpatterns = [
     # Authentication
@@ -49,6 +52,15 @@ urlpatterns = [
     path('admin/students/<uuid:user_id>/activate/', activate_student, name='activate_student'),
     path('admin/students/<uuid:user_id>/deactivate/', deactivate_student, name='deactivate_student'),
     path('admin/dashboard-stats/', admin_dashboard_stats, name='admin_dashboard_stats'),
+    
+    # Class Leader dashboard (separate from admin)
+    path('class-leader/dashboard-stats/', class_leader_dashboard_stats, name='class_leader_dashboard_stats'),
+    
+    # University Admin dashboard
+    path('university-admin/dashboard-stats/', university_admin_dashboard_stats, name='university_admin_dashboard_stats'),
+    
+    # University Admin - Create student
+    path('university-admin/students/create/', create_student, name='university_admin_create_student'),
     
     # Class Leaders management (admin only)
     path('admin/class-leaders/', class_leaders_list, name='class_leaders_list'),

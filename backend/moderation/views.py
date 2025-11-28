@@ -37,6 +37,12 @@ class AuditLogViewSet(viewsets.ReadOnlyModelViewSet):
     """ViewSet for audit logs (admin only)."""
     queryset = AuditLog.objects.all()
     serializer_class = AuditLogSerializer
-    permission_classes = [IsAuthenticated, IsAdminOrClassLeader]
+    permission_classes = [IsAuthenticated]
     ordering = ['-created_at']
+    
+    def get_queryset(self):
+        """Only admins can access audit logs."""
+        if not (self.request.user.is_staff or self.request.user.role == 'admin'):
+            return AuditLog.objects.none()
+        return super().get_queryset()
 

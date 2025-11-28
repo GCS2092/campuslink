@@ -250,7 +250,9 @@ export default function ManageFeedPage() {
                           ) : (
                             <>
                               <FiLock className="w-3 h-3 inline mr-1" />
-                              Privée ({item.university})
+                              Privée ({typeof item.university === 'string' 
+                                ? item.university 
+                                : item.university?.name || item.university?.short_name || 'Université'})
                             </>
                           )}
                         </span>

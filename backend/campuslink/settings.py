@@ -29,7 +29,25 @@ DEBUG = env('DEBUG', default=True)
 
 # Allow all hosts in development for mobile testing
 if DEBUG:
-    ALLOWED_HOSTS = ['*']  # Allow all hosts in development
+    # Get local IP for network access automatically
+    def get_local_ip():
+        """Get the local IP address."""
+        try:
+            import socket
+            s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+            s.connect(("8.8.8.8", 80))
+            ip = s.getsockname()[0]
+            s.close()
+            return ip
+        except Exception:
+            return None
+    
+    local_ip = get_local_ip()
+    ALLOWED_HOSTS = ['*', 'localhost', '127.0.0.1']
+    if local_ip:
+        ALLOWED_HOSTS.append(local_ip)
+    # Also add common network IPs
+    ALLOWED_HOSTS.extend(['192.168.1.118', ' 192.168.1.118', '192.168.1.1', '192.168.0.1'])
 else:
     ALLOWED_HOSTS = env.list('ALLOWED_HOSTS', default=['localhost', '127.0.0.1'])
 
@@ -66,8 +84,8 @@ INSTALLED_APPS = [
 ]
 
 MIDDLEWARE = [
+    'corsheaders.middleware.CorsMiddleware',  # Must be at the top, before SecurityMiddleware
     'django.middleware.security.SecurityMiddleware',
-    'corsheaders.middleware.CorsMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -99,16 +117,26 @@ WSGI_APPLICATION = 'campuslink.wsgi.application'
 ASGI_APPLICATION = 'campuslink.asgi.application'
 
 # Database
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.postgresql',
-        'NAME': env('DB_DATABASE', default='campuslink'),
-        'USER': env('DB_USERNAME', default='postgres'),
-        'PASSWORD': env('DB_PASSWORD', default='password123'),
-        'HOST': env('DB_HOST', default='localhost'),
-        'PORT': env('DB_PORT', default='5432'),
+# Use DATABASE_URL if available (for Railway, Render, etc.)
+if 'DATABASE_URL' in os.environ:
+    import dj_database_url
+    DATABASES = {
+        'default': dj_database_url.config(
+            conn_max_age=600,
+            conn_health_checks=True,
+        )
     }
-}
+else:
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.postgresql',
+            'NAME': env('DB_DATABASE', default='campuslink'),
+            'USER': env('DB_USERNAME', default='postgres'),
+            'PASSWORD': env('DB_PASSWORD', default='password123'),
+            'HOST': env('DB_HOST', default='localhost'),
+            'PORT': env('DB_PORT', default='5432'),
+        }
+    }
 
 # Password validation
 AUTH_PASSWORD_VALIDATORS = [
@@ -134,6 +162,29 @@ AUTH_PASSWORD_VALIDATORS = [
 
 # Internationalization
 LANGUAGE_CODE = 'fr-fr'
+
+# Encoding settings
+DEFAULT_CHARSET = 'utf-8'
+FILE_CHARSET = 'utf-8'
+
+# External Student Database Verification Settings
+# Configuration pour la vérification des étudiants avec une base de données externe
+EXTERNAL_STUDENT_VERIFICATION_ENABLED = env.bool('EXTERNAL_STUDENT_VERIFICATION_ENABLED', default=False)
+EXTERNAL_STUDENT_VERIFIER_CLASS = env.str(
+    'EXTERNAL_STUDENT_VERIFIER_CLASS',
+    default='users.external_student_verification.MockExternalStudentVerifier'
+)
+
+# Configuration de la base de données externe (à configurer selon votre système)
+EXTERNAL_STUDENT_DB_CONFIG = {
+    'host': env.str('EXTERNAL_STUDENT_DB_HOST', default=''),
+    'port': env.int('EXTERNAL_STUDENT_DB_PORT', default=5432),
+    'database': env.str('EXTERNAL_STUDENT_DB_NAME', default=''),
+    'user': env.str('EXTERNAL_STUDENT_DB_USER', default=''),
+    'password': env.str('EXTERNAL_STUDENT_DB_PASSWORD', default=''),
+    'connection_timeout': env.int('EXTERNAL_STUDENT_DB_TIMEOUT', default=10),
+    # Ajouter d'autres paramètres selon le type de base de données (PostgreSQL, MySQL, etc.)
+}
 TIME_ZONE = 'Africa/Dakar'
 USE_I18N = True
 USE_TZ = True
@@ -141,6 +192,11 @@ USE_TZ = True
 # Static files (CSS, JavaScript, Images)
 STATIC_URL = '/static/'
 STATIC_ROOT = BASE_DIR / 'staticfiles'
+
+# WhiteNoise for static files in production
+if not DEBUG:
+    STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
+    MIDDLEWARE.insert(1, 'whitenoise.middleware.WhiteNoiseMiddleware')
 
 # Media files - Cloudinary for production
 import cloudinary
@@ -171,7 +227,8 @@ AUTH_USER_MODEL = 'users.User'
 # REST Framework Configuration
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': (
-        'rest_framework_simplejwt.authentication.JWTAuthentication',
+        'users.authentication.CustomJWTAuthentication',
+        'rest_framework_simplejwt.authentication.JWTAuthentication',  # Fallback
     ),
     'DEFAULT_PERMISSION_CLASSES': (
         'rest_framework.permissions.IsAuthenticated',
@@ -209,7 +266,47 @@ SIMPLE_JWT = {
 
 # CORS Settings - Permissive for mobile development
 if DEBUG:
+    # Auto-detect local IP for CORS
+    def get_local_ip():
+        """Get the local IP address."""
+        try:
+            import socket
+            s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+            s.connect(("8.8.8.8", 80))
+            ip = s.getsockname()[0]
+            s.close()
+            return ip
+        except Exception:
+            return None
+    
+    local_ip = get_local_ip()
+    default_origins = [
+        'http://localhost:3000',
+        'http://127.0.0.1:3000',
+        'http://localhost:3001',
+        'http://127.0.0.1:3001',
+    ]
+    
+    if local_ip:
+        default_origins.extend([
+            f'http://{local_ip}:3000',
+            f'http://{local_ip}:3001',
+        ])
+    
+    # Add common network IPs and ports
+    default_origins.extend([
+        'http://192.168.1.118:3000',
+        'http://192.168.1.118:3001',
+        'http:// 192.168.1.118:3000',
+        'http:// 192.168.1.118:3001',
+        'http://192.168.1.1:3000',
+        'http://192.168.0.1:3000',
+        'http://10.0.2.2:3000',  # Android emulator
+        'http://10.0.2.2:8000',  # Android emulator backend
+    ])
+    
     # In development, allow all origins for mobile testing
+    # But also set specific origins for better compatibility
     CORS_ALLOW_ALL_ORIGINS = True
     CORS_ALLOW_CREDENTIALS = True
     CORS_ALLOW_HEADERS = [
@@ -222,6 +319,7 @@ if DEBUG:
         'user-agent',
         'x-csrftoken',
         'x-requested-with',
+        'cache-control',
     ]
     CORS_ALLOW_METHODS = [
         'DELETE',
@@ -234,34 +332,33 @@ if DEBUG:
     CORS_EXPOSE_HEADERS = [
         'content-type',
         'x-total-count',
+        'authorization',
     ]
     
-    # Auto-detect local IP for CORS
-    try:
-        import json
-        config_path = BASE_DIR / 'config.json'
-        if config_path.exists():
-            with open(config_path, 'r') as f:
-                config = json.load(f)
-                local_ip = config.get('local_ip', '127.0.0.1')
-                # Add detected IP to allowed origins
-                CORS_ALLOWED_ORIGINS = env.list(
-                    'CORS_ALLOWED_ORIGINS',
-                    default=[
-                        'http://localhost:3000',
-                        'http://127.0.0.1:3000',
-                        f'http://{local_ip}:3000'
-                    ]
-                )
-    except Exception:
-        pass
-else:
-    # In production, use specific origins
+    # Also set allowed origins for reference (even though ALLOW_ALL_ORIGINS takes precedence)
     CORS_ALLOWED_ORIGINS = env.list(
         'CORS_ALLOWED_ORIGINS',
-        default=['http://localhost:3000', 'http://127.0.0.1:3000']
+        default=default_origins
+    )
+    
+    # CSRF trusted origins for Django forms (if needed)
+    CSRF_TRUSTED_ORIGINS = default_origins.copy()
+    
+    # Additional CORS settings for better compatibility
+    CORS_PREFLIGHT_MAX_AGE = 86400  # 24 hours
+else:
+    # In production, use specific origins
+    CORS_ALLOW_ALL_ORIGINS = False
+    CORS_ALLOWED_ORIGINS = env.list(
+        'CORS_ALLOWED_ORIGINS',
+        default=[
+            'http://localhost:3000', 
+            'http://127.0.0.1:3000',
+            'http://192.168.1.118:3000'
+        ]
     )
     CORS_ALLOW_CREDENTIALS = True
+    CSRF_TRUSTED_ORIGINS = CORS_ALLOWED_ORIGINS
 
 # Redis Configuration
 REDIS_URL = env('REDIS_URL', default='redis://localhost:6379/0')
@@ -378,6 +475,21 @@ CSRF_COOKIE_SECURE = False if DEBUG else True
 SESSION_COOKIE_HTTPONLY = True
 CSRF_COOKIE_HTTPONLY = True
 # CSRF is handled by JWT for API, so we don't need CSRF_TRUSTED_ORIGINS
+
+# Production Settings (Railway, Render, etc.)
+if not DEBUG:
+    # Use Cloudinary for media files in production
+    DEFAULT_FILE_STORAGE = 'cloudinary_storage.storage.MediaCloudinaryStorage'
+    
+    # Ensure ALLOWED_HOSTS is set
+    if not ALLOWED_HOSTS or ALLOWED_HOSTS == ['*']:
+        # Get from environment or use default
+        allowed_hosts_str = env('ALLOWED_HOSTS', default='')
+        if allowed_hosts_str:
+            ALLOWED_HOSTS = [host.strip() for host in allowed_hosts_str.split(',')]
+        else:
+            # Default to common production patterns
+            ALLOWED_HOSTS = ['localhost', '127.0.0.1']
 
 # Logging Configuration
 from .logging_config import LOGGING

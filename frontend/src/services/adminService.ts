@@ -46,6 +46,16 @@ export const adminService = {
     return response.data
   },
 
+  getClassLeaderDashboardStats: async (): Promise<DashboardStats> => {
+    const response = await api.get('/users/class-leader/dashboard-stats/')
+    return response.data
+  },
+
+  getUniversityAdminDashboardStats: async (): Promise<DashboardStats> => {
+    const response = await api.get('/users/university-admin/dashboard-stats/')
+    return response.data
+  },
+
   getClassLeaders: async (params?: {
     university?: string
     search?: string
@@ -101,6 +111,22 @@ export const adminService = {
 
   getBannedUsers: async () => {
     const response = await api.get('/users/admin/users/banned/')
+    return response.data
+  },
+
+  // University Admin - Create student
+  createStudent: async (data: {
+    email: string
+    username: string
+    password: string
+    password_confirm: string
+    phone_number: string
+    first_name?: string
+    last_name?: string
+    academic_year_id?: string
+    academic_year?: string
+  }) => {
+    const response = await api.post('/users/university-admin/students/create/', data)
     return response.data
   },
 }

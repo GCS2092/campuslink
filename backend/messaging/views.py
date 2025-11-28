@@ -19,17 +19,28 @@ class ConversationViewSet(viewsets.ModelViewSet):
     
     def get_queryset(self):
         """Return conversations where user is a participant."""
-        queryset = Conversation.objects.filter(
-            participants__user=self.request.user,
-            participants__is_active=True
-        ).distinct().select_related('created_by', 'group').prefetch_related('participants__user', 'messages')
-        
-        # Filter by conversation type if requested
-        conversation_type = self.request.query_params.get('type')
-        if conversation_type in ['private', 'group']:
-            queryset = queryset.filter(conversation_type=conversation_type)
-        
-        return queryset
+        try:
+            queryset = Conversation.objects.filter(
+                participants__user=self.request.user,
+                participants__is_active=True
+            ).distinct().select_related('created_by', 'group').prefetch_related(
+                'participants',
+                'participants__user',
+                'messages'
+            )
+            
+            # Filter by conversation type if requested
+            conversation_type = self.request.query_params.get('type')
+            if conversation_type in ['private', 'group']:
+                queryset = queryset.filter(conversation_type=conversation_type)
+            
+            return queryset
+        except Exception as e:
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.error(f"Error in get_queryset for conversations: {str(e)}")
+            # Return empty queryset on error
+            return Conversation.objects.none()
     
     def perform_create(self, serializer):
         """Create conversation and add creator as participant."""

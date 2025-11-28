@@ -37,10 +37,18 @@ export default function AdminBottomNavigation() {
   if (user?.role !== 'admin' && user?.role !== 'class_leader') {
     return null
   }
+  
+  // Class leaders should not see admin-only pages
+  const isAdmin = user?.role === 'admin'
 
   // Filter nav items based on user role
   const filteredNavItems = navItems.filter(item => {
-    if (item.adminOnly && user?.role !== 'admin') {
+    // Hide admin-only items for class leaders
+    if (item.adminOnly && !isAdmin) {
+      return false
+    }
+    // Hide admin dashboard and admin pages for class leaders
+    if (!isAdmin && (item.path === '/admin/dashboard' || item.path === '/admin/users' || item.path === '/admin/moderation' || item.path === '/admin/class-leaders')) {
       return false
     }
     return true

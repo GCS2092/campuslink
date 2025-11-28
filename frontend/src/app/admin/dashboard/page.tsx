@@ -38,8 +38,13 @@ export default function AdminDashboardPage() {
   useEffect(() => {
     if (mounted && !loading && !user) {
       router.push('/login')
-    } else if (mounted && user && user.role !== 'admin' && user.role !== 'class_leader') {
-      router.push('/dashboard')
+    } else if (mounted && user && user.role !== 'admin') {
+      // Class leaders should not access admin dashboard
+      if (user.role === 'class_leader') {
+        router.push('/dashboard')
+      } else {
+        router.push('/dashboard')
+      }
     }
   }, [mounted, user, loading, router])
 
@@ -74,16 +79,15 @@ export default function AdminDashboardPage() {
     )
   }
 
-  if (!user || (user.role !== 'admin' && user.role !== 'class_leader')) {
+  if (!user || user.role !== 'admin') {
     return null
   }
 
   const isAdmin = user.role === 'admin'
-  const isClassLeader = user.role === 'class_leader'
 
   const handleLogout = () => {
     logout()
-    router.push('/login')
+    router.push('/')
   }
 
   const handleGoBack = () => {
