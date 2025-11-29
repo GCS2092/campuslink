@@ -58,8 +58,13 @@ export default function ManageFeedPage() {
   const handleOpenModal = (item?: FeedItem) => {
     if (item) {
       setEditingItem(item)
+      // Convert 'feed' type to 'news' if needed, as formData doesn't accept 'feed'
+      const itemType = item.type === 'feed' ? 'news' : (item.type || 'news')
+      const validType = (['event', 'group', 'announcement', 'news'].includes(itemType) 
+        ? itemType 
+        : 'news') as 'event' | 'group' | 'announcement' | 'news'
       setFormData({
-        type: item.type || 'news',
+        type: validType,
         title: item.title || '',
         content: item.content || '',
         visibility: item.visibility || 'public',
