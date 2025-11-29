@@ -42,7 +42,7 @@ interface ClassLeader {
   date_joined: string
   last_login?: string
   profile?: {
-    university?: string
+    university?: string | { name?: string; short_name?: string }
     field_of_study?: string
   }
 }
@@ -308,9 +308,16 @@ export default function ClassLeadersPage() {
                       {leader.profile?.university && (
                         <p className="text-xs sm:text-sm text-gray-600 ml-14 sm:ml-16 mb-2">
                           <span className="font-medium">École:</span> {
-                            typeof leader.profile.university === 'string' 
-                              ? leader.profile.university 
-                              : leader.profile.university?.name || leader.profile.university?.short_name || 'Université'
+                            (() => {
+                              const university = leader.profile.university
+                              if (typeof university === 'string') {
+                                return university
+                              }
+                              if (university && typeof university === 'object') {
+                                return university.name || university.short_name || 'Université'
+                              }
+                              return 'Université'
+                            })()
                           }
                           {leader.profile.field_of_study && ` - ${leader.profile.field_of_study}`}
                         </p>
