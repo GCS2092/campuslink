@@ -112,7 +112,7 @@ export default function UniversityAdminUsersPage() {
       return
     }
     
-    let bannedUntil = null
+    let bannedUntil: string | undefined = undefined
     if (banType === 'temporary') {
       const dateStr = prompt('Date de fin (YYYY-MM-DD HH:MM):')
       if (dateStr) {
