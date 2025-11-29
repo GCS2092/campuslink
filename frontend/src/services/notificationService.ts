@@ -40,5 +40,17 @@ export const notificationService = {
     const response = await api.put('/notifications/read_all/')
     return response.data
   },
+
+  // Enregistrer le token FCM pour les notifications push
+  registerFCMToken: async (token: string) => {
+    const response = await api.post('/notifications/fcm-token/', { token })
+    return response.data
+  },
+
+  // Supprimer le token FCM
+  unregisterFCMToken: async () => {
+    const response = await api.delete('/notifications/fcm-token/')
+    return response.data
+  },
 }
 

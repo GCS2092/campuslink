@@ -2,9 +2,18 @@ import axios from 'axios'
 
 // Auto-detect API URL based on environment
 const getApiUrl = () => {
-  // Priority 1: Use environment variable if set (from auto-config.js or .env.local)
+  // Priority 1: Use environment variable if set (from .env.local or Vercel environment variables)
+  // This is the most reliable way for production deployments
   if (process.env.NEXT_PUBLIC_API_URL) {
-    return process.env.NEXT_PUBLIC_API_URL;
+    // Ensure the URL uses HTTPS in production (Vercel)
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL;
+    
+    // If we're on Vercel (HTTPS) and the API URL is HTTP, log a warning
+    if (typeof window !== 'undefined' && window.location.protocol === 'https:' && apiUrl.startsWith('http://')) {
+      console.warn('⚠️ Mixed content warning: API URL is HTTP but page is HTTPS. Please set NEXT_PUBLIC_API_URL to HTTPS in Vercel environment variables.');
+    }
+    
+    return apiUrl;
   }
   
   if (typeof window !== 'undefined') {
@@ -17,9 +26,16 @@ const getApiUrl = () => {
       return 'http://localhost:8000/api';
     }
     
-    // For network access (mobile, other devices), use the same hostname but port 8000
-    // This allows the frontend and backend to be on the same machine
-    // Use http:// even if frontend is https:// (for local development)
+    // If we're on HTTPS (production/Vercel), we MUST use HTTPS for the API
+    // Don't construct HTTP URLs in production as it causes mixed content errors
+    if (protocol === 'https:') {
+      console.error('❌ NEXT_PUBLIC_API_URL is not set! Please configure it in Vercel environment variables.');
+      // Return a placeholder that will fail gracefully
+      return 'https://api-url-not-configured.com/api';
+    }
+    
+    // For local network access (development on mobile/other devices), use HTTP
+    // This is safe because the frontend is also on HTTP in this case
     return `http://${hostname}:8000/api`;
   }
   
