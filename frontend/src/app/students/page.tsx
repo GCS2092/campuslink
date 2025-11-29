@@ -332,7 +332,7 @@ export default function StudentsPage() {
                           )}
                         </div>
                         <div className="flex-shrink-0">
-                          {renderFriendButton(suggestion, status)}
+                          {getFriendButton(suggestion)}
                         </div>
                       </div>
                     </div>
