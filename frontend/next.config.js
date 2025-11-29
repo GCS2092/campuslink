@@ -35,6 +35,10 @@ const nextConfig = {
     domains: ['res.cloudinary.com', 'localhost', '127.0.0.1'],
     remotePatterns: [
       {
+        protocol: 'https',
+        hostname: '**',
+      },
+      {
         protocol: 'http',
         hostname: '**',
       },
