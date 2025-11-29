@@ -33,7 +33,7 @@ export default function EventShareButton({ eventId, eventTitle, className = '' }
     if (isOpen && !shareLinks) {
       loadShareLinks()
     }
-  }, [isOpen, shareLinks, loadShareLinks]), [eventId])
+  }, [isOpen, shareLinks, loadShareLinks])
 
   useEffect(() => {
     if (isOpen && !shareLinks) {
