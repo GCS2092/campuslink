@@ -406,7 +406,7 @@ export default function EventsPage() {
                             ) : (
                               <button
                                 onClick={() => handleJoinEvent(event.id)}
-                                disabled={joiningEventId === event.id || (event.capacity && (event.participants_count || 0) >= event.capacity)}
+                                disabled={joiningEventId === event.id || !!(event.capacity && (event.participants_count || 0) >= event.capacity)}
                                 className="flex-1 flex items-center justify-center gap-2 bg-primary-600 text-white py-2 rounded-lg hover:bg-primary-700 transition text-sm disabled:opacity-50 disabled:cursor-not-allowed"
                               >
                                 {joiningEventId === event.id ? 'Traitement...' : (event.capacity && (event.participants_count || 0) >= event.capacity) ? 'Complet' : 'Rejoindre'}
