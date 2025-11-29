@@ -838,7 +838,7 @@ def pending_students(request):
     
     # Only allow university filter for admins (class leaders are already filtered by their university)
     if university and (request.user.is_staff or request.user.role == 'admin'):
-        queryset = queryset.filter(profile__university__icontains=university)
+        queryset = queryset.filter(profile__university__name__icontains=university)
     
     if search:
         queryset = queryset.filter(
@@ -1801,7 +1801,7 @@ def class_leaders_list(request):
     ordering = request.query_params.get('ordering', '-date_joined')  # Tri
     
     if university:
-        queryset = queryset.filter(profile__university__icontains=university)
+        queryset = queryset.filter(profile__university__name__icontains=university)
     
     if search:
         queryset = queryset.filter(
