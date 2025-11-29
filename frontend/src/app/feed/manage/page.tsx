@@ -59,10 +59,12 @@ export default function ManageFeedPage() {
     if (item) {
       setEditingItem(item)
       // Convert 'feed' type to 'news' if needed, as formData doesn't accept 'feed'
-      const itemType = item.type === 'feed' ? 'news' : (item.type || 'news')
-      const validType = (['event', 'group', 'announcement', 'news'].includes(itemType) 
-        ? itemType 
-        : 'news') as 'event' | 'group' | 'announcement' | 'news'
+      let validType: 'event' | 'group' | 'announcement' | 'news' = 'news'
+      if (item.type && item.type !== 'feed') {
+        if (item.type === 'event' || item.type === 'group' || item.type === 'announcement' || item.type === 'news') {
+          validType = item.type
+        }
+      }
       setFormData({
         type: validType,
         title: item.title || '',
