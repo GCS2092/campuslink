@@ -59,10 +59,10 @@ export default function ManageFeedPage() {
     if (item) {
       setEditingItem(item)
       setFormData({
-        type: item.type,
-        title: item.title,
-        content: item.content,
-        visibility: item.visibility,
+        type: item.type || 'news',
+        title: item.title || '',
+        content: item.content || '',
+        visibility: item.visibility || 'public',
         image: null,
       })
       setImagePreview(item.image || null)
