@@ -1,7 +1,8 @@
 import { initializeApp, getApps, FirebaseApp } from 'firebase/app'
 import { getAuth, Auth } from 'firebase/auth'
 import { getFirestore, Firestore } from 'firebase/firestore'
-import { getStorage, FirebaseStorage } from 'firebase/storage'
+// Firebase Storage is not used in the frontend, so we don't import it to avoid Node.js module issues
+// import { getStorage, FirebaseStorage } from 'firebase/storage'
 import { getMessaging, Messaging, getToken, onMessage } from 'firebase/messaging'
 
 // Configuration Firebase depuis les variables d'environnement
@@ -30,7 +31,9 @@ if (getApps().length === 0) {
 // Services Firebase
 export const auth: Auth = getAuth(app)
 export const db: Firestore = getFirestore(app)
-export const storage: FirebaseStorage = getStorage(app)
+// Firebase Storage is not used in the frontend, so we don't initialize it
+// If needed in the future, initialize it conditionally: typeof window !== 'undefined' ? getStorage(app) : null
+// export const storage: FirebaseStorage = getStorage(app)
 
 // Enregistrer le service worker pour les notifications push
 const registerServiceWorker = async () => {
