@@ -11,31 +11,9 @@ let firebaseFunctions: {
 } | null = null
 
 const getFirebaseFunctions = async () => {
-  // Firebase temporairement désactivé
+  // Firebase temporairement désactivé pour permettre le build
+  // TODO: Réactiver Firebase avec une meilleure configuration
   return null
-  
-  // Code désactivé - à réactiver quand Firebase sera configuré correctement
-  /*
-  if (firebaseFunctions) {
-    return firebaseFunctions
-  }
-  
-  if (typeof window === 'undefined') {
-    return null
-  }
-  
-  try {
-    const firebase = await import('@/lib/firebase')
-    firebaseFunctions = {
-      requestNotificationPermission: firebase.requestNotificationPermission,
-      onMessageListener: firebase.onMessageListener,
-    }
-    return firebaseFunctions
-  } catch (error) {
-    console.error('Error loading Firebase functions:', error)
-    return null
-  }
-  */
 }
 
 interface NotificationPayload {
