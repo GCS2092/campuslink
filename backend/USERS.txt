@@ -1,0 +1,102 @@
+========================================
+LISTE DES UTILISATEURS - CAMPUSLINK
+========================================
+
+Mot de passe pour TOUS les utilisateurs: Password@123
+
+========================================
+ADMINISTRATEUR
+========================================
+Username: admin
+Email: slovengama@gmail.com
+Rôle: admin (Superuser)
+Prénom: Admin
+Nom: CampusLink
+Accès: Administrateur complet du système
+
+========================================
+ÉTUDIANTS
+========================================
+1. Username: etudiant
+   Email: etudiant@esmt.sn
+   Rôle: student
+   Prénom: Étudiant
+   Nom: Principal
+
+2. Username: etudiant1
+   Email: etudiant1@esmt.sn
+   Rôle: student
+   Prénom: Étudiant
+   Nom: Test 1
+
+3. Username: etudiant2
+   Email: etudiant2@esmt.sn
+   Rôle: student
+   Prénom: Étudiant
+   Nom: Test 2
+
+4. Username: stem
+   Email: stem@esmt.sn
+   Rôle: student
+   Prénom: Stem
+   Nom: Student
+
+========================================
+PROFESSEUR
+========================================
+Username: professeur1
+Email: professeur1@esmt.sn
+Rôle: teacher
+Prénom: Professeur
+Nom: Test 1
+
+========================================
+CHEF DE CLASSE
+========================================
+Username: chef_classe1
+Email: chef.classe1@esmt.sn
+Rôle: class_leader
+Prénom: Chef
+Nom: Classe 1
+
+========================================
+ADMINISTRATEUR UNIVERSITÉ
+========================================
+Username: admin_univ1
+Email: admin.univ1@esmt.sn
+Rôle: university_admin
+Prénom: Admin
+Nom: Université 1
+
+========================================
+RÉSUMÉ
+========================================
+Total: 8 utilisateurs
+
+- 1 Administrateur (admin)
+- 4 Étudiants (etudiant, etudiant1, etudiant2, stem)
+- 1 Professeur (professeur1)
+- 1 Chef de classe (chef_classe1)
+- 1 Admin université (admin_univ1)
+
+========================================
+INFORMATIONS DE CONNEXION
+========================================
+URL de connexion: https://campuslink-9knz.onrender.com/api/auth/login/
+OU
+URL Frontend: https://votre-app.vercel.app/login
+
+Tous les utilisateurs peuvent se connecter avec:
+- Leur username OU leur email
+- Mot de passe: Password@123
+
+========================================
+NOTES IMPORTANTES
+========================================
+- Tous les utilisateurs sont actifs par défaut
+- L'administrateur (admin) a les droits complets
+- Les mots de passe doivent être changés en production
+- Ce fichier ne doit pas être commité en production (ajoutez-le au .gitignore)
+
+========================================
+
