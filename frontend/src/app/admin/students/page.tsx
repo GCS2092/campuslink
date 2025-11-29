@@ -49,7 +49,7 @@ interface Student {
   verification_status: string
   date_joined: string
   profile?: {
-    university?: string
+    university?: string | { name?: string; short_name?: string }
     field_of_study?: string
   }
 }
@@ -364,9 +364,16 @@ export default function AdminStudentsPage() {
 
                       {student.profile?.university && (
                         <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400 ml-14 sm:ml-16">
-                          {typeof student.profile.university === 'string' 
-                            ? student.profile.university 
-                            : student.profile.university?.name || student.profile.university?.short_name || 'Université'}
+                          {(() => {
+                            const university = student.profile.university
+                            if (typeof university === 'string') {
+                              return university
+                            }
+                            if (university && typeof university === 'object') {
+                              return university.name || university.short_name || 'Université'
+                            }
+                            return 'Université'
+                          })()}
                           {student.profile.field_of_study && ` - ${student.profile.field_of_study}`}
                         </p>
                       )}
