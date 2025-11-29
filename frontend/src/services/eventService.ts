@@ -59,6 +59,12 @@ export const eventService = {
     ordering?: string
     page?: number
     page_size?: number
+    is_free?: boolean
+    price_min?: number
+    price_max?: number
+    lat?: number
+    lng?: number
+    radius?: number
   }) => {
     const response = await api.get('/events/', { params })
     return response.data
@@ -91,6 +97,92 @@ export const eventService = {
 
   leaveEvent: async (eventId: string) => {
     const response = await api.delete(`/events/${eventId}/leave/`)
+    return response.data
+  },
+
+  getMyEvents: async (type?: 'all' | 'organized' | 'participating' | 'favorites') => {
+    const params = type && type !== 'all' ? { type } : {}
+    const response = await api.get('/events/my_events/', { params })
+    return response.data
+  },
+
+  getFavorites: async () => {
+    const response = await api.get('/events/favorites/')
+    return response.data
+  },
+
+  getCalendarEvents: async (startDate?: string, endDate?: string) => {
+    const params: any = {}
+    if (startDate) params.start_date = startDate
+    if (endDate) params.end_date = endDate
+    const response = await api.get('/events/calendar/events/', { params })
+    return response.data
+  },
+
+  exportCalendar: async (includeFavorites: boolean = true) => {
+    const response = await api.get('/events/calendar/export/', {
+      params: { include_favorites: includeFavorites },
+      responseType: 'blob'
+    })
+    return response.data
+  },
+
+  getRecommendedEvents: async (limit: number = 10) => {
+    const response = await api.get('/events/recommended/', { params: { limit } })
+    return response.data
+  },
+
+  getShareLinks: async (eventId: string) => {
+    const response = await api.get(`/events/${eventId}/share/`)
+    return response.data
+  },
+
+  trackShare: async (eventId: string, platform: string) => {
+    const response = await api.post(`/events/${eventId}/share/`, { platform })
+    return response.data
+  },
+
+  // Map events with geolocation
+  getMapEvents: async (params?: {
+    lat?: number
+    lng?: number
+    radius?: number
+  }) => {
+    const response = await api.get('/events/map_events/', { params })
+    return response.data
+  },
+
+  // Filter preferences
+  getFilterPreferences: async () => {
+    const response = await api.get('/events/filter-preferences/')
+    return response.data
+  },
+
+  getDefaultFilterPreference: async () => {
+    const response = await api.get('/events/filter-preferences/default/')
+    return response.data
+  },
+
+  saveFilterPreference: async (data: {
+    name: string
+    filters: Record<string, any>
+    is_default?: boolean
+  }) => {
+    const response = await api.post('/events/filter-preferences/', data)
+    return response.data
+  },
+
+  updateFilterPreference: async (id: string, data: {
+    name?: string
+    filters?: Record<string, any>
+    is_default?: boolean
+  }) => {
+    const response = await api.patch(`/events/filter-preferences/${id}/`, data)
+    return response.data
+  },
+
+  deleteFilterPreference: async (id: string) => {
+    const response = await api.delete(`/events/filter-preferences/${id}/`)
     return response.data
   },
 }

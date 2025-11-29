@@ -49,10 +49,16 @@ class ChatConsumer(AsyncWebsocketConsumer):
         """Handle WebSocket disconnection."""
         if self.typing_task:
             self.typing_task.cancel()
-        await self.channel_layer.group_discard(
-            self.conversation_group_name,
-            self.channel_name
-        )
+        try:
+            await self.channel_layer.group_discard(
+                self.conversation_group_name,
+                self.channel_name
+            )
+        except Exception as e:
+            # Ignore errors during disconnect (e.g., Redis connection issues)
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.warning(f"Error during WebSocket disconnect: {e}")
     
     async def receive(self, text_data):
         """Receive message from WebSocket."""

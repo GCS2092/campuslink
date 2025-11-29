@@ -150,7 +150,7 @@ class ConversationViewSet(viewsets.ModelViewSet):
         
         try:
             from groups.models import Group, Membership
-            group = Group.objects.get(id=group_id)
+            group = Group.objects.select_related('creator').get(id=group_id)
             
             # Check if user is a member
             is_member = Membership.objects.filter(
@@ -166,12 +166,14 @@ class ConversationViewSet(viewsets.ModelViewSet):
                 )
             
             # Get or create conversation
+            # Use group.creator if available, otherwise use request.user as fallback
+            creator = group.creator if group.creator else request.user
             conversation, created = Conversation.objects.get_or_create(
                 group=group,
                 conversation_type='group',
                 defaults={
                     'name': group.name,
-                    'created_by': group.creator
+                    'created_by': creator
                 }
             )
             
@@ -186,12 +188,36 @@ class ConversationViewSet(viewsets.ModelViewSet):
                 participant.left_at = None
                 participant.save()
             
-            serializer = self.get_serializer(conversation)
+            # Refresh conversation from DB to ensure participant is included
+            conversation.refresh_from_db()
+            
+            # Reload conversation with all necessary relations for serialization
+            conversation = Conversation.objects.select_related(
+                'created_by', 'created_by__profile', 'group', 'group__creator'
+            ).prefetch_related(
+                'participants',
+                'participants__user',
+                'participants__user__profile',
+                'messages',
+                'messages__sender',
+                'messages__sender__profile'
+            ).get(id=conversation.id)
+            
+            # Serialize with proper context
+            serializer = self.get_serializer(conversation, context={'request': request})
             return Response(serializer.data, status=status.HTTP_200_OK)
         except Group.DoesNotExist:
             return Response(
                 {'error': 'Group not found.'},
                 status=status.HTTP_404_NOT_FOUND
+            )
+        except Exception as e:
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.error(f"Error in group_conversation for group_id {group_id}: {str(e)}", exc_info=True)
+            return Response(
+                {'error': f'Erreur lors de l\'ouverture de la conversation: {str(e)}'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
     
     @action(detail=True, methods=['post'])
@@ -281,126 +307,155 @@ class MessageViewSet(viewsets.ModelViewSet):
                 use_async=True
             )
     
-    @action(detail=False, methods=['post'], permission_classes=[IsAuthenticated()])
+    @action(detail=False, methods=['post'], permission_classes=[IsAuthenticated])
     def broadcast(self, request):
         """Send broadcast message to all students or specific class (for class leaders/admins)."""
-        from users.permissions import IsAdminOrClassLeader
+        import logging
+        logger = logging.getLogger(__name__)
         
-        # Check permissions
-        if not (request.user.role == 'admin' or request.user.role == 'class_leader'):
-            return Response(
-                {'error': 'Permission denied. Only admins and class leaders can send broadcast messages.'},
-                status=status.HTTP_403_FORBIDDEN
-            )
-        
-        content = request.data.get('content')
-        if not content:
-            return Response(
-                {'error': 'Content is required.'},
-                status=status.HTTP_400_BAD_REQUEST
-            )
-        
-        broadcast_type = request.data.get('type', 'all')  # 'all', 'class', 'university'
-        target_university = request.data.get('university')
-        target_field_of_study = request.data.get('field_of_study')
-        target_academic_year = request.data.get('academic_year')
-        
-        # Get target users
-        target_users = User.objects.filter(role='student', is_active=True, is_verified=True)
-        
-        if broadcast_type == 'class':
-            # Send to students in the same class as the class leader
-            if request.user.role == 'class_leader' and hasattr(request.user, 'profile'):
-                user_profile = request.user.profile
-                if user_profile.university:
-                    target_users = target_users.filter(profile__university=user_profile.university)
-                if user_profile.field_of_study:
-                    target_users = target_users.filter(profile__field_of_study=user_profile.field_of_study)
-                if user_profile.academic_year:
-                    target_users = target_users.filter(profile__academic_year=user_profile.academic_year)
-            elif target_field_of_study or target_academic_year:
-                if target_field_of_study:
-                    target_users = target_users.filter(profile__field_of_study__icontains=target_field_of_study)
-                if target_academic_year:
-                    target_users = target_users.filter(profile__academic_year__icontains=target_academic_year)
-        elif broadcast_type == 'university':
-            if request.user.role == 'class_leader' and hasattr(request.user, 'profile'):
-                user_profile = request.user.profile
-                if user_profile.university:
-                    target_users = target_users.filter(profile__university=user_profile.university)
-            elif target_university:
-                target_users = target_users.filter(profile__university__icontains=target_university)
-        # 'all' - send to all students (only for admins)
-        elif broadcast_type == 'all' and request.user.role != 'admin':
-            return Response(
-                {'error': 'Only admins can send messages to all students.'},
-                status=status.HTTP_403_FORBIDDEN
-            )
-        
-        # Create individual conversations for each target user
-        created_conversations = []
-        for user in target_users:
-            # Check if conversation already exists
-            existing = Conversation.objects.filter(
-                conversation_type='private',
-                participants__user=request.user,
-                participants__is_active=True
-            ).filter(
-                participants__user=user,
-                participants__is_active=True
-            ).distinct().first()
+        try:
+            from users.permissions import IsAdminOrClassLeader
             
-            if not existing:
-                # Create new conversation
-                conversation = Conversation.objects.create(
-                    conversation_type='private',
-                    created_by=request.user
+            # Check permissions
+            if not (request.user.role == 'admin' or request.user.role == 'class_leader'):
+                return Response(
+                    {'error': 'Permission denied. Only admins and class leaders can send broadcast messages.'},
+                    status=status.HTTP_403_FORBIDDEN
                 )
-                Participant.objects.create(conversation=conversation, user=request.user)
-                Participant.objects.create(conversation=conversation, user=user)
-                existing = conversation
             
-            # Send message
-            message = Message.objects.create(
-                conversation=existing,
-                sender=request.user,
-                content=content,
-                message_type='text'
+            content = request.data.get('content')
+            if not content:
+                return Response(
+                    {'error': 'Content is required.'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            
+            broadcast_type = request.data.get('type', 'all')  # 'all', 'class', 'university'
+            target_university = request.data.get('university')
+            target_field_of_study = request.data.get('field_of_study')
+            target_academic_year = request.data.get('academic_year')
+            
+            logger.info(f"Broadcast request from user {request.user.id}, type: {broadcast_type}")
+            
+            # Get target users
+            target_users = User.objects.filter(role='student', is_active=True, is_verified=True)
+            
+            if broadcast_type == 'class':
+                # Send to students in the same class as the class leader
+                if request.user.role == 'class_leader' and hasattr(request.user, 'profile'):
+                    user_profile = request.user.profile
+                    if user_profile.university:
+                        target_users = target_users.filter(profile__university=user_profile.university)
+                    if user_profile.field_of_study:
+                        target_users = target_users.filter(profile__field_of_study=user_profile.field_of_study)
+                    if user_profile.academic_year:
+                        target_users = target_users.filter(profile__academic_year=user_profile.academic_year)
+                elif target_field_of_study or target_academic_year:
+                    if target_field_of_study:
+                        target_users = target_users.filter(profile__field_of_study__icontains=target_field_of_study)
+                    if target_academic_year:
+                        target_users = target_users.filter(profile__academic_year__icontains=target_academic_year)
+            elif broadcast_type == 'university':
+                if request.user.role == 'class_leader' and hasattr(request.user, 'profile'):
+                    user_profile = request.user.profile
+                    if user_profile.university:
+                        target_users = target_users.filter(profile__university=user_profile.university)
+                elif target_university:
+                    target_users = target_users.filter(profile__university__icontains=target_university)
+            # 'all' - send to all students (only for admins)
+            elif broadcast_type == 'all' and request.user.role != 'admin':
+                return Response(
+                    {'error': 'Only admins can send messages to all students.'},
+                    status=status.HTTP_403_FORBIDDEN
+                )
+            
+            # Limit to prevent too many operations
+            target_users_count = target_users.count()
+            target_users = list(target_users[:1000])  # Limit to 1000 users max
+            
+            logger.info(f"Broadcast will be sent to {len(target_users)} users (out of {target_users_count} total)")
+            
+            # Create individual conversations for each target user
+            created_conversations = []
+            for user in target_users:
+                # Check if conversation already exists
+                existing = Conversation.objects.filter(
+                    conversation_type='private',
+                    participants__user=request.user,
+                    participants__is_active=True
+                ).filter(
+                    participants__user=user,
+                    participants__is_active=True
+                ).distinct().first()
+                
+                if not existing:
+                    # Create new conversation
+                    conversation = Conversation.objects.create(
+                        conversation_type='private',
+                        created_by=request.user
+                    )
+                    Participant.objects.create(conversation=conversation, user=request.user)
+                    Participant.objects.create(conversation=conversation, user=user)
+                    existing = conversation
+                
+                # Send message
+                message = Message.objects.create(
+                    conversation=existing,
+                    sender=request.user,
+                    content=content,
+                    message_type='text'
+                )
+                
+                # Update conversation last_message_at
+                existing.last_message_at = timezone.now()
+                existing.save()
+                
+                created_conversations.append({
+                    'conversation_id': str(existing.id),
+                    'user_id': str(user.id),
+                    'username': user.username
+                })
+                
+                # Create notification for broadcast message
+                try:
+                    from notifications.utils import create_notification
+                    broadcast_type_label = {
+                        'all': 'tous les étudiants',
+                        'university': 'votre école',
+                        'class': 'votre classe'
+                    }.get(broadcast_type, 'vos contacts')
+                    
+                    create_notification(
+                        recipient=user,
+                        notification_type='message_broadcast',
+                        title='Nouveau message de votre responsable',
+                        message=f'{request.user.username} vous a envoyé un message: {content[:100]}{"..." if len(content) > 100 else ""}',
+                        related_object_type='conversation',
+                        related_object_id=str(existing.id) if existing.id else None
+                    )
+                except Exception as notif_error:
+                    # Log notification error but don't fail the broadcast
+                    import logging
+                    logger = logging.getLogger(__name__)
+                    logger.warning(f"Error creating notification for broadcast: {str(notif_error)}")
+            
+            return Response({
+                'message': f'Broadcast message sent to {len(created_conversations)} users.',
+                'conversations': created_conversations
+            }, status=status.HTTP_201_CREATED)
+        except Exception as e:
+            logger.error(f"Error in broadcast message: {str(e)}", exc_info=True)
+            import traceback
+            logger.error(f"Traceback: {traceback.format_exc()}")
+            return Response(
+                {
+                    'error': 'Erreur lors de l\'envoi du message de diffusion.',
+                    'details': str(e) if logger.level <= logging.DEBUG else None
+                },
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
-            
-            # Update conversation last_message_at
-            existing.last_message_at = timezone.now()
-            existing.save()
-            
-            created_conversations.append({
-                'conversation_id': str(existing.id),
-                'user_id': str(user.id),
-                'username': user.username
-            })
-            
-            # Create notification for broadcast message
-            from notifications.utils import create_notification
-            broadcast_type_label = {
-                'all': 'tous les étudiants',
-                'university': 'votre école',
-                'class': 'votre classe'
-            }.get(broadcast_type, 'vos contacts')
-            
-            create_notification(
-                recipient=user,
-                notification_type='message_broadcast',
-                title='Nouveau message de votre responsable',
-                message=f'{request.user.username} vous a envoyé un message: {content[:100]}{"..." if len(content) > 100 else ""}',
-                related_object_type='conversation',
-                related_object_id=existing.id
-            )
-        
-        return Response({
-            'message': f'Broadcast message sent to {len(created_conversations)} users.',
-            'conversations': created_conversations
-        }, status=status.HTTP_201_CREATED)
     
-    @action(detail=True, methods=['post'], permission_classes=[IsAuthenticated()])
+    @action(detail=True, methods=['post'], permission_classes=[IsAuthenticated])
     def add_reaction(self, request, pk=None):
         """Add reaction to a message."""
         message = self.get_object()
@@ -429,7 +484,7 @@ class MessageViewSet(viewsets.ModelViewSet):
         serializer = MessageReactionSerializer(reaction)
         return Response(serializer.data, status=status.HTTP_201_CREATED)
     
-    @action(detail=True, methods=['delete'], permission_classes=[IsAuthenticated()])
+    @action(detail=True, methods=['delete'], permission_classes=[IsAuthenticated])
     def remove_reaction(self, request, pk=None):
         """Remove reaction from a message."""
         message = self.get_object()
@@ -450,7 +505,7 @@ class MessageViewSet(viewsets.ModelViewSet):
         
         return Response({'message': 'Reaction removed.'}, status=status.HTTP_200_OK)
     
-    @action(detail=True, methods=['post'], permission_classes=[IsAuthenticated()])
+    @action(detail=True, methods=['post'], permission_classes=[IsAuthenticated])
     def mark_read(self, request, pk=None):
         """Mark a specific message as read."""
         message = self.get_object()

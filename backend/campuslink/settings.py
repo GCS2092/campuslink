@@ -60,6 +60,8 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    # Note: 'django.contrib.gis' will be added conditionally if GeoDjango is available
+    # See database configuration below
     
     # Third party apps
     'rest_framework',
@@ -127,16 +129,41 @@ if 'DATABASE_URL' in os.environ:
         )
     }
 else:
-    DATABASES = {
-        'default': {
-            'ENGINE': 'django.db.backends.postgresql',
-            'NAME': env('DB_DATABASE', default='campuslink'),
-            'USER': env('DB_USERNAME', default='postgres'),
-            'PASSWORD': env('DB_PASSWORD', default='password123'),
-            'HOST': env('DB_HOST', default='localhost'),
-            'PORT': env('DB_PORT', default='5432'),
+    # Check if GeoDjango/PostGIS is available
+    GEODJANGO_AVAILABLE = False
+    try:
+        # Try to import GeoDjango components
+        from django.contrib.gis.geos import Point
+        from django.contrib.gis.db.backends.postgis import base as postgis_base
+        GEODJANGO_AVAILABLE = True
+    except (ImportError, Exception):
+        GEODJANGO_AVAILABLE = False
+    
+    if GEODJANGO_AVAILABLE:
+        # Use PostGIS if GeoDjango is available
+        INSTALLED_APPS.append('django.contrib.gis')
+        DATABASES = {
+            'default': {
+                'ENGINE': 'django.contrib.gis.db.backends.postgis',
+                'NAME': env('DB_DATABASE', default='campuslink'),
+                'USER': env('DB_USERNAME', default='postgres'),
+                'PASSWORD': env('DB_PASSWORD', default='password123'),
+                'HOST': env('DB_HOST', default='localhost'),
+                'PORT': env('DB_PORT', default='5432'),
+            }
         }
-    }
+    else:
+        # Use regular PostgreSQL if GeoDjango is not available
+        DATABASES = {
+            'default': {
+                'ENGINE': 'django.db.backends.postgresql',
+                'NAME': env('DB_DATABASE', default='campuslink'),
+                'USER': env('DB_USERNAME', default='postgres'),
+                'PASSWORD': env('DB_PASSWORD', default='password123'),
+                'HOST': env('DB_HOST', default='localhost'),
+                'PORT': env('DB_PORT', default='5432'),
+            }
+        }
 
 # Password validation
 AUTH_PASSWORD_VALIDATORS = [
@@ -390,14 +417,46 @@ CELERY_RESULT_SERIALIZER = 'json'
 CELERY_TIMEZONE = TIME_ZONE
 
 # Channels Configuration (WebSockets)
-CHANNEL_LAYERS = {
-    'default': {
-        'BACKEND': 'channels_redis.core.RedisChannelLayer',
-        'CONFIG': {
-            "hosts": [(env('REDIS_HOST', default='localhost'), env.int('REDIS_PORT', default=6379))],
+# Use in-memory channel layer in development if Redis is not available
+if DEBUG:
+    try:
+        import redis
+        redis_client = redis.Redis(
+            host=env('REDIS_HOST', default='localhost'), 
+            port=env.int('REDIS_PORT', default=6379), 
+            socket_connect_timeout=1
+        )
+        redis_client.ping()
+        # Redis is available, use it
+        CHANNEL_LAYERS = {
+            'default': {
+                'BACKEND': 'channels_redis.core.RedisChannelLayer',
+                'CONFIG': {
+                    "hosts": [(env('REDIS_HOST', default='localhost'), env.int('REDIS_PORT', default=6379))],
+                },
+            },
+        }
+    except Exception:
+        # Redis not available (ConnectionError, TimeoutError, ImportError, etc.)
+        # Use in-memory channel layer for development
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.warning("Redis not available, using InMemoryChannelLayer for WebSockets")
+        CHANNEL_LAYERS = {
+            'default': {
+                'BACKEND': 'channels.layers.InMemoryChannelLayer',
+            },
+        }
+else:
+    # Production: always use Redis
+    CHANNEL_LAYERS = {
+        'default': {
+            'BACKEND': 'channels_redis.core.RedisChannelLayer',
+            'CONFIG': {
+                "hosts": [(env('REDIS_HOST', default='localhost'), env.int('REDIS_PORT', default=6379))],
+            },
         },
-    },
-}
+    }
 
 # Email Configuration
 EMAIL_BACKEND = env('EMAIL_BACKEND', default='django.core.mail.backends.console.EmailBackend')

@@ -68,16 +68,17 @@ class IsAdmin(permissions.BasePermission):
 
 class IsAdminOrClassLeader(permissions.BasePermission):
     """
-    Permission to allow admin or class leader.
+    Permission to allow admin, class leader, or university admin.
     """
-    message = 'Vous devez être administrateur ou responsable de classe pour effectuer cette action.'
+    message = 'Vous devez être administrateur, responsable de classe ou administrateur d\'université pour effectuer cette action.'
     
     def has_permission(self, request, view):
         if not request.user or not request.user.is_authenticated:
             return False
         return (request.user.is_staff or 
                 request.user.role == 'admin' or 
-                request.user.role == 'class_leader')
+                request.user.role == 'class_leader' or
+                (request.user.role == 'university_admin' and request.user.managed_university))
 
 
 class IsUniversityAdmin(permissions.BasePermission):

@@ -2,7 +2,7 @@
 Serializers for Events app.
 """
 from rest_framework import serializers
-from .models import Category, Event, Participation, EventComment, EventLike
+from .models import Category, Event, Participation, EventComment, EventLike, EventFilterPreference
 from users.serializers import UserSerializer, UniversityBasicSerializer
 
 
@@ -39,6 +39,8 @@ class EventSerializer(serializers.ModelSerializer):
     
     def get_organizer(self, obj):
         """Get organizer with proper context."""
+        if not obj.organizer:
+            return None
         try:
             return UserSerializer(obj.organizer, context=self.context).data
         except Exception as e:
@@ -46,8 +48,19 @@ class EventSerializer(serializers.ModelSerializer):
             import logging
             logger = logging.getLogger(__name__)
             logger.warning(f"Error serializing organizer for event {obj.id}: {e}")
-            from users.serializers import UserBasicSerializer
-            return UserBasicSerializer(obj.organizer).data
+            try:
+                from users.serializers import UserBasicSerializer
+                return UserBasicSerializer(obj.organizer, context=self.context).data
+            except Exception as e2:
+                logger.warning(f"Error with UserBasicSerializer for event {obj.id}: {e2}")
+                # Final fallback - return minimal data
+                return {
+                    'id': str(obj.organizer.id),
+                    'username': obj.organizer.username,
+                    'email': obj.organizer.email,
+                    'first_name': obj.organizer.first_name or '',
+                    'last_name': obj.organizer.last_name or '',
+                }
     
     def get_image_url(self, obj):
         """Get image URL safely."""
@@ -113,4 +126,21 @@ class EventLikeSerializer(serializers.ModelSerializer):
         model = EventLike
         fields = '__all__'
         read_only_fields = ['id', 'user', 'created_at']
+
+
+class EventFilterPreferenceSerializer(serializers.ModelSerializer):
+    """Serializer for event filter preferences."""
+    
+    class Meta:
+        model = EventFilterPreference
+        fields = '__all__'
+        read_only_fields = ['id', 'user', 'created_at', 'updated_at']
+    
+    def validate(self, data):
+        """Ensure only one default filter per user."""
+        if data.get('is_default', False):
+            user = self.context['request'].user
+            # Unset other default filters
+            EventFilterPreference.objects.filter(user=user, is_default=True).update(is_default=False)
+        return data
 

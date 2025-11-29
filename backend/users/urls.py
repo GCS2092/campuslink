@@ -5,8 +5,10 @@ from django.urls import path, include
 from rest_framework.routers import DefaultRouter
 from rest_framework_simplejwt.views import TokenRefreshView
 from .views import (
-    register, verify_phone, resend_otp, verify_email, verification_status, profile,
+    register, verify_phone, resend_otp, verify_email, verification_status, profile, my_profile_stats, my_profile_stats_detailed,
+    change_password, notification_preferences,
     CustomTokenObtainPairView, UserViewSet, UniversityViewSet, CampusViewSet, friends_list, send_friend_request,
+    friend_suggestions,
     accept_friend_request, reject_friend_request, remove_friend, friend_requests,
     friendship_status, pending_students, activate_student, deactivate_student,
     admin_dashboard_stats, class_leader_dashboard_stats, university_admin_dashboard_stats, class_leaders_list, assign_class_leader, revoke_class_leader,
@@ -37,9 +39,14 @@ urlpatterns = [
     
     # Profile
     path('profile/', profile, name='profile'),
+    path('profile/stats/', my_profile_stats, name='my_profile_stats'),
+    path('profile/stats/detailed/', my_profile_stats_detailed, name='my_profile_stats_detailed'),
+    path('profile/change-password/', change_password, name='change_password'),
+    path('profile/notification-preferences/', notification_preferences, name='notification_preferences'),
     
     # Friends
     path('friends/', friends_list, name='friends_list'),
+    path('friends/suggestions/', friend_suggestions, name='friend_suggestions'),
     path('friends/request/', send_friend_request, name='send_friend_request'),
     path('friends/requests/', friend_requests, name='friend_requests'),
     path('friends/<uuid:friendship_id>/accept/', accept_friend_request, name='accept_friend_request'),

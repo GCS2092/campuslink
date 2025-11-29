@@ -7,6 +7,7 @@ import { FiCalendar, FiMapPin, FiClock, FiUsers, FiSearch, FiTrash2, FiEye, FiEy
 import { eventService, type Event } from '@/services/eventService'
 import toast from 'react-hot-toast'
 import Link from 'next/link'
+import AdvancedEventFilters, { type FilterOptions } from '@/components/AdvancedEventFilters'
 
 export default function EventsPage() {
   const { user, loading } = useAuth()
@@ -17,6 +18,8 @@ export default function EventsPage() {
   const [searchTerm, setSearchTerm] = useState('')
   const [statusFilter, setStatusFilter] = useState<string>('')
   const [joiningEventId, setJoiningEventId] = useState<string | null>(null)
+  const [advancedFilters, setAdvancedFilters] = useState<FilterOptions>({})
+  const [categories, setCategories] = useState<Array<{ id: string; name: string }>>([])
   const isAdmin = user?.role === 'admin' || user?.role === 'class_leader'
 
   useEffect(() => {
@@ -31,9 +34,19 @@ export default function EventsPage() {
 
   useEffect(() => {
     if (user) {
+      loadCategories()
       loadEvents()
     }
-  }, [user, searchTerm, statusFilter])
+  }, [user, searchTerm, statusFilter, advancedFilters])
+
+  const loadCategories = async () => {
+    try {
+      const data = await eventService.getCategories()
+      setCategories(Array.isArray(data) ? data : data.results || [])
+    } catch (error: any) {
+      console.error('Error loading categories:', error)
+    }
+  }
 
   const loadEvents = async () => {
     setIsLoadingEvents(true)
@@ -45,6 +58,28 @@ export default function EventsPage() {
       // Admins can filter by status
       if (isAdmin && statusFilter) {
         params.status = statusFilter
+      }
+      // Advanced filters
+      if (advancedFilters.category) {
+        params.category = advancedFilters.category
+      }
+      if (advancedFilters.is_free !== undefined && advancedFilters.is_free !== null) {
+        params.is_free = advancedFilters.is_free
+      }
+      if (advancedFilters.price_min !== undefined) {
+        params.price_min = advancedFilters.price_min
+      }
+      if (advancedFilters.price_max !== undefined) {
+        params.price_max = advancedFilters.price_max
+      }
+      if (advancedFilters.date_from) {
+        params.date_from = advancedFilters.date_from
+      }
+      if (advancedFilters.date_to) {
+        params.date_to = advancedFilters.date_to
+      }
+      if (advancedFilters.university) {
+        params.university = advancedFilters.university
       }
       const response = await eventService.getEvents(params)
       const eventsList = response.results || response.data || response || []
@@ -223,18 +258,32 @@ export default function EventsPage() {
           </div>
         )}
 
-        {/* Search Bar (Non-admin) */}
+        {/* Search Bar and Advanced Filters (Non-admin) */}
         {!isAdmin && (
-          <div className="mb-6">
-            <div className="relative">
-              <FiSearch className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
-              <input
-                type="text"
-                placeholder="Rechercher un événement..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-12 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+          <div className="mb-6 space-y-4">
+            <div className="flex items-center gap-4">
+              <div className="relative flex-1">
+                <FiSearch className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+                <input
+                  type="text"
+                  placeholder="Rechercher un événement..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="w-full pl-12 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                />
+              </div>
+              <AdvancedEventFilters
+                categories={categories}
+                currentFilters={advancedFilters}
+                onFiltersChange={setAdvancedFilters}
               />
+              <Link
+                href="/events/map"
+                className="px-4 py-3 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition flex items-center gap-2"
+              >
+                <FiMapPin className="w-5 h-5" />
+                <span className="hidden sm:inline">Carte</span>
+              </Link>
             </div>
           </div>
         )}

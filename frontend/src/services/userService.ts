@@ -76,5 +76,64 @@ export const userService = {
     const response = await api.get(`/users/${userId}/public_profile/`)
     return response.data
   },
+
+  updateProfile: async (profileData: {
+    first_name?: string
+    last_name?: string
+    bio?: string
+    location?: string
+    profile_picture?: string
+    cover_picture?: string
+    website?: string
+    facebook?: string
+    instagram?: string
+    twitter?: string
+    interests?: string[]
+  }) => {
+    const response = await api.put('/users/profile/', profileData)
+    return response.data
+  },
+
+  getProfileStats: async () => {
+    const response = await api.get('/users/profile/stats/')
+    return response.data
+  },
+
+  getProfileStatsDetailed: async () => {
+    const response = await api.get('/users/profile/stats/detailed/')
+    return response.data
+  },
+
+  getFriendSuggestions: async (limit: number = 10) => {
+    const response = await api.get('/users/friends/suggestions/', { params: { limit } })
+    return response.data
+  },
+
+  changePassword: async (oldPassword: string, newPassword: string, newPasswordConfirm: string) => {
+    const response = await api.post('/users/profile/change-password/', {
+      old_password: oldPassword,
+      new_password: newPassword,
+      new_password_confirm: newPasswordConfirm,
+    })
+    return response.data
+  },
+
+  getNotificationPreferences: async () => {
+    const response = await api.get('/users/profile/notification-preferences/')
+    return response.data
+  },
+
+  updateNotificationPreferences: async (preferences: {
+    email_notifications?: boolean
+    push_notifications?: boolean
+    event_reminders?: boolean
+    friend_requests?: boolean
+    messages?: boolean
+    group_updates?: boolean
+    event_invitations?: boolean
+  }) => {
+    const response = await api.put('/users/profile/notification-preferences/', preferences)
+    return response.data
+  },
 }
 

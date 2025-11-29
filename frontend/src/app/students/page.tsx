@@ -4,9 +4,10 @@ import { useAuth } from '@/context/AuthContext'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { useEffect, useState, useCallback } from 'react'
-import { FiUserPlus, FiCheck, FiX, FiUsers, FiMapPin, FiUser, FiLogOut, FiArrowLeft } from 'react-icons/fi'
+import { FiUserPlus, FiCheck, FiX, FiUsers, FiMapPin, FiUser, FiLogOut, FiArrowLeft, FiZap } from 'react-icons/fi'
 import { userService, type User, type FriendshipStatus } from '@/services/userService'
 import FilterBar from '@/components/FilterBar'
+import toast from 'react-hot-toast'
 
 const UNIVERSITIES = [
   'ESMT',
@@ -26,6 +27,8 @@ export default function StudentsPage() {
   const [searchTerm, setSearchTerm] = useState('')
   const [selectedUniversity, setSelectedUniversity] = useState<string>('')
   const [friendshipStatuses, setFriendshipStatuses] = useState<Record<string, FriendshipStatus>>({})
+  const [suggestions, setSuggestions] = useState<User[]>([])
+  const [isLoadingSuggestions, setIsLoadingSuggestions] = useState(false)
 
   useEffect(() => {
     setMounted(true)
@@ -34,8 +37,23 @@ export default function StudentsPage() {
   useEffect(() => {
     if (mounted && !loading && !user) {
       router.push('/login')
+    } else if (mounted && user) {
+      loadSuggestions()
     }
   }, [mounted, user, loading, router])
+
+  const loadSuggestions = async () => {
+    if (!user) return
+    setIsLoadingSuggestions(true)
+    try {
+      const data = await userService.getFriendSuggestions(6)
+      setSuggestions(Array.isArray(data) ? data : [])
+    } catch (error: any) {
+      console.error('Error loading friend suggestions:', error)
+    } finally {
+      setIsLoadingSuggestions(false)
+    }
+  }
 
   const loadStudents = useCallback(async () => {
     if (!user) return
@@ -258,6 +276,73 @@ export default function StudentsPage() {
       </header>
       
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6 lg:py-8">
+
+        {/* Friend Suggestions Section */}
+        {suggestions.length > 0 && (
+          <div className="bg-white rounded-2xl shadow-lg p-4 sm:p-6 mb-6">
+            <div className="flex items-center gap-2 mb-4">
+              <FiZap className="w-5 h-5 text-primary-600" />
+              <h2 className="text-lg sm:text-xl font-bold text-gray-900">Suggestions d'amis</h2>
+            </div>
+            {isLoadingSuggestions ? (
+              <div className="text-center py-8">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600 mx-auto"></div>
+                <p className="mt-4 text-gray-600 text-sm">Chargement des suggestions...</p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                {suggestions.map((suggestion) => {
+                  const status = friendshipStatuses[suggestion.id] || { status: 'none' }
+                  return (
+                    <div
+                      key={suggestion.id}
+                      className="bg-gray-50 rounded-xl p-4 border border-gray-200 hover:border-primary-300 transition"
+                    >
+                      <div className="flex items-start gap-3">
+                        <Link href={`/users/${suggestion.id}`} className="flex-shrink-0">
+                          <div className="w-12 h-12 bg-gradient-to-br from-primary-500 to-secondary-500 rounded-full flex items-center justify-center">
+                            <FiUser className="w-6 h-6 text-white" />
+                          </div>
+                        </Link>
+                        <div className="flex-1 min-w-0">
+                          <Link href={`/users/${suggestion.id}`}>
+                            <h3 className="font-semibold text-gray-900 truncate">
+                              {suggestion.first_name && suggestion.last_name
+                                ? `${suggestion.first_name} ${suggestion.last_name}`
+                                : suggestion.username}
+                            </h3>
+                          </Link>
+                          {suggestion.profile?.university && (
+                            <p className="text-sm text-gray-600 truncate">
+                              {typeof suggestion.profile.university === 'string'
+                                ? suggestion.profile.university
+                                : suggestion.profile.university?.name || suggestion.profile.university?.short_name}
+                            </p>
+                          )}
+                          {(suggestion as any).suggestion_reasons && (suggestion as any).suggestion_reasons.length > 0 && (
+                            <div className="mt-2 flex flex-wrap gap-1">
+                              {(suggestion as any).suggestion_reasons.map((reason: string, idx: number) => (
+                                <span
+                                  key={idx}
+                                  className="text-xs px-2 py-1 bg-primary-100 text-primary-700 rounded-full"
+                                >
+                                  {reason}
+                                </span>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                        <div className="flex-shrink-0">
+                          {renderFriendButton(suggestion, status)}
+                        </div>
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Filters */}
         <FilterBar

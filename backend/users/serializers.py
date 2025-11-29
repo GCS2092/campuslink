@@ -326,6 +326,7 @@ class ProfileBasicSerializer(serializers.ModelSerializer):
     campus_id = serializers.UUIDField(write_only=True, required=False, allow_null=True)
     department = DepartmentBasicSerializer(read_only=True)
     department_id = serializers.UUIDField(write_only=True, required=False, allow_null=True)
+    friends_count = serializers.SerializerMethodField()
     
     class Meta:
         model = Profile
@@ -336,6 +337,23 @@ class ProfileBasicSerializer(serializers.ModelSerializer):
                   'verification_method', 'reputation_score', 'created_at', 'updated_at']
         read_only_fields = ['id', 'created_at', 'updated_at', 'followers_count', 
                           'following_count', 'friends_count']
+    
+    def get_friends_count(self, obj):
+        """Calculate friends count dynamically from Friendship model."""
+        try:
+            from .models import Friendship
+            from django.db.models import Q
+            user = obj.user
+            if user:
+                count = Friendship.objects.filter(
+                    (Q(from_user=user) | Q(to_user=user)),
+                    status='accepted'
+                ).count()
+                return count
+        except Exception:
+            pass
+        # Fallback to stored value if calculation fails
+        return obj.friends_count or 0
     
     def update(self, instance, validated_data):
         """Update profile with university_id, campus_id and department_id handling."""

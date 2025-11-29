@@ -41,6 +41,9 @@ urlpatterns = [
     path('api/messaging/', include('messaging.urls')),
     path('api/', include('groups.urls')),
     path('api/', include('feed.urls')),
+    
+    # Core/Global endpoints
+    path('api/search/', include('core.urls')),
 ]
 
 # Serve media files in development

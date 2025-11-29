@@ -54,7 +54,7 @@ def get_recommended_events(user_id, limit=10):
         score = 0
         
         # 1. University match (high weight)
-        if user_university and event.organizer.profile.university == user_university:
+        if user_university and hasattr(event.organizer, 'profile') and event.organizer.profile and event.organizer.profile.university == user_university:
             score += 50
         
         # 2. Interest match (if event category matches user interests)

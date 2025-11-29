@@ -5,11 +5,14 @@ from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated, AllowAny
-from django.db.models import Q
-from .models import Category, Event, Participation, EventComment, EventLike, EventFavorite
+from rest_framework.exceptions import NotFound
+from django.db import models
+from django.db.models import Q, Case, When, F
+from django.utils import timezone
+from .models import Category, Event, Participation, EventComment, EventLike, EventFavorite, EventShare, EventFilterPreference
 from .serializers import (
     CategorySerializer, EventSerializer, ParticipationSerializer,
-    EventCommentSerializer, EventLikeSerializer
+    EventCommentSerializer, EventLikeSerializer, EventFilterPreferenceSerializer
 )
 from .permissions import IsVerifiedOrReadOnly
 from users.permissions import IsAdminOrClassLeader
@@ -74,7 +77,16 @@ class EventViewSet(viewsets.ModelViewSet):
                  self.request.user.role == 'admin')):
                 queryset = Event.objects.all()
             else:
-                queryset = super().get_queryset()
+                # Non-admins can see published events OR their own events (even drafts)
+                if (hasattr(self.request, 'user') and 
+                    self.request.user.is_authenticated):
+                    # Allow users to see published events OR their own events
+                    queryset = Event.objects.filter(
+                        Q(status='published') | Q(organizer=self.request.user)
+                    )
+                else:
+                    # Anonymous users can only see published events
+                    queryset = super().get_queryset()
             
             queryset = queryset.select_related(
                 'organizer', 'category'
@@ -121,6 +133,89 @@ class EventViewSet(viewsets.ModelViewSet):
             if date_to:
                 queryset = queryset.filter(start_date__lte=date_to)
             
+            # Advanced filters
+            category = self.request.query_params.get('category')
+            if category:
+                queryset = queryset.filter(category_id=category)
+            
+            is_free = self.request.query_params.get('is_free')
+            if is_free is not None:
+                queryset = queryset.filter(is_free=is_free.lower() == 'true')
+            
+            price_min = self.request.query_params.get('price_min')
+            if price_min:
+                try:
+                    queryset = queryset.filter(price__gte=float(price_min))
+                except ValueError:
+                    pass
+            
+            price_max = self.request.query_params.get('price_max')
+            if price_max:
+                try:
+                    queryset = queryset.filter(price__lte=float(price_max))
+                except ValueError:
+                    pass
+            
+            # Geographic filters (for map) - Using GeoDjango PointField
+            lat = self.request.query_params.get('lat')
+            lng = self.request.query_params.get('lng')
+            radius = self.request.query_params.get('radius', 10)  # Default 10km
+            
+            if lat and lng:
+                try:
+                    lat_float = float(lat)
+                    lng_float = float(lng)
+                    radius_float = float(radius)
+                    
+                    # Use GeoDjango for precise distance calculation
+                    try:
+                        from django.contrib.gis.geos import Point
+                        from django.contrib.gis.measure import D
+                        from django.contrib.gis.db.models.functions import Distance
+                        
+                        user_location = Point(lng_float, lat_float, srid=4326)
+                        
+                        # Use location_point if available, otherwise fallback to location_lat/lng
+                        queryset = queryset.filter(
+                            Q(location_point__isnull=False) | 
+                            Q(location_lat__isnull=False, location_lng__isnull=False)
+                        )
+                        
+                        # Annotate with distance using location_point (preferred) or lat/lng
+                        queryset = queryset.annotate(
+                            distance=Case(
+                                When(location_point__isnull=False,
+                                     then=Distance('location_point', user_location)),
+                                default=Distance(
+                                    Point(F('location_lng'), F('location_lat'), srid=4326),
+                                    user_location
+                                ),
+                                output_field=models.FloatField()
+                            )
+                        ).filter(
+                            distance__lte=D(km=radius_float)
+                        ).order_by('distance')
+                    except ImportError:
+                        # If GIS is not available, use simple bounding box approximation
+                        # Approximate: 1 degree ≈ 111 km
+                        lat_delta = radius_float / 111.0
+                        lng_delta = radius_float / (111.0 * abs(lat_float / 90.0) if lat_float != 0 else 1)
+                        
+                        queryset = queryset.filter(
+                            Q(location_point__isnull=False) |
+                            Q(
+                                location_lat__isnull=False,
+                                location_lng__isnull=False,
+                                location_lat__gte=lat_float - lat_delta,
+                                location_lat__lte=lat_float + lat_delta,
+                                location_lng__gte=lng_float - lng_delta,
+                                location_lng__lte=lng_float + lng_delta
+                            )
+                        )
+                except (ValueError, TypeError):
+                    # Invalid coordinates, skip geographic filter
+                    pass
+            
             return queryset
         except Exception as e:
             # Log the error and return a safe queryset
@@ -135,6 +230,28 @@ class EventViewSet(viewsets.ModelViewSet):
         context = super().get_serializer_context()
         context['request'] = self.request
         return context
+    
+    def list(self, request, *args, **kwargs):
+        """List events with error handling."""
+        try:
+            return super().list(request, *args, **kwargs)
+        except Exception as e:
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.error(f"Error in EventViewSet.list: {str(e)}", exc_info=True)
+            # Try to return a simplified response
+            try:
+                queryset = self.get_queryset()
+                # Use basic serializer without nested relations
+                from .serializers import EventSerializer
+                serializer = EventSerializer(queryset[:50], many=True, context={'request': request})
+                return Response(serializer.data, status=status.HTTP_200_OK)
+            except Exception as e2:
+                logger.error(f"Error in fallback list: {str(e2)}", exc_info=True)
+                return Response(
+                    {'error': 'Erreur lors de la récupération des événements. Veuillez réessayer plus tard.'},
+                    status=status.HTTP_500_INTERNAL_SERVER_ERROR
+                )
     
     def get_permissions(self):
         """Set permissions based on action."""
@@ -204,22 +321,31 @@ class EventViewSet(viewsets.ModelViewSet):
                     use_async=True
                 )
     
+    def get_object(self):
+        """Override to better handle event retrieval, including user's own events."""
+        try:
+            return super().get_object()
+        except Exception as e:
+            # If event not found in queryset, try to get it directly if user is the organizer
+            pk = self.kwargs.get('pk')
+            if pk and hasattr(self.request, 'user') and self.request.user.is_authenticated:
+                try:
+                    from .models import Event
+                    event = Event.objects.get(pk=pk)
+                    # Allow access if user is the organizer
+                    if event.organizer == self.request.user:
+                        return event
+                except Event.DoesNotExist:
+                    pass
+            # Re-raise the original exception
+            raise
+    
     def retrieve(self, request, *args, **kwargs):
         """Retrieve event and increment views."""
         try:
             instance = self.get_object()
             
-            # Check cache for popular events
-            from core.cache import get_cached_event_popular, cache_event_popular
-            
-            if instance.is_featured or instance.participants_count > 50:
-                cached = get_cached_event_popular(str(instance.id))
-                if cached:
-                    # Return cached data but still increment views
-                    instance.views_count += 1
-                    instance.save(update_fields=['views_count'])
-                    return Response(cached)
-            
+            # Increment views count
             instance.views_count += 1
             instance.save(update_fields=['views_count'])
             
@@ -264,22 +390,22 @@ class EventViewSet(viewsets.ModelViewSet):
                     except:
                         pass
             
-            # Cache if popular
-            if instance.is_featured or instance.participants_count > 50:
-                try:
-                    cache_event_popular(str(instance.id), data)
-                except:
-                    pass  # Don't fail if caching fails
-            
             return Response(data)
+        except NotFound:
+            # Event not found
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.warning(f"Event {kwargs.get('pk')} not found")
+            return Response(
+                {'error': 'Événement introuvable.'},
+                status=status.HTTP_404_NOT_FOUND
+            )
         except Exception as e:
             import logging
             logger = logging.getLogger(__name__)
             logger.error(f"Error retrieving event {kwargs.get('pk')}: {str(e)}", exc_info=True)
-            from rest_framework.response import Response
-            from rest_framework import status
             return Response(
-                {'error': 'Erreur lors de la récupération de l\'événement. Veuillez réessayer plus tard.'},
+                {'error': f'Erreur lors de la récupération de l\'événement: {str(e)}'},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
     
@@ -712,11 +838,302 @@ class CalendarViewSet(viewsets.ViewSet):
         return response
     
     @action(detail=False, methods=['get'], permission_classes=[IsAuthenticated])
+    def my_events(self, request):
+        """Get user's events (organized, participating, favorites)."""
+        try:
+            user = request.user
+            event_type = request.query_params.get('type', 'all')  # all, organized, participating, favorites
+            
+            events = []
+            
+            if event_type in ['all', 'organized']:
+                # Events organized by user
+                organized = Event.objects.filter(organizer=user).select_related(
+                    'organizer', 'category', 'university'
+                ).prefetch_related(
+                    'participations__user',
+                    'likes__user',
+                    'favorited_by__user'
+                ).order_by('-start_date')
+                events.extend(organized)
+            
+            if event_type in ['all', 'participating']:
+                # Events user is participating in
+                participations = Participation.objects.filter(user=user).select_related(
+                    'event', 'event__organizer', 'event__category', 'event__university'
+                ).prefetch_related(
+                    'event__participations__user',
+                    'event__likes__user',
+                    'event__favorited_by__user'
+                ).order_by('-event__start_date')
+                participating_events = [p.event for p in participations]
+                events.extend(participating_events)
+            
+            if event_type in ['all', 'favorites']:
+                # Favorite events
+                favorites = EventFavorite.objects.filter(user=user).select_related(
+                    'event', 'event__organizer', 'event__category', 'event__university'
+                ).prefetch_related(
+                    'event__participations__user',
+                    'event__likes__user',
+                    'event__favorited_by__user'
+                ).order_by('-event__start_date')
+                favorite_events = [f.event for f in favorites]
+                events.extend(favorite_events)
+            
+            # Remove duplicates and sort by start_date
+            seen_ids = set()
+            unique_events = []
+            for event in events:
+                if event.id not in seen_ids:
+                    seen_ids.add(event.id)
+                    unique_events.append(event)
+            
+            # Sort by start_date (upcoming first)
+            unique_events.sort(key=lambda e: e.start_date if e.start_date else timezone.now())
+            
+            # Serialize with error handling
+            try:
+                serializer = EventSerializer(unique_events, many=True, context={'request': request})
+                return Response(serializer.data)
+            except Exception as e:
+                import logging
+                logger = logging.getLogger(__name__)
+                logger.error(f"Error serializing events in my_events: {str(e)}", exc_info=True)
+                # Return minimal data if serialization fails
+                minimal_data = []
+                for event in unique_events:
+                    try:
+                        minimal_data.append({
+                            'id': str(event.id),
+                            'title': event.title,
+                            'description': event.description,
+                            'start_date': event.start_date.isoformat() if event.start_date else None,
+                            'end_date': event.end_date.isoformat() if event.end_date else None,
+                            'location': event.location,
+                            'status': event.status,
+                            'organizer': {
+                                'id': str(event.organizer.id),
+                                'username': event.organizer.username,
+                            } if event.organizer else None,
+                        })
+                    except Exception as e2:
+                        logger.warning(f"Error serializing event {event.id}: {e2}")
+                        continue
+                return Response(minimal_data, status=status.HTTP_200_OK)
+        except Exception as e:
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.error(f"Error in my_events: {str(e)}", exc_info=True)
+            return Response(
+                {'error': 'Erreur lors de la récupération de vos événements.'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+    
+    @action(detail=False, methods=['get'], permission_classes=[IsAuthenticated])
     def recommended(self, request):
         """Get recommended events for current user."""
-        limit = int(request.query_params.get('limit', 10))
+        try:
+            limit = int(request.query_params.get('limit', 10))
+            
+            recommended = get_recommended_events(request.user.id, limit=limit)
+            serializer = EventSerializer(recommended, many=True)
+            return Response(serializer.data, status=status.HTTP_200_OK)
+        except Exception as e:
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.error(f"Error in recommended events: {str(e)}", exc_info=True)
+            return Response(
+                {'error': 'Erreur lors de la récupération des événements recommandés.'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+    
+    @action(detail=True, methods=['get', 'post'], permission_classes=[AllowAny])
+    def share(self, request, pk=None):
+        """
+        Get share links for an event or track a share.
+        GET: Returns share URLs for different platforms
+        POST: Tracks a share event
+        """
+        try:
+            event = self.get_object()
+        except NotFound:
+            return Response(
+                {'error': 'Événement introuvable.'},
+                status=status.HTTP_404_NOT_FOUND
+            )
         
-        recommended = get_recommended_events(request.user.id, limit=limit)
-        serializer = EventSerializer(recommended, many=True)
-        return Response(serializer.data, status=status.HTTP_200_OK)
+        if request.method == 'GET':
+            # Generate share URLs
+            from django.conf import settings
+            from urllib.parse import quote
+            
+            # Base URL for the frontend
+            frontend_url = getattr(settings, 'FRONTEND_URL', 'http://localhost:3000')
+            event_url = f"{frontend_url}/events/{event.id}"
+            
+            # Event details for sharing
+            event_title = quote(event.title)
+            event_description = quote(event.description[:200] if event.description else '')
+            
+            share_urls = {
+                'facebook': f"https://www.facebook.com/sharer/sharer.php?u={quote(event_url)}",
+                'twitter': f"https://twitter.com/intent/tweet?url={quote(event_url)}&text={event_title}",
+                'linkedin': f"https://www.linkedin.com/sharing/share-offsite/?url={quote(event_url)}",
+                'whatsapp': f"https://wa.me/?text={event_title}%20{quote(event_url)}",
+                'email': f"mailto:?subject={event_title}&body={event_description}%20{quote(event_url)}",
+                'link': event_url,  # Direct link to copy
+            }
+            
+            return Response({
+                'event_id': str(event.id),
+                'event_title': event.title,
+                'share_urls': share_urls,
+                'share_count': EventShare.objects.filter(event=event).count(),
+            })
+        
+        elif request.method == 'POST':
+            # Track the share
+            platform = request.data.get('platform', 'link')
+            user = request.user if request.user.is_authenticated else None
+            
+            # Get IP address
+            x_forwarded_for = request.META.get('HTTP_X_FORWARDED_FOR')
+            if x_forwarded_for:
+                ip_address = x_forwarded_for.split(',')[0]
+            else:
+                ip_address = request.META.get('REMOTE_ADDR')
+            
+            # Create share record
+            share = EventShare.objects.create(
+                event=event,
+                user=user,
+                platform=platform,
+                ip_address=ip_address
+            )
+            
+            # Increment share count on event (if we add this field)
+            # For now, we just track it in EventShare model
+            
+            return Response({
+                'success': True,
+                'message': 'Partage enregistré avec succès',
+                'share_id': str(share.id),
+                'total_shares': EventShare.objects.filter(event=event).count(),
+            }, status=status.HTTP_201_CREATED)
+    
+    @action(detail=False, methods=['get'], permission_classes=[AllowAny])
+    def map_events(self, request):
+        """Get events with geolocation for map display using GeoDjango."""
+        try:
+            # Filter events with location (prefer location_point, fallback to lat/lng)
+            queryset = self.get_queryset().filter(
+                status='published'
+            ).filter(
+                Q(location_point__isnull=False) | 
+                Q(location_lat__isnull=False, location_lng__isnull=False)
+            )
+            
+            # Apply filters
+            lat = request.query_params.get('lat')
+            lng = request.query_params.get('lng')
+            radius = request.query_params.get('radius', 50)  # Default 50km for map
+            
+            if lat and lng:
+                try:
+                    from django.contrib.gis.geos import Point
+                    from django.contrib.gis.measure import D
+                    from django.contrib.gis.db.models.functions import Distance
+                    
+                    user_location = Point(float(lng), float(lat), srid=4326)
+                    
+                    # Use location_point if available, otherwise use lat/lng
+                    queryset = queryset.annotate(
+                        distance=Case(
+                            When(location_point__isnull=False,
+                                 then=Distance('location_point', user_location)),
+                            default=Distance(
+                                Point(F('location_lng'), F('location_lat'), srid=4326),
+                                user_location
+                            ),
+                            output_field=models.FloatField()
+                        )
+                    ).filter(
+                        distance__lte=D(km=float(radius))
+                    ).order_by('distance')
+                except (ValueError, ImportError):
+                    # If GIS is not available, use simple bounding box
+                    try:
+                        lat_float = float(lat)
+                        lng_float = float(lng)
+                        radius_float = float(radius)
+                        # Approximate: 1 degree ≈ 111 km
+                        lat_delta = radius_float / 111.0
+                        lng_delta = radius_float / (111.0 * abs(lat_float / 90.0) if lat_float != 0 else 1)
+                        
+                        queryset = queryset.filter(
+                            location_lat__gte=lat_float - lat_delta,
+                            location_lat__lte=lat_float + lat_delta,
+                            location_lng__gte=lng_float - lng_delta,
+                            location_lng__lte=lng_float + lng_delta
+                        )
+                    except ValueError:
+                        pass
+            
+            # Limit results for map
+            queryset = queryset[:100]
+            
+            serializer = EventSerializer(queryset, many=True, context={'request': request})
+            return Response({
+                'events': serializer.data,
+                'count': len(serializer.data)
+            }, status=status.HTTP_200_OK)
+        except Exception as e:
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.error(f"Error in map_events: {str(e)}", exc_info=True)
+            return Response(
+                {'error': 'Erreur lors de la récupération des événements pour la carte.'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+
+class EventFilterPreferenceViewSet(viewsets.ModelViewSet):
+    """ViewSet for event filter preferences."""
+    serializer_class = EventFilterPreferenceSerializer
+    permission_classes = [IsAuthenticated]
+    
+    def get_queryset(self):
+        """Get filter preferences for current user."""
+        return EventFilterPreference.objects.filter(user=self.request.user).order_by('-is_default', '-updated_at')
+    
+    def perform_create(self, serializer):
+        """Create filter preference for current user."""
+        serializer.save(user=self.request.user)
+    
+    @action(detail=False, methods=['get'], permission_classes=[IsAuthenticated])
+    def default(self, request):
+        """Get default filter preference."""
+        try:
+            default_filter = EventFilterPreference.objects.filter(
+                user=request.user,
+                is_default=True
+            ).first()
+            
+            if default_filter:
+                serializer = EventFilterPreferenceSerializer(default_filter, context={'request': request})
+                return Response(serializer.data, status=status.HTTP_200_OK)
+            else:
+                return Response(
+                    {'message': 'Aucun filtre par défaut trouvé.'},
+                    status=status.HTTP_404_NOT_FOUND
+                )
+        except Exception as e:
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.error(f"Error getting default filter: {str(e)}", exc_info=True)
+            return Response(
+                {'error': 'Erreur lors de la récupération du filtre par défaut.'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
 

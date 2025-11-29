@@ -6,6 +6,16 @@ from django.db import models
 from django.utils import timezone
 from users.models import User
 
+# Check if GeoDjango is available (will be set in settings)
+GEODJANGO_AVAILABLE = False
+try:
+    import django.contrib.gis
+    # Only set to True if we can actually use it (GDAL available)
+    from django.contrib.gis.geos import Point
+    GEODJANGO_AVAILABLE = True
+except (ImportError, Exception):
+    GEODJANGO_AVAILABLE = False
+
 
 class Category(models.Model):
     """Event category."""
@@ -51,6 +61,7 @@ class Event(models.Model):
     start_date = models.DateTimeField(db_index=True)
     end_date = models.DateTimeField(null=True, blank=True)
     location = models.CharField(max_length=500)
+    # Keep legacy fields for backward compatibility (always available)
     location_lat = models.DecimalField(max_digits=9, decimal_places=6, null=True, blank=True)
     location_lng = models.DecimalField(max_digits=9, decimal_places=6, null=True, blank=True)
     
@@ -92,6 +103,30 @@ class Event(models.Model):
             models.Index(fields=['status']),
             models.Index(fields=['created_at']),
         ]
+        # Spatial index for location_point (PostGIS)
+        # This will be created automatically by PostGIS
+    
+    def save(self, *args, **kwargs):
+        """Auto-populate location_point from location_lat/location_lng if available."""
+        if GEODJANGO_AVAILABLE and hasattr(self, 'location_point'):
+            try:
+                from django.contrib.gis.geos import Point
+                
+                # If location_point is not set but lat/lng are available, create it
+                if not self.location_point and self.location_lat and self.location_lng:
+                    try:
+                        self.location_point = Point(float(self.location_lng), float(self.location_lat), srid=4326)
+                    except (ValueError, TypeError):
+                        pass
+                
+                # Also sync lat/lng from location_point if needed (for backward compatibility)
+                if self.location_point and (not self.location_lat or not self.location_lng):
+                    self.location_lat = self.location_point.y
+                    self.location_lng = self.location_point.x
+            except ImportError:
+                pass
+        
+        super().save(*args, **kwargs)
     
     def __str__(self):
         return self.title
@@ -175,6 +210,37 @@ class EventFavorite(models.Model):
         return f"{self.user.username} favorited {self.event.title}"
 
 
+class EventShare(models.Model):
+    """Track event shares for analytics."""
+    SHARE_PLATFORM_CHOICES = [
+        ('facebook', 'Facebook'),
+        ('twitter', 'Twitter'),
+        ('linkedin', 'LinkedIn'),
+        ('whatsapp', 'WhatsApp'),
+        ('email', 'Email'),
+        ('link', 'Link Copy'),
+        ('other', 'Other'),
+    ]
+    
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    event = models.ForeignKey(Event, on_delete=models.CASCADE, related_name='shares', db_index=True)
+    user = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='event_shares', db_index=True)
+    platform = models.CharField(max_length=20, choices=SHARE_PLATFORM_CHOICES, default='link')
+    shared_at = models.DateTimeField(default=timezone.now)
+    ip_address = models.GenericIPAddressField(null=True, blank=True)
+    
+    class Meta:
+        db_table = 'events_eventshare'
+        indexes = [
+            models.Index(fields=['event']),
+            models.Index(fields=['user']),
+            models.Index(fields=['shared_at']),
+        ]
+    
+    def __str__(self):
+        return f"{self.event.title} shared on {self.platform}"
+
+
 class EventInvitation(models.Model):
     """Invitation to an event."""
     import uuid
@@ -209,4 +275,29 @@ class EventInvitation(models.Model):
     
     def __str__(self):
         return f"Invitation to {self.event.title} for {self.invitee_email or self.invitee.username}"
+
+
+class EventFilterPreference(models.Model):
+    """Saved event filter preferences for users."""
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='event_filter_preferences', db_index=True)
+    name = models.CharField(max_length=100, help_text="Name for this filter set")
+    # Filter fields stored as JSON
+    filters = models.JSONField(default=dict, help_text="Filter parameters (category, date_range, price_range, location, etc.)")
+    is_default = models.BooleanField(default=False, help_text="Use this as default filter set")
+    created_at = models.DateTimeField(default=timezone.now)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        db_table = 'events_eventfilterpreference'
+        unique_together = ['user', 'name']  # One filter set per name per user
+        indexes = [
+            models.Index(fields=['user']),
+            models.Index(fields=['is_default']),
+        ]
+        verbose_name = "Event Filter Preference"
+        verbose_name_plural = "Event Filter Preferences"
+    
+    def __str__(self):
+        return f"{self.user.username} - {self.name}"
 

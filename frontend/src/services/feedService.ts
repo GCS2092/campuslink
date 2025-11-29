@@ -2,21 +2,24 @@ import api from './api'
 
 export interface FeedItem {
   id: string
-  author: {
+  author?: {
     id: string
     username: string
     first_name?: string
     last_name?: string
   }
-  type: 'event' | 'group' | 'announcement' | 'news'
-  title: string
-  content: string
+  type?: 'event' | 'group' | 'announcement' | 'news' | 'feed'
+  title?: string
+  content?: string
   image?: string
-  visibility: 'public' | 'private'
+  visibility?: 'public' | 'private'
   university?: string
-  is_published: boolean
-  created_at: string
-  updated_at: string
+  is_published?: boolean
+  created_at?: string
+  updated_at?: string
+  // For personalized feed items
+  event_data?: any
+  feed_data?: any
 }
 
 export const feedService = {
@@ -106,6 +109,16 @@ export const feedService = {
 
   deleteFeedItem: async (id: string) => {
     const response = await api.delete(`/feed/${id}/`)
+    return response.data
+  },
+
+  getPersonalizedFeed: async () => {
+    const response = await api.get('/feed/personalized/')
+    return response.data
+  },
+
+  getFriendsActivity: async () => {
+    const response = await api.get('/feed/friends_activity/')
     return response.data
   },
 }

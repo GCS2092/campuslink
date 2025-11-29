@@ -39,7 +39,16 @@ export function useWebSocket({
     if (!conversationId || !user) return
 
     // Get WebSocket URL from API base URL
-    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
+    // WebSocket routes are at root level, not under /api
+    let apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
+    
+    // Remove /api suffix if present (WebSocket routes are at root)
+    if (apiUrl.endsWith('/api')) {
+      apiUrl = apiUrl.replace('/api', '')
+    } else if (apiUrl.includes('/api/')) {
+      apiUrl = apiUrl.split('/api')[0]
+    }
+    
     const wsProtocol = apiUrl.startsWith('https') ? 'wss' : 'ws'
     const wsHost = apiUrl.replace(/^https?:\/\//, '')
     const wsUrl = `${wsProtocol}://${wsHost}/ws/chat/${conversationId}/`

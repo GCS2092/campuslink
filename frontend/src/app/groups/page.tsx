@@ -136,7 +136,22 @@ export default function GroupsPage() {
       router.push(`/messages?conversation=${conversation.id}`)
     } catch (error: any) {
       console.error('Error opening group conversation:', error)
-      toast.error(error.response?.data?.error || 'Erreur lors de l\'ouverture de la conversation')
+      let errorMessage = 'Erreur lors de l\'ouverture de la conversation'
+      if (error?.response?.data) {
+        const errorData = error.response.data
+        if (errorData.error && typeof errorData.error === 'object') {
+          errorMessage = errorData.error.message || errorData.error.details?.message || errorMessage
+        } else if (typeof errorData === 'string') {
+          errorMessage = errorData
+        } else if (errorData.message) {
+          errorMessage = errorData.message
+        } else if (errorData.error && typeof errorData.error === 'string') {
+          errorMessage = errorData.error
+        }
+      } else if (error?.message) {
+        errorMessage = error.message
+      }
+      toast.error(typeof errorMessage === 'string' ? errorMessage : 'Erreur lors de l\'ouverture de la conversation')
     }
   }
 

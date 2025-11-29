@@ -7,6 +7,7 @@ import { FiCalendar, FiMapPin, FiClock, FiUsers, FiArrowLeft, FiUser } from 'rea
 import { eventService, type Event } from '@/services/eventService'
 import toast from 'react-hot-toast'
 import Link from 'next/link'
+import EventShareButton from '@/components/EventShareButton'
 
 export default function EventDetailPage() {
   const { user, loading } = useAuth()
@@ -311,6 +312,7 @@ export default function EventDetailPage() {
                     Cet événement est terminé
                   </div>
                 ) : null}
+                <EventShareButton eventId={event.id} eventTitle={event.title} />
               </div>
             )}
           </div>

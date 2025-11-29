@@ -294,13 +294,166 @@ def profile(request):
         serializer = UserSerializer(request.user)
         return Response(serializer.data)
     
-    # Update profile
-    profile = request.user.profile
-    serializer = ProfileSerializer(profile, data=request.data, partial=True)
+    # Update profile and user
+    user = request.user
+    profile = user.profile
+    
+    # Update User fields (first_name, last_name)
+    user_data = {}
+    if 'first_name' in request.data:
+        user_data['first_name'] = request.data['first_name']
+    if 'last_name' in request.data:
+        user_data['last_name'] = request.data['last_name']
+    
+    if user_data:
+        for key, value in user_data.items():
+            setattr(user, key, value)
+        user.save(update_fields=list(user_data.keys()))
+    
+    # Update Profile fields
+    profile_data = {k: v for k, v in request.data.items() if k not in ['first_name', 'last_name']}
+    serializer = ProfileSerializer(profile, data=profile_data, partial=True)
     if serializer.is_valid():
         serializer.save()
-        return Response(serializer.data)
+        # Return updated user with profile
+        user_serializer = UserSerializer(user)
+        return Response(user_serializer.data)
     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def change_password(request):
+    """Change user password."""
+    from django.contrib.auth.password_validation import validate_password
+    from django.core.exceptions import ValidationError
+    
+    user = request.user
+    old_password = request.data.get('old_password')
+    new_password = request.data.get('new_password')
+    new_password_confirm = request.data.get('new_password_confirm')
+    
+    if not old_password or not new_password or not new_password_confirm:
+        return Response(
+            {'error': 'Tous les champs sont requis.'},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+    
+    # Verify old password
+    if not user.check_password(old_password):
+        return Response(
+            {'error': 'L\'ancien mot de passe est incorrect.'},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+    
+    # Check if new passwords match
+    if new_password != new_password_confirm:
+        return Response(
+            {'error': 'Les nouveaux mots de passe ne correspondent pas.'},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+    
+    # Validate new password
+    try:
+        validate_password(new_password, user)
+    except ValidationError as e:
+        return Response(
+            {'error': 'Le nouveau mot de passe ne respecte pas les critères de sécurité.', 'details': list(e.messages)},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+    
+    # Set new password
+    user.set_password(new_password)
+    user.save()
+    
+    return Response(
+        {'message': 'Mot de passe modifié avec succès.'},
+        status=status.HTTP_200_OK
+    )
+
+
+@api_view(['GET', 'PUT'])
+@permission_classes([IsAuthenticated])
+def notification_preferences(request):
+    """Get or update user notification preferences."""
+    user = request.user
+    
+    if request.method == 'GET':
+        # Get preferences from profile.interests (temporary storage)
+        preferences = {}
+        if hasattr(user, 'profile') and user.profile:
+            profile = user.profile
+            if profile.interests and isinstance(profile.interests, dict):
+                preferences = profile.interests.get('notification_preferences', {})
+        
+        # Default preferences
+        default_preferences = {
+            'email_notifications': True,
+            'push_notifications': True,
+            'event_reminders': True,
+            'friend_requests': True,
+            'messages': True,
+            'group_updates': True,
+            'event_invitations': True,
+        }
+        
+        # Merge with defaults
+        for key, value in default_preferences.items():
+            if key not in preferences:
+                preferences[key] = value
+        
+        return Response(preferences)
+    
+    # Update preferences
+    preferences = request.data
+    
+    # Validate preferences
+    valid_keys = [
+        'email_notifications', 'push_notifications', 'event_reminders',
+        'friend_requests', 'messages', 'group_updates', 'event_invitations'
+    ]
+    
+    for key in preferences.keys():
+        if key not in valid_keys:
+            return Response(
+                {'error': f'Clé de préférence invalide: {key}'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        if not isinstance(preferences[key], bool):
+            return Response(
+                {'error': f'La valeur de {key} doit être un booléen.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+    
+    # Store in profile (we'll add a JSONField for this)
+    # For now, we'll store it in a simple way
+    if hasattr(user, 'profile') and user.profile:
+        # If Profile model has notification_preferences field, use it
+        # Otherwise, we'll need to add it via migration
+        # For now, let's use a workaround with interests field or create a simple storage
+        profile = user.profile
+        # We'll store as JSON in a text field or use interests field temporarily
+        # This is a simplified approach - in production, add a proper JSONField
+        try:
+            import json
+            if hasattr(profile, 'notification_preferences'):
+                profile.notification_preferences = preferences
+            else:
+                # Store in interests as a workaround (not ideal, but works)
+                # In production, add a notification_preferences JSONField to Profile
+                profile.interests = preferences if isinstance(profile.interests, dict) else {}
+            profile.save()
+        except Exception as e:
+            logger.error(f"Error saving notification preferences: {e}")
+            return Response(
+                {'error': 'Erreur lors de la sauvegarde des préférences.'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+    
+    return Response(
+        {'message': 'Préférences mises à jour avec succès.', 'preferences': preferences},
+        status=status.HTTP_200_OK
+    )
 
 
 class UserViewSet(viewsets.ReadOnlyModelViewSet):
@@ -1284,6 +1437,343 @@ def university_admin_dashboard_stats(request):
     }
     
     return Response(stats)
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def my_profile_stats(request):
+    """Get personal statistics for the current user (events, groups, friends)."""
+    from events.models import Event, Participation
+    from groups.models import Group, Membership
+    
+    user = request.user
+    
+    # Events statistics
+    events_organized = Event.objects.filter(organizer=user).count()
+    events_participated = Participation.objects.filter(user=user).count()
+    upcoming_participations = Participation.objects.filter(
+        user=user,
+        event__start_date__gte=timezone.now(),
+        event__status='published'
+    ).count()
+    
+    # Groups statistics
+    groups_created = Group.objects.filter(creator=user).count()
+    groups_member = Membership.objects.filter(
+        user=user,
+        status='active'
+    ).count()
+    
+    # Friends statistics
+    friends_count = Friendship.objects.filter(
+        (Q(from_user=user) | Q(to_user=user)),
+        status='accepted'
+    ).count()
+    
+    # Recent activity
+    recent_events_raw = Event.objects.filter(
+        organizer=user
+    ).order_by('-created_at')[:5].values('id', 'title', 'start_date', 'status')
+    
+    # Convert UUIDs to strings for proper JSON serialization
+    recent_events = [
+        {
+            'id': str(event['id']),
+            'title': event['title'],
+            'start_date': event['start_date'].isoformat() if event['start_date'] else None,
+            'status': event['status']
+        }
+        for event in recent_events_raw
+    ]
+    
+    recent_participations_raw = Participation.objects.filter(
+        user=user
+    ).select_related('event').order_by('-created_at')[:5].values(
+        'id', 'event__id', 'event__title', 'event__start_date', 'created_at'
+    )
+    
+    # Convert UUIDs to strings for proper JSON serialization
+    recent_participations = [
+        {
+            'id': str(part['id']),
+            'event__id': str(part['event__id']) if part['event__id'] else None,
+            'event__title': part['event__title'],
+            'event__start_date': part['event__start_date'].isoformat() if part['event__start_date'] else None,
+            'created_at': part['created_at'].isoformat() if part['created_at'] else None
+        }
+        for part in recent_participations_raw
+    ]
+    
+    stats = {
+        'events': {
+            'organized': events_organized,
+            'participated': events_participated,
+            'upcoming': upcoming_participations,
+        },
+        'groups': {
+            'created': groups_created,
+            'member': groups_member,
+        },
+        'friends': {
+            'count': friends_count,
+        },
+        'recent_events': recent_events,
+        'recent_participations': recent_participations,
+    }
+    
+    return Response(stats)
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def my_profile_stats_detailed(request):
+    """Get detailed statistics for graphs and charts."""
+    from events.models import Event, Participation
+    from groups.models import Group, Membership
+    from django.db.models import Count, Q
+    from django.db.models.functions import TruncMonth, TruncDate
+    from datetime import datetime, timedelta
+    
+    user = request.user
+    
+    # Get date range (last 12 months)
+    now = timezone.now()
+    twelve_months_ago = now - timedelta(days=365)
+    
+    # Monthly participation stats (last 12 months)
+    participations_by_month = Participation.objects.filter(
+        user=user,
+        created_at__gte=twelve_months_ago
+    ).annotate(
+        month=TruncMonth('created_at')
+    ).values('month').annotate(count=Count('id')).order_by('month')
+    
+    monthly_participations = []
+    for item in participations_by_month:
+        monthly_participations.append({
+            'month': item['month'].strftime('%Y-%m') if item['month'] else None,
+            'count': item['count']
+        })
+    
+    # Events organized by month
+    events_organized_by_month = Event.objects.filter(
+        organizer=user,
+        created_at__gte=twelve_months_ago
+    ).annotate(
+        month=TruncMonth('created_at')
+    ).values('month').annotate(count=Count('id')).order_by('month')
+    
+    monthly_organized = []
+    for item in events_organized_by_month:
+        monthly_organized.append({
+            'month': item['month'].strftime('%Y-%m') if item['month'] else None,
+            'count': item['count']
+        })
+    
+    # Participation by category
+    participations_by_category = Participation.objects.filter(
+        user=user
+    ).select_related('event__category').values(
+        'event__category__name'
+    ).annotate(count=Count('id')).order_by('-count')[:10]
+    
+    category_stats = [
+        {
+            'category': item['event__category__name'] or 'Sans catégorie',
+            'count': item['count']
+        }
+        for item in participations_by_category
+    ]
+    
+    # Activity heatmap data (last 30 days)
+    thirty_days_ago = now - timedelta(days=30)
+    daily_activity = Participation.objects.filter(
+        user=user,
+        created_at__gte=thirty_days_ago
+    ).annotate(
+        day=TruncDate('created_at')
+    ).values('day').annotate(count=Count('id')).order_by('day')
+    
+    heatmap_data = []
+    for item in daily_activity:
+        heatmap_data.append({
+            'date': item['day'].strftime('%Y-%m-%d') if item['day'] else None,
+            'count': item['count']
+        })
+    
+    # Friends activity (friends who participate in same events)
+    # Get user's friends
+    friends = User.objects.filter(
+        Q(friendship_requests_sent__to_user=user, friendship_requests_sent__status='accepted') |
+        Q(friendship_requests_received__from_user=user, friendship_requests_received__status='accepted')
+    )
+    
+    # Get events where friends participate
+    friends_participations = Participation.objects.filter(
+        user__in=friends,
+        event__participations__user=user
+    ).exclude(user=user).values('event__id', 'event__title').annotate(
+        friends_count=Count('user', distinct=True)
+    ).order_by('-friends_count')[:5]
+    
+    friends_activity = [
+        {
+            'event_id': str(item['event__id']),
+            'event_title': item['event__title'],
+            'friends_count': item['friends_count']
+        }
+        for item in friends_participations
+    ]
+    
+    stats = {
+        'monthly_participations': monthly_participations,
+        'monthly_organized': monthly_organized,
+        'category_distribution': category_stats,
+        'activity_heatmap': heatmap_data,
+        'friends_activity': friends_activity,
+    }
+    
+    return Response(stats)
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def friend_suggestions(request):
+    """Get friend suggestions based on common interests, university, groups, and mutual friends."""
+    from events.models import Participation
+    from groups.models import Membership
+    
+    user = request.user
+    limit = int(request.query_params.get('limit', 10))
+    
+    # Get user's current friends and pending requests (to exclude)
+    existing_friendships = Friendship.objects.filter(
+        Q(from_user=user) | Q(to_user=user)
+    ).values_list('from_user_id', 'to_user_id')
+    
+    excluded_user_ids = {user.id}
+    for friendship in existing_friendships:
+        excluded_user_ids.add(friendship[0] if friendship[0] != user.id else friendship[1])
+    
+    # Get user's profile data
+    user_university = None
+    user_academic_year = None
+    user_department = None
+    if hasattr(user, 'profile') and user.profile:
+        user_university = user.profile.university
+        user_academic_year = user.profile.academic_year_obj
+        user_department = user.profile.department
+    
+    # Base queryset: verified and active users, excluding current user and existing friends
+    base_queryset = User.objects.filter(
+        is_verified=True,
+        is_active=True
+    ).exclude(
+        id__in=excluded_user_ids
+    ).select_related('profile')
+    
+    # Scoring system for suggestions
+    suggestions = []
+    
+    for candidate in base_queryset[:limit * 5]:  # Get more to score
+        if not hasattr(candidate, 'profile') or not candidate.profile:
+            continue
+            
+        score = 0
+        reasons = []
+        
+        # 1. Same university (high weight)
+        if user_university and candidate.profile.university == user_university:
+            score += 50
+            reasons.append('Même université')
+        
+        # 2. Same academic year
+        if user_academic_year and candidate.profile.academic_year_obj == user_academic_year:
+            score += 30
+            reasons.append('Même année académique')
+        
+        # 3. Same department
+        if user_department and candidate.profile.department == user_department:
+            score += 25
+            reasons.append('Même département')
+        
+        # 4. Mutual friends
+        # Get user's friends
+        user_friends = User.objects.filter(
+            Q(friendship_requests_sent__to_user=user, friendship_requests_sent__status='accepted') |
+            Q(friendship_requests_received__from_user=user, friendship_requests_received__status='accepted')
+        )
+        
+        # Get candidate's friends
+        candidate_friends = User.objects.filter(
+            Q(friendship_requests_sent__to_user=candidate, friendship_requests_sent__status='accepted') |
+            Q(friendship_requests_received__from_user=candidate, friendship_requests_received__status='accepted')
+        )
+        
+        # Count mutual friends
+        mutual_friends = (set(user_friends.values_list('id', flat=True)) & 
+                          set(candidate_friends.values_list('id', flat=True)))
+        mutual_friends_count = len(mutual_friends)
+        
+        if mutual_friends_count > 0:
+            score += mutual_friends_count * 10
+            reasons.append(f'{mutual_friends_count} ami(s) en commun')
+        
+        # 5. Common groups
+        user_groups = Membership.objects.filter(
+            user=user,
+            status='active'
+        ).values_list('group_id', flat=True)
+        
+        candidate_groups = Membership.objects.filter(
+            user=candidate,
+            status='active'
+        ).values_list('group_id', flat=True)
+        
+        common_groups = set(user_groups) & set(candidate_groups)
+        if common_groups:
+            score += len(common_groups) * 15
+            reasons.append(f'{len(common_groups)} groupe(s) en commun')
+        
+        # 6. Common event participations
+        user_events = Participation.objects.filter(user=user).values_list('event_id', flat=True)
+        candidate_events = Participation.objects.filter(user=candidate).values_list('event_id', flat=True)
+        
+        common_events = set(user_events) & set(candidate_events)
+        if common_events:
+            score += len(common_events) * 5
+            reasons.append(f'{len(common_events)} événement(s) en commun')
+        
+        # 7. Similar interests (if available)
+        if hasattr(user.profile, 'interests') and hasattr(candidate.profile, 'interests'):
+            user_interests = user.profile.interests or []
+            candidate_interests = candidate.profile.interests or []
+            if isinstance(user_interests, list) and isinstance(candidate_interests, list):
+                common_interests = set(user_interests) & set(candidate_interests)
+                if common_interests:
+                    score += len(common_interests) * 8
+                    reasons.append(f'{len(common_interests)} intérêt(s) commun(s)')
+        
+        if score > 0:
+            suggestions.append({
+                'user': candidate,
+                'score': score,
+                'reasons': reasons[:3]  # Top 3 reasons
+            })
+    
+    # Sort by score
+    suggestions.sort(key=lambda x: x['score'], reverse=True)
+    
+    # Serialize top suggestions
+    serializer = UserBasicSerializer([s['user'] for s in suggestions[:limit]], many=True)
+    result = serializer.data
+    
+    # Add reasons to each suggestion
+    for i, suggestion in enumerate(suggestions[:limit]):
+        result[i]['suggestion_reasons'] = suggestion['reasons']
+        result[i]['suggestion_score'] = suggestion['score']
+    
+    return Response(result, status=status.HTTP_200_OK)
 
 
 @api_view(['GET'])

@@ -72,18 +72,29 @@ class ConversationSerializer(serializers.ModelSerializer):
         """Get group information if this is a group conversation."""
         try:
             if obj.group:
+                # Safely get profile image URL
+                profile_image = None
+                try:
+                    if hasattr(obj.group, 'profile_image') and obj.group.profile_image:
+                        if hasattr(obj.group.profile_image, 'url'):
+                            profile_image = obj.group.profile_image.url
+                        elif isinstance(obj.group.profile_image, str):
+                            profile_image = obj.group.profile_image
+                except Exception:
+                    pass
+                
                 return {
                     'id': str(obj.group.id),
                     'name': obj.group.name,
                     'slug': getattr(obj.group, 'slug', None),
-                    'profile_image': getattr(obj.group, 'profile_image', None)
+                    'profile_image': profile_image
                 }
             return None
         except Exception as e:
             # Log error but don't break the serializer
             import logging
             logger = logging.getLogger(__name__)
-            logger.error(f"Error getting group for conversation {obj.id}: {str(e)}")
+            logger.error(f"Error getting group for conversation {obj.id}: {str(e)}", exc_info=True)
             return None
     
     def get_last_message(self, obj):
