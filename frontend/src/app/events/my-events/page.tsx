@@ -323,7 +323,7 @@ function EventCard({ event, user, onLeave, leavingEventId, formatDate, isPast = 
   const isOrganizer = event.organizer.id === user.id
   const isParticipating = event.is_participating
 
-  const getImageUrl = () => {
+  const getImageUrl = (): string | undefined => {
     if (event.image) {
       if (typeof event.image === 'string') {
         return event.image
@@ -335,7 +335,7 @@ function EventCard({ event, user, onLeave, leavingEventId, formatDate, isPast = 
     if (event.image_url) {
       return event.image_url
     }
-    return null
+    return undefined
   }
 
   return (
