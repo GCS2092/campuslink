@@ -9,6 +9,10 @@ import toast from 'react-hot-toast'
 import Link from 'next/link'
 import { getUniversityName, getCampusName } from '@/utils/typeHelpers'
 
+interface Friend extends User {
+  friendship_id?: string
+}
+
 export default function UserProfilePage() {
   const { user: currentUser, loading } = useAuth()
   const router = useRouter()
@@ -20,7 +24,7 @@ export default function UserProfilePage() {
   const [friendshipStatus, setFriendshipStatus] = useState<string>('none')
   const [friendshipId, setFriendshipId] = useState<string | null>(null)
   const [isProcessing, setIsProcessing] = useState(false)
-  const [friends, setFriends] = useState<User[]>([])
+  const [friends, setFriends] = useState<Friend[]>([])
   const [isLoadingFriends, setIsLoadingFriends] = useState(false)
   const [showFriendsSection, setShowFriendsSection] = useState(true) // Afficher par défaut
 
@@ -439,8 +443,8 @@ export default function UserProfilePage() {
                               <FiArrowRight className="w-4 h-4" />
                             </Link>
                             <button
-                              onClick={() => handleRemoveFriend(friend.id, friend.friendship_id)}
-                              disabled={isProcessing}
+                              onClick={() => handleRemoveFriend(friend.id, friend.friendship_id || '')}
+                              disabled={isProcessing || !friend.friendship_id}
                               className="px-3 py-2 text-sm bg-red-600 text-white rounded-lg hover:bg-red-700 transition disabled:opacity-50 flex items-center gap-1"
                               title="Supprimer l'ami"
                             >
