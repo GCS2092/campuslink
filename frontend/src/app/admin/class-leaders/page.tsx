@@ -217,7 +217,7 @@ export default function ClassLeadersPage() {
               name: 'university',
               options: UNIVERSITIES.map((u) => ({ value: u, label: u })),
               value: selectedUniversity,
-              onChange: (value) => {
+              onChange: (value: string) => {
                 setSelectedUniversity(value)
                 setCurrentPage(1)
               },
