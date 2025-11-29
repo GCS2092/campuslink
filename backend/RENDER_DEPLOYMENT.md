@@ -8,8 +8,11 @@ backend
 ```
 
 ### 2. Python Version
-Render utilisera automatiquement la version spécifiée dans `runtime.txt` (Python 3.12).
-Si vous devez spécifier manuellement, utilisez **Python 3.12** dans les paramètres du service.
+**IMPORTANT**: Le fichier `runtime.txt` doit être à la **racine du repository** (pas dans le dossier `backend`) pour que Render le détecte automatiquement.
+
+Si Render utilise toujours Python 3.13, vous pouvez :
+- Vérifier que `runtime.txt` est bien à la racine du projet
+- Ou spécifier manuellement **Python 3.12** dans les paramètres du service Render (Settings → Environment → Python Version)
 
 ### 3. Build Command
 ```bash
