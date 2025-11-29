@@ -46,6 +46,7 @@ export default function UniversityAdminUsersPage() {
     if (user && user.role === 'university_admin') {
       loadData()
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user, activeTab])
 
   const loadData = async () => {

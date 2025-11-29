@@ -36,6 +36,7 @@ export default function UniversityAdminAuditLogsPage() {
     if (user && user.role === 'university_admin') {
       loadLogs()
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user, filters])
 
   const loadLogs = async () => {

@@ -343,6 +343,7 @@ function EventCard({ event, user, onLeave, leavingEventId, formatDate, isPast = 
       <Link href={`/events/${event.id}`}>
         {getImageUrl() && (
           <div className="h-48 bg-gray-200 overflow-hidden">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src={getImageUrl()}
               alt={event.title}

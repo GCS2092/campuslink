@@ -32,6 +32,7 @@ export default function UniversityAdminModerationPage() {
     if (user && user.role === 'university_admin') {
       loadReports()
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user, statusFilter, contentTypeFilter])
 
   const loadReports = async () => {

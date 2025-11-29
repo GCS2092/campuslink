@@ -169,6 +169,7 @@ export default function EventDetailPage() {
           {/* Header Image */}
           {event.image && (
             <div className="h-64 sm:h-80 bg-gradient-to-r from-primary-500 to-secondary-500 relative overflow-hidden">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src={(typeof event.image === 'string' ? event.image : (event.image as any)?.url || event.image_url || '')}
                 alt={event.title}

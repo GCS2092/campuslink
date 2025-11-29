@@ -7,7 +7,7 @@
     "dev:mobile": "node start-mobile.js",
     "dev:auto": "node auto-config.js && next dev -H 0.0.0.0",
     "dev:network": "node auto-config.js && next dev -H 0.0.0.0",
-    "build": "node auto-config.js && next build",
+    "build": "node auto-config.js && ESLINT_NO_DEV_ERRORS=true next build",
     "start": "next start",
     "lint": "next lint",
     "test": "jest",

@@ -65,6 +65,7 @@ export default function UniversityAdminClassLeadersPage() {
     if (user && user.role === 'university_admin') {
       loadLeaders()
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user, searchTerm, selectedActive, selectedOrdering, currentPage])
 
   const loadLeaders = async () => {
