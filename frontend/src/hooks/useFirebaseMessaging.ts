@@ -1,3 +1,5 @@
+'use client'
+
 import { useEffect, useState } from 'react'
 import { requestNotificationPermission, onMessageListener } from '@/lib/firebase'
 import { notificationService } from '@/services/notificationService'
