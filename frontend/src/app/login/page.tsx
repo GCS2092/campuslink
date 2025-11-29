@@ -41,7 +41,7 @@ export default function LoginPage() {
       
       // Vérifier si le compte nécessite une activation
       if (result?.account_status?.requires_activation) {
-        toast.info('⏳ Votre compte est en attente de validation.', { duration: 4000 })
+        toast('⏳ Votre compte est en attente de validation.', { duration: 4000, icon: '⏳' })
         // Rediriger vers la page d'attente
         setTimeout(() => {
           router.push('/pending-approval')
