@@ -6,6 +6,7 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.exceptions import NotFound
+from django.http import Http404
 from django.db import models
 from django.db.models import Q, Case, When, F
 from django.utils import timezone
@@ -323,11 +324,16 @@ class EventViewSet(viewsets.ModelViewSet):
     
     def get_object(self):
         """Override to better handle event retrieval, including user's own events."""
+        pk = self.kwargs.get('pk')
+        
+        # Ignore special action routes like 'recommended'
+        if pk in ['recommended', 'upcoming', 'past', 'my-events']:
+            raise Http404("Cette route n'est pas un événement spécifique")
+        
         try:
             return super().get_object()
         except Exception as e:
             # If event not found in queryset, try to get it directly if user is the organizer
-            pk = self.kwargs.get('pk')
             if pk and hasattr(self.request, 'user') and self.request.user.is_authenticated:
                 try:
                     from .models import Event
