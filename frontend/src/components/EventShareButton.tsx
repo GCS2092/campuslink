@@ -35,12 +35,6 @@ export default function EventShareButton({ eventId, eventTitle, className = '' }
     }
   }, [isOpen, shareLinks, loadShareLinks])
 
-  useEffect(() => {
-    if (isOpen && !shareLinks) {
-      loadShareLinks()
-    }
-  }, [isOpen, shareLinks, loadShareLinks])
-
   const handleShare = async (platform: string, url: string) => {
     try {
       // Track the share
