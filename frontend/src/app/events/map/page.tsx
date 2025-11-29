@@ -54,13 +54,13 @@ export default function EventsMapPage() {
           console.error('Error getting location:', error)
           // Default to Dakar, Senegal if location is not available
           setUserLocation({ lat: 14.7167, lng: -17.4677 })
-          toast.error('Impossible d\'obtenir votre localisation. Utilisation de la position par défaut.')
+          toast.error('Impossible d&apos;obtenir votre localisation. Utilisation de la position par défaut.')
         }
       )
     } else {
       // Default to Dakar, Senegal
       setUserLocation({ lat: 14.7167, lng: -17.4677 })
-      toast.error('La géolocalisation n\'est pas supportée par votre navigateur.')
+      toast.error('La géolocalisation n&apos;est pas supportée par votre navigateur.')
     }
   }
 

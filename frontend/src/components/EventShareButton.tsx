@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { FiShare2, FiFacebook, FiTwitter, FiLinkedin, FiMail, FiLink, FiX } from 'react-icons/fi'
 import { eventService } from '@/services/eventService'
 import toast from 'react-hot-toast'
@@ -16,13 +16,7 @@ export default function EventShareButton({ eventId, eventTitle, className = '' }
   const [shareLinks, setShareLinks] = useState<any>(null)
   const [isLoading, setIsLoading] = useState(false)
 
-  useEffect(() => {
-    if (isOpen && !shareLinks) {
-      loadShareLinks()
-    }
-  }, [isOpen])
-
-  const loadShareLinks = async () => {
+  const loadShareLinks = useCallback(async () => {
     setIsLoading(true)
     try {
       const links = await eventService.getShareLinks(eventId)
@@ -33,7 +27,19 @@ export default function EventShareButton({ eventId, eventTitle, className = '' }
     } finally {
       setIsLoading(false)
     }
-  }
+  }, [eventId])
+
+  useEffect(() => {
+    if (isOpen && !shareLinks) {
+      loadShareLinks()
+    }
+  }, [isOpen, shareLinks, loadShareLinks]), [eventId])
+
+  useEffect(() => {
+    if (isOpen && !shareLinks) {
+      loadShareLinks()
+    }
+  }, [isOpen, shareLinks, loadShareLinks])
 
   const handleShare = async (platform: string, url: string) => {
     try {
@@ -97,7 +103,7 @@ export default function EventShareButton({ eventId, eventTitle, className = '' }
           {/* Share Menu */}
           <div className="absolute right-0 mt-2 w-64 bg-white rounded-xl shadow-2xl border border-gray-200 z-50 overflow-hidden">
             <div className="p-4 border-b border-gray-200 flex items-center justify-between">
-              <h3 className="font-semibold text-gray-900">Partager l'événement</h3>
+              <h3 className="font-semibold text-gray-900">Partager l&apos;événement</h3>
               <button
                 onClick={() => setIsOpen(false)}
                 className="p-1 hover:bg-gray-100 rounded transition"

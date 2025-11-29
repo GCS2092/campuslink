@@ -186,8 +186,9 @@ export function useWebSocket({
 
     return () => {
       disconnect()
-      if (typingTimeoutRef.current) {
-        clearTimeout(typingTimeoutRef.current)
+      const timeoutId = typingTimeoutRef.current
+      if (timeoutId) {
+        clearTimeout(timeoutId)
       }
     }
   }, [conversationId, user, connect, disconnect])
