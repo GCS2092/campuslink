@@ -1,9 +1,36 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { requestNotificationPermission, onMessageListener } from '@/lib/firebase'
 import { notificationService } from '@/services/notificationService'
 import toast from 'react-hot-toast'
+
+// Lazy load Firebase functions to avoid importing during build
+let firebaseFunctions: {
+  requestNotificationPermission: () => Promise<string | null>
+  onMessageListener: () => Promise<any>
+} | null = null
+
+const getFirebaseFunctions = async () => {
+  if (firebaseFunctions) {
+    return firebaseFunctions
+  }
+  
+  if (typeof window === 'undefined') {
+    return null
+  }
+  
+  try {
+    const firebase = await import('@/lib/firebase')
+    firebaseFunctions = {
+      requestNotificationPermission: firebase.requestNotificationPermission,
+      onMessageListener: firebase.onMessageListener,
+    }
+    return firebaseFunctions
+  } catch (error) {
+    console.error('Error loading Firebase functions:', error)
+    return null
+  }
+}
 
 interface NotificationPayload {
   notification?: {
@@ -35,7 +62,10 @@ export const useFirebaseMessaging = () => {
             await navigator.serviceWorker.ready
           }
           
-          const fcmToken = await requestNotificationPermission()
+          const functions = await getFirebaseFunctions()
+          if (!functions) return
+          
+          const fcmToken = await functions.requestNotificationPermission()
           if (fcmToken) {
             setToken(fcmToken)
             console.log('FCM Token:', fcmToken)
@@ -59,9 +89,12 @@ export const useFirebaseMessaging = () => {
       // Configurer l'écoute des messages en temps réel (quand l'app est ouverte)
       const setupMessageListener = async () => {
         try {
+          const functions = await getFirebaseFunctions()
+          if (!functions) return
+          
           // Cette fonction écoute les messages quand l'app est au premier plan
           // Les messages en arrière-plan sont gérés par le service worker
-          const payload = await onMessageListener()
+          const payload = await functions.onMessageListener()
           if (payload) {
             console.log('📨 Message reçu (app ouverte):', payload)
             
@@ -108,7 +141,13 @@ export const useFirebaseMessaging = () => {
     }
 
     try {
-      const fcmToken = await requestNotificationPermission()
+      const functions = await getFirebaseFunctions()
+      if (!functions) {
+        toast.error('Firebase n\'est pas disponible')
+        return false
+      }
+      
+      const fcmToken = await functions.requestNotificationPermission()
       if (fcmToken) {
         setToken(fcmToken)
         setPermission('granted')
