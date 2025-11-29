@@ -7,14 +7,23 @@ export interface Group {
   description: string
   cover_image?: string
   profile_image?: string
-  creator: any
-  university?: string
+  creator: {
+    id: string
+    username: string
+    first_name?: string
+    last_name?: string
+  }
+  university?: string | {
+    name?: string
+    short_name?: string
+  }
   category?: string
   is_public: boolean
   is_verified: boolean
   members_count: number
   posts_count: number
   events_count: number
+  user_role?: 'admin' | 'member' | 'moderator'
   created_at: string
   updated_at: string
 }

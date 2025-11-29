@@ -23,3 +23,46 @@ export function getUniversityName(
   return 'Université'
 }
 
+/**
+ * Safely extracts campus name from a campus field that can be string or object
+ */
+export function getCampusName(
+  campus: string | { name?: string } | null | undefined
+): string {
+  if (!campus) {
+    return 'Campus'
+  }
+  
+  if (typeof campus === 'string') {
+    return campus
+  }
+  
+  if (typeof campus === 'object') {
+    return campus.name || 'Campus'
+  }
+  
+  return 'Campus'
+}
+
+/**
+ * Safely extracts image URL from an image field that can be string or object
+ */
+export function getImageUrl(
+  image: string | { url?: string } | null | undefined,
+  fallback?: string
+): string {
+  if (!image) {
+    return fallback || ''
+  }
+  
+  if (typeof image === 'string') {
+    return image
+  }
+  
+  if (typeof image === 'object' && image.url) {
+    return image.url
+  }
+  
+  return fallback || ''
+}
+

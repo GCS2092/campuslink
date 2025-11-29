@@ -20,6 +20,10 @@ export interface FriendshipStatus {
   status: 'none' | 'friends' | 'request_sent' | 'request_received' | 'rejected'
 }
 
+export interface FriendSuggestion extends User {
+  suggestion_reasons?: string[]
+}
+
 export const userService = {
   getUsers: async (params?: {
     verified_only?: boolean

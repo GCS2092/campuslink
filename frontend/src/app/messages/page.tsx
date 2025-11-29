@@ -225,7 +225,7 @@ export default function MessagesPage() {
       const data = await groupService.getGroups()
       const groupsList = Array.isArray(data) ? data : data?.results || []
       // Filtrer pour ne garder que les groupes dont l'utilisateur est membre
-      const memberGroups = groupsList.filter((group: Group) => (group as any).user_role)
+      const memberGroups = groupsList.filter((group: Group) => group.user_role)
       setMyGroups(memberGroups)
     } catch (error) {
       console.error('Error loading groups:', error)

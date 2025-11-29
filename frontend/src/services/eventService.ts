@@ -24,6 +24,8 @@ export interface Event {
   start_date: string
   end_date?: string
   location: string
+  location_lat?: number | string | null
+  location_lng?: number | string | null
   image?: string | {
     url: string
   }

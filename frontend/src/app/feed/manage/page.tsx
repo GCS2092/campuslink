@@ -327,7 +327,12 @@ export default function ManageFeedPage() {
                   </label>
                   <select
                     value={formData.type}
-                    onChange={(e) => setFormData({ ...formData, type: e.target.value as any })}
+                    onChange={(e) => {
+                      const value = e.target.value
+                      if (value === 'event' || value === 'group' || value === 'announcement' || value === 'news') {
+                        setFormData({ ...formData, type: value })
+                      }
+                    }}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
                   >
                     <option value="news">Actualité</option>
@@ -377,7 +382,12 @@ export default function ManageFeedPage() {
                         name="visibility"
                         value="public"
                         checked={formData.visibility === 'public'}
-                        onChange={(e) => setFormData({ ...formData, visibility: e.target.value as any })}
+                        onChange={(e) => {
+                          const value = e.target.value
+                          if (value === 'public' || value === 'private') {
+                            setFormData({ ...formData, visibility: value })
+                          }
+                        }}
                         className="w-4 h-4 text-primary-600"
                       />
                       <div className="flex items-center gap-2">
@@ -391,7 +401,12 @@ export default function ManageFeedPage() {
                         name="visibility"
                         value="private"
                         checked={formData.visibility === 'private'}
-                        onChange={(e) => setFormData({ ...formData, visibility: e.target.value as any })}
+                        onChange={(e) => {
+                          const value = e.target.value
+                          if (value === 'public' || value === 'private') {
+                            setFormData({ ...formData, visibility: value })
+                          }
+                        }}
                         className="w-4 h-4 text-primary-600"
                       />
                       <div className="flex items-center gap-2">

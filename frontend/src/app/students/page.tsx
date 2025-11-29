@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { useEffect, useState, useCallback } from 'react'
 import { FiUserPlus, FiCheck, FiX, FiUsers, FiMapPin, FiUser, FiLogOut, FiArrowLeft, FiZap } from 'react-icons/fi'
-import { userService, type User, type FriendshipStatus } from '@/services/userService'
+import { userService, type User, type FriendshipStatus, type FriendSuggestion } from '@/services/userService'
 import FilterBar from '@/components/FilterBar'
 import toast from 'react-hot-toast'
 import { getUniversityName } from '@/utils/typeHelpers'
@@ -28,7 +28,7 @@ export default function StudentsPage() {
   const [searchTerm, setSearchTerm] = useState('')
   const [selectedUniversity, setSelectedUniversity] = useState<string>('')
   const [friendshipStatuses, setFriendshipStatuses] = useState<Record<string, FriendshipStatus>>({})
-  const [suggestions, setSuggestions] = useState<User[]>([])
+  const [suggestions, setSuggestions] = useState<FriendSuggestion[]>([])
   const [isLoadingSuggestions, setIsLoadingSuggestions] = useState(false)
 
   useEffect(() => {
@@ -174,7 +174,7 @@ export default function StudentsPage() {
     return null
   }
 
-  const getFriendButton = (student: User) => {
+  const getFriendButton = (student: User | FriendSuggestion) => {
     const status = friendshipStatuses[student.id]
     
     if (!status || status.status === 'none') {
@@ -318,9 +318,9 @@ export default function StudentsPage() {
                               {getUniversityName(suggestion.profile.university)}
                             </p>
                           )}
-                          {(suggestion as any).suggestion_reasons && (suggestion as any).suggestion_reasons.length > 0 && (
+                          {suggestion.suggestion_reasons && suggestion.suggestion_reasons.length > 0 && (
                             <div className="mt-2 flex flex-wrap gap-1">
-                              {(suggestion as any).suggestion_reasons.map((reason: string, idx: number) => (
+                              {suggestion.suggestion_reasons.map((reason: string, idx: number) => (
                                 <span
                                   key={idx}
                                   className="text-xs px-2 py-1 bg-primary-100 text-primary-700 rounded-full"

@@ -4,10 +4,10 @@ import { useAuth } from '@/context/AuthContext'
 import { useRouter, useParams } from 'next/navigation'
 import { useEffect, useState } from 'react'
 import { FiUser, FiMail, FiMapPin, FiBook, FiCalendar, FiUsers, FiUserPlus, FiUserMinus, FiCheck, FiX, FiArrowRight } from 'react-icons/fi'
-import { userService } from '@/services/userService'
+import { userService, type User } from '@/services/userService'
 import toast from 'react-hot-toast'
 import Link from 'next/link'
-import { getUniversityName } from '@/utils/typeHelpers'
+import { getUniversityName, getCampusName } from '@/utils/typeHelpers'
 
 export default function UserProfilePage() {
   const { user: currentUser, loading } = useAuth()
@@ -15,12 +15,12 @@ export default function UserProfilePage() {
   const params = useParams()
   const userId = params?.id as string
   
-  const [profileUser, setProfileUser] = useState<any>(null)
+  const [profileUser, setProfileUser] = useState<User | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [friendshipStatus, setFriendshipStatus] = useState<string>('none')
   const [friendshipId, setFriendshipId] = useState<string | null>(null)
   const [isProcessing, setIsProcessing] = useState(false)
-  const [friends, setFriends] = useState<any[]>([])
+  const [friends, setFriends] = useState<User[]>([])
   const [isLoadingFriends, setIsLoadingFriends] = useState(false)
   const [showFriendsSection, setShowFriendsSection] = useState(true) // Afficher par défaut
 
@@ -284,9 +284,7 @@ export default function UserProfilePage() {
                       </p>
                       {profile.campus && (
                         <p className="text-sm text-gray-500 dark:text-gray-400">
-                          {typeof profile.campus === 'string' 
-                            ? profile.campus 
-                            : profile.campus?.name || 'Campus'}
+                          {getCampusName(profile.campus)}
                         </p>
                       )}
                     </div>

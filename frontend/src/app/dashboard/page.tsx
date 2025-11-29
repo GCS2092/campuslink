@@ -8,6 +8,7 @@ import { feedService, type FeedItem } from '@/services/feedService'
 import { eventService, type Event } from '@/services/eventService'
 import NotificationBell from '@/components/NotificationBell'
 import Link from 'next/link'
+import { getUniversityName } from '@/utils/typeHelpers'
 
 export default function DashboardPage() {
   const { user, loading, logout } = useAuth()
@@ -412,7 +413,7 @@ export default function DashboardPage() {
                                        <span className="text-gray-400">•</span>
                                        <div className="flex items-center gap-1 text-gray-600">
                                          <FiMapPin className="w-3 h-3 sm:w-4 sm:h-4" />
-                                         <span>{typeof itemUniversity === 'string' ? itemUniversity : itemUniversity?.name || itemUniversity?.short_name || 'Université'}</span>
+                                         <span>{getUniversityName(itemUniversity)}</span>
                                        </div>
                                      </>
                                    )}

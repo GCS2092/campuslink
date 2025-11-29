@@ -8,7 +8,7 @@ import { eventService, type Event } from '@/services/eventService'
 import toast from 'react-hot-toast'
 import Link from 'next/link'
 import EventShareButton from '@/components/EventShareButton'
-import { getUniversityName } from '@/utils/typeHelpers'
+import { getUniversityName, getImageUrl } from '@/utils/typeHelpers'
 
 export default function EventDetailPage() {
   const { user, loading } = useAuth()
@@ -172,7 +172,7 @@ export default function EventDetailPage() {
             <div className="h-64 sm:h-80 bg-gradient-to-r from-primary-500 to-secondary-500 relative overflow-hidden">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
-                src={(typeof event.image === 'string' ? event.image : (event.image as any)?.url || event.image_url || '')}
+                src={getImageUrl(event.image, event.image_url)}
                 alt={event.title}
                 className="w-full h-full object-cover"
               />
