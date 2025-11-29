@@ -11,6 +11,11 @@ let firebaseFunctions: {
 } | null = null
 
 const getFirebaseFunctions = async () => {
+  // Firebase temporairement désactivé
+  return null
+  
+  // Code désactivé - à réactiver quand Firebase sera configuré correctement
+  /*
   if (firebaseFunctions) {
     return firebaseFunctions
   }
@@ -30,6 +35,7 @@ const getFirebaseFunctions = async () => {
     console.error('Error loading Firebase functions:', error)
     return null
   }
+  */
 }
 
 interface NotificationPayload {
