@@ -263,7 +263,7 @@ export default function ManageFeedPage() {
                           )}
                         </span>
                         <span className="text-gray-400">•</span>
-                        <span>{new Date(item.created_at).toLocaleDateString('fr-FR')}</span>
+                        <span>{item.created_at ? new Date(item.created_at).toLocaleDateString('fr-FR') : 'Date inconnue'}</span>
                       </div>
                     </div>
                     <div className="flex items-center gap-2">
