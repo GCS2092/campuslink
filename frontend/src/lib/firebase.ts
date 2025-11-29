@@ -1,9 +1,4 @@
-import { initializeApp, getApps, FirebaseApp } from 'firebase/app'
-import { getAuth, Auth } from 'firebase/auth'
-import { getFirestore, Firestore } from 'firebase/firestore'
-// Firebase Storage is not used in the frontend, so we don't import it to avoid Node.js module issues
-// import { getStorage, FirebaseStorage } from 'firebase/storage'
-import { getMessaging, Messaging, getToken, onMessage } from 'firebase/messaging'
+'use client'
 
 // Configuration Firebase depuis les variables d'environnement
 const firebaseConfig = {
@@ -16,90 +11,165 @@ const firebaseConfig = {
 }
 
 // Vérifier que toutes les variables sont présentes
-if (!firebaseConfig.apiKey || !firebaseConfig.projectId) {
+if (typeof window !== 'undefined' && (!firebaseConfig.apiKey || !firebaseConfig.projectId)) {
   console.warn('⚠️ Firebase configuration is incomplete. Please check your environment variables.')
 }
 
-// Initialiser Firebase (éviter les doubles initialisations)
-let app: FirebaseApp
-if (getApps().length === 0) {
-  app = initializeApp(firebaseConfig)
-} else {
-  app = getApps()[0]
+// Lazy load Firebase modules to avoid Node.js dependencies during build
+let firebaseApp: any = null
+let firebaseAuth: any = null
+let firebaseFirestore: any = null
+let firebaseMessaging: any = null
+
+// Initialize Firebase only on client side
+const initializeFirebase = async () => {
+  if (typeof window === 'undefined') {
+    return null
+  }
+
+  if (firebaseApp) {
+    return firebaseApp
+  }
+
+  try {
+    // Dynamic imports to avoid bundling Node.js modules
+    const { initializeApp, getApps } = await import('firebase/app')
+    
+    if (getApps().length === 0) {
+      firebaseApp = initializeApp(firebaseConfig)
+    } else {
+      firebaseApp = getApps()[0]
+    }
+
+    return firebaseApp
+  } catch (error) {
+    console.error('Error initializing Firebase:', error)
+    return null
+  }
 }
 
-// Services Firebase
-export const auth: Auth = getAuth(app)
-export const db: Firestore = getFirestore(app)
-// Firebase Storage is not used in the frontend, so we don't initialize it
-// If needed in the future, initialize it conditionally: typeof window !== 'undefined' ? getStorage(app) : null
-// export const storage: FirebaseStorage = getStorage(app)
+// Get Firebase Auth (lazy loaded)
+export const getAuthInstance = async () => {
+  if (typeof window === 'undefined') {
+    return null
+  }
+
+  if (firebaseAuth) {
+    return firebaseAuth
+  }
+
+  try {
+    const app = await initializeFirebase()
+    if (!app) return null
+
+    const { getAuth } = await import('firebase/auth')
+    firebaseAuth = getAuth(app)
+    return firebaseAuth
+  } catch (error) {
+    console.error('Error getting Firebase Auth:', error)
+    return null
+  }
+}
+
+// Get Firebase Firestore (lazy loaded)
+export const getFirestoreInstance = async () => {
+  if (typeof window === 'undefined') {
+    return null
+  }
+
+  if (firebaseFirestore) {
+    return firebaseFirestore
+  }
+
+  try {
+    const app = await initializeFirebase()
+    if (!app) return null
+
+    const { getFirestore } = await import('firebase/firestore')
+    firebaseFirestore = getFirestore(app)
+    return firebaseFirestore
+  } catch (error) {
+    console.error('Error getting Firebase Firestore:', error)
+    return null
+  }
+}
 
 // Enregistrer le service worker pour les notifications push
 const registerServiceWorker = async () => {
-  if (typeof window !== 'undefined' && 'serviceWorker' in navigator) {
-    try {
-      const registration = await navigator.serviceWorker.register('/firebase-messaging-sw.js', {
-        scope: '/',
-      })
-      console.log('✅ Service Worker enregistré:', registration.scope)
-      
-      // Fonction pour envoyer la configuration
-      const sendConfig = (target) => {
-        if (target) {
-          target.postMessage({
-            type: 'FIREBASE_CONFIG',
-            config: firebaseConfig,
-          })
-          console.log('📤 Configuration Firebase envoyée au Service Worker')
-        }
-      }
-      
-      // Envoyer la configuration Firebase au service worker
-      if (registration.active) {
-        sendConfig(registration.active)
-      } else if (registration.installing) {
-        registration.installing.addEventListener('statechange', () => {
-          if (registration.active) {
-            sendConfig(registration.active)
-          }
-        })
-      } else if (registration.waiting) {
-        sendConfig(registration.waiting)
-      }
-      
-      // Attendre que le service worker soit prêt et renvoyer la config si nécessaire
-      await navigator.serviceWorker.ready
-      if (registration.active) {
-        sendConfig(registration.active)
-      }
-      
-      return registration
-    } catch (error) {
-      console.error('❌ Erreur lors de l\'enregistrement du Service Worker:', error)
-      return null
-    }
+  if (typeof window === 'undefined' || !('serviceWorker' in navigator)) {
+    return null
   }
-  return null
+
+  try {
+    const registration = await navigator.serviceWorker.register('/firebase-messaging-sw.js', {
+      scope: '/',
+    })
+    console.log('✅ Service Worker enregistré:', registration.scope)
+    
+    // Fonction pour envoyer la configuration
+    const sendConfig = (target: ServiceWorker | null) => {
+      if (target) {
+        target.postMessage({
+          type: 'FIREBASE_CONFIG',
+          config: firebaseConfig,
+        })
+        console.log('📤 Configuration Firebase envoyée au Service Worker')
+      }
+    }
+    
+    // Envoyer la configuration Firebase au service worker
+    if (registration.active) {
+      sendConfig(registration.active)
+    } else if (registration.installing) {
+      registration.installing.addEventListener('statechange', () => {
+        if (registration.active) {
+          sendConfig(registration.active)
+        }
+      })
+    } else if (registration.waiting) {
+      sendConfig(registration.waiting)
+    }
+    
+    // Attendre que le service worker soit prêt et renvoyer la config si nécessaire
+    await navigator.serviceWorker.ready
+    if (registration.active) {
+      sendConfig(registration.active)
+    }
+    
+    return registration
+  } catch (error) {
+    console.error('❌ Erreur lors de l\'enregistrement du Service Worker:', error)
+    return null
+  }
 }
 
 // Messaging (uniquement côté client)
-export const getMessagingInstance = async (): Promise<Messaging | null> => {
-  if (typeof window !== 'undefined' && 'Notification' in window) {
-    try {
-      // Enregistrer le service worker d'abord
-      await registerServiceWorker()
-      
-      // Attendre un peu pour que le service worker soit prêt
-      await new Promise((resolve) => setTimeout(resolve, 1000))
-      
-      return getMessaging(app)
-    } catch (error) {
-      console.warn('Firebase Messaging not available:', error)
-      return null
-    }
+export const getMessagingInstance = async (): Promise<any> => {
+  if (typeof window === 'undefined' || !('Notification' in window)) {
+    return null
   }
-  return null
+
+  if (firebaseMessaging) {
+    return firebaseMessaging
+  }
+
+  try {
+    const app = await initializeFirebase()
+    if (!app) return null
+
+    // Enregistrer le service worker d'abord
+    await registerServiceWorker()
+    
+    // Attendre un peu pour que le service worker soit prêt
+    await new Promise((resolve) => setTimeout(resolve, 1000))
+    
+    const { getMessaging } = await import('firebase/messaging')
+    firebaseMessaging = getMessaging(app)
+    return firebaseMessaging
+  } catch (error) {
+    console.warn('Firebase Messaging not available:', error)
+    return null
+  }
 }
 
 // Fonction pour demander la permission de notification
@@ -116,6 +186,7 @@ export const requestNotificationPermission = async (): Promise<string | null> =>
         // VAPID key - à récupérer dans Firebase Console > Project Settings > Cloud Messaging
         const vapidKey = process.env.NEXT_PUBLIC_FIREBASE_VAPID_KEY
         if (vapidKey) {
+          const { getToken } = await import('firebase/messaging')
           const token = await getToken(messaging, { vapidKey })
           return token
         } else {
@@ -133,10 +204,16 @@ export const requestNotificationPermission = async (): Promise<string | null> =>
 // Fonction pour écouter les messages en arrière-plan
 export const onMessageListener = (): Promise<any> => {
   return new Promise(async (resolve, reject) => {
+    if (typeof window === 'undefined') {
+      reject(new Error('Firebase Messaging not available (server-side)'))
+      return
+    }
+
     try {
       const messaging = await getMessagingInstance()
       if (messaging) {
-        onMessage(messaging, (payload) => {
+        const { onMessage } = await import('firebase/messaging')
+        onMessage(messaging, (payload: any) => {
           resolve(payload)
         })
       } else {
@@ -148,5 +225,9 @@ export const onMessageListener = (): Promise<any> => {
   })
 }
 
-export default app
+// Export app for backward compatibility (lazy loaded)
+export const getApp = async () => {
+  return await initializeFirebase()
+}
 
+export default { getApp, getAuthInstance, getFirestoreInstance, getMessagingInstance }
