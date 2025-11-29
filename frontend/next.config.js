@@ -17,9 +17,46 @@ const nextConfig = {
       ],
     },
   },
-  // Fix for ChunkLoadError
+  // Fix for ChunkLoadError and Firebase Node.js modules
   webpack: (config, { isServer }) => {
     if (!isServer) {
+      // Exclude Node.js modules from client bundle
+      config.resolve.fallback = {
+        ...config.resolve.fallback,
+        fs: false,
+        net: false,
+        tls: false,
+        crypto: false,
+        stream: false,
+        url: false,
+        zlib: false,
+        http: false,
+        https: false,
+        assert: false,
+        os: false,
+        path: false,
+        'node:fs': false,
+        'node:net': false,
+        'node:tls': false,
+        'node:crypto': false,
+        'node:stream': false,
+        'node:url': false,
+        'node:zlib': false,
+        'node:http': false,
+        'node:https': false,
+        'node:assert': false,
+        'node:os': false,
+        'node:path': false,
+      };
+      
+      // Exclude undici from client bundle
+      config.externals = config.externals || [];
+      if (Array.isArray(config.externals)) {
+        config.externals.push('undici');
+      } else {
+        config.externals = [config.externals, 'undici'];
+      }
+
       config.optimization.splitChunks = {
         chunks: 'all',
         cacheGroups: {
