@@ -352,7 +352,7 @@ export default function UniversityAdminStudentsPage() {
               name: 'verification_status',
               options: VERIFICATION_STATUS_OPTIONS,
               value: selectedStatus,
-              onChange: (value) => {
+              onChange: (value: string) => {
                 setSelectedStatus(value)
                 setCurrentPage(1)
               },
@@ -362,7 +362,7 @@ export default function UniversityAdminStudentsPage() {
               name: 'is_active',
               options: ACTIVE_STATUS_OPTIONS,
               value: selectedActiveStatus,
-              onChange: (value) => {
+              onChange: (value: string) => {
                 setSelectedActiveStatus(value)
                 setCurrentPage(1)
               },
@@ -372,7 +372,7 @@ export default function UniversityAdminStudentsPage() {
               name: 'academic_year',
               options: ACADEMIC_YEAR_OPTIONS,
               value: selectedAcademicYear,
-              onChange: (value) => {
+              onChange: (value: string) => {
                 setSelectedAcademicYear(value)
                 setCurrentPage(1)
               },
@@ -382,7 +382,7 @@ export default function UniversityAdminStudentsPage() {
               name: 'ordering',
               options: ORDERING_OPTIONS,
               value: ordering,
-              onChange: (value) => {
+              onChange: (value: string) => {
                 setOrdering(value)
                 setCurrentPage(1)
               },

@@ -194,7 +194,7 @@ export default function UniversityAdminClassLeadersPage() {
                 { value: 'false', label: 'Inactif' },
               ],
               value: selectedActive,
-              onChange: (value) => {
+              onChange: (value: string) => {
                 setSelectedActive(value)
                 setCurrentPage(1)
               },
@@ -204,7 +204,7 @@ export default function UniversityAdminClassLeadersPage() {
               name: 'ordering',
               options: ORDERING_OPTIONS,
               value: selectedOrdering,
-              onChange: (value) => {
+              onChange: (value: string) => {
                 setSelectedOrdering(value)
                 setCurrentPage(1)
               },

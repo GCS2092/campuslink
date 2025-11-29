@@ -272,7 +272,7 @@ export default function AdminStudentsPage() {
               name: 'university',
               options: UNIVERSITIES.map((u) => ({ value: u, label: u })),
               value: selectedUniversity,
-              onChange: (value) => {
+              onChange: (value: string) => {
                 setSelectedUniversity(value)
                 setCurrentPage(1)
               },
@@ -282,7 +282,7 @@ export default function AdminStudentsPage() {
               name: 'verification_status',
               options: VERIFICATION_STATUS_OPTIONS,
               value: selectedStatus,
-              onChange: (value) => {
+              onChange: (value: string) => {
                 setSelectedStatus(value)
                 setCurrentPage(1)
               },
@@ -292,7 +292,7 @@ export default function AdminStudentsPage() {
               name: 'is_active',
               options: ACTIVE_STATUS_OPTIONS,
               value: selectedActiveStatus,
-              onChange: (value) => {
+              onChange: (value: string) => {
                 setSelectedActiveStatus(value)
                 setCurrentPage(1)
               },
@@ -302,7 +302,7 @@ export default function AdminStudentsPage() {
               name: 'ordering',
               options: ORDERING_OPTIONS,
               value: ordering,
-              onChange: (value) => {
+              onChange: (value: string) => {
                 setOrdering(value)
                 setCurrentPage(1)
               },
