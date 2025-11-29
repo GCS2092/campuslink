@@ -1,15 +1,15 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import dynamic from 'next/dynamic'
 import { QueryClient, QueryClientProvider } from 'react-query'
 import { Toaster } from 'react-hot-toast'
 import { AuthProvider } from '@/context/AuthContext'
 
-// Load FirebaseProvider dynamically to avoid importing Firebase during build
-const FirebaseProvider = dynamic(() => import('@/components/FirebaseProvider'), {
-  ssr: false, // Disable server-side rendering for Firebase
-})
+// Firebase temporairement désactivé pour permettre le build
+// TODO: Réactiver Firebase avec une meilleure configuration pour éviter les erreurs de build
+// const FirebaseProvider = dynamic(() => import('@/components/FirebaseProvider'), {
+//   ssr: false,
+// })
 
 export function Providers({ children }: { children: React.ReactNode }) {
   const [queryClient] = useState(
@@ -33,7 +33,8 @@ export function Providers({ children }: { children: React.ReactNode }) {
   return (
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
-        <FirebaseProvider />
+        {/* FirebaseProvider temporairement désactivé */}
+        {/* <FirebaseProvider /> */}
         {children}
         <Toaster position="top-right" />
       </AuthProvider>
