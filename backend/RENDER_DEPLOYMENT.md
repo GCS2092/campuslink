@@ -20,8 +20,26 @@ pip install -r requirements.txt && python manage.py collectstatic --noinput
 ```
 
 ### 4. Start Command
-```bash
+**Commande à copier dans Render (sans les backticks)** :
+```
 python manage.py migrate && daphne -b 0.0.0.0 -p $PORT campuslink.asgi:application
+```
+
+**Note**: Si vous rencontrez des erreurs avec cette commande, essayez de séparer les commandes :
+```
+python manage.py migrate; daphne -b 0.0.0.0 -p $PORT campuslink.asgi:application
+```
+
+Ou utilisez un script shell (créer un fichier `start.sh` dans le dossier `backend`) :
+```bash
+#!/bin/bash
+python manage.py migrate
+daphne -b 0.0.0.0 -p $PORT campuslink.asgi:application
+```
+
+Puis dans Render, utilisez :
+```
+bash start.sh
 ```
 
 ## Variables d'Environnement Requises
