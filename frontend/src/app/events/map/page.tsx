@@ -116,7 +116,9 @@ export default function EventsMapPage() {
 
     // Add event markers (simplified - in production use proper map markers)
     events.forEach((event) => {
-      if (event.location_lat && event.location_lng) {
+      // TypeScript type guard for location properties
+      const hasLocation = 'location_lat' in event && 'location_lng' in event
+      if (hasLocation && (event as any).location_lat && (event as any).location_lng) {
         // In a real implementation, you would add markers to the map
         // For now, we'll show events in the sidebar
       }
