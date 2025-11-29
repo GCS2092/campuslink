@@ -8,6 +8,7 @@ import { eventService, type Event } from '@/services/eventService'
 import toast from 'react-hot-toast'
 import Link from 'next/link'
 import EventShareButton from '@/components/EventShareButton'
+import { getUniversityName } from '@/utils/typeHelpers'
 
 export default function EventDetailPage() {
   const { user, loading } = useAuth()
@@ -271,9 +272,7 @@ export default function EventDetailPage() {
                     </p>
                     {event.organizer.profile?.university && (
                       <p className="text-sm text-gray-500 mt-1">
-                        {typeof event.organizer.profile.university === 'string' 
-                          ? event.organizer.profile.university 
-                          : event.organizer.profile.university?.name || event.organizer.profile.university?.short_name || 'Université'}
+                        {getUniversityName(event.organizer.profile.university)}
                       </p>
                     )}
                   </div>

@@ -8,6 +8,7 @@ import { groupService, type Group } from '@/services/groupService'
 import { userService, type User } from '@/services/userService'
 import { messagingService } from '@/services/messagingService'
 import toast from 'react-hot-toast'
+import { getUniversityName } from '@/utils/typeHelpers'
 
 export default function GroupsPage() {
   const { user, loading } = useAuth()
@@ -426,11 +427,7 @@ export default function GroupsPage() {
                     {group.creator && (
                       <div className="text-xs text-gray-500">
                         Par {group.creator.username}
-                        {group.university && ` • ${
-                          typeof group.university === 'string' 
-                            ? group.university 
-                            : group.university?.name || group.university?.short_name || 'Université'
-                        }`}
+                        {group.university && ` • ${getUniversityName(group.university)}`}
                       </div>
                     )}
                   </div>

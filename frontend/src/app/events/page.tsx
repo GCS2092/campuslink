@@ -8,6 +8,7 @@ import { eventService, type Event } from '@/services/eventService'
 import toast from 'react-hot-toast'
 import Link from 'next/link'
 import AdvancedEventFilters, { type FilterOptions } from '@/components/AdvancedEventFilters'
+import { getUniversityName } from '@/utils/typeHelpers'
 
 export default function EventsPage() {
   const { user, loading } = useAuth()
@@ -345,11 +346,7 @@ export default function EventsPage() {
                       <div className="flex items-center gap-2 text-xs text-gray-500">
                         <span>Par {event.organizer.username}</span>
                         {event.organizer.profile?.university && (
-                          <span>• {
-                            typeof event.organizer.profile.university === 'string' 
-                              ? event.organizer.profile.university 
-                              : event.organizer.profile.university?.name || event.organizer.profile.university?.short_name || 'Université'
-                          }</span>
+                          <span>• {getUniversityName(event.organizer.profile.university)}</span>
                         )}
                       </div>
                     )}

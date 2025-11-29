@@ -6,6 +6,7 @@ import { useEffect, useState } from 'react'
 import { FiArrowLeft, FiPlus, FiEdit2, FiTrash2, FiEye, FiEyeOff, FiGlobe, FiLock } from 'react-icons/fi'
 import { feedService, type FeedItem } from '@/services/feedService'
 import toast from 'react-hot-toast'
+import { getUniversityName } from '@/utils/typeHelpers'
 
 export default function ManageFeedPage() {
   const { user, loading } = useAuth()
@@ -257,9 +258,7 @@ export default function ManageFeedPage() {
                           ) : (
                             <>
                               <FiLock className="w-3 h-3 inline mr-1" />
-                              Privée ({typeof item.university === 'string' 
-                                ? item.university 
-                                : item.university?.name || item.university?.short_name || 'Université'})
+                              Privée ({getUniversityName(item.university)})
                             </>
                           )}
                         </span>

@@ -8,6 +8,7 @@ import Link from 'next/link'
 import { userService } from '@/services/userService'
 import toast from 'react-hot-toast'
 import { LineChart, Line, BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts'
+import { getUniversityName } from '@/utils/typeHelpers'
 
 interface ProfileStats {
   events: {
@@ -216,9 +217,7 @@ export default function ProfilePage() {
                   <div className="flex items-center gap-1 mt-1 text-sm text-gray-500">
                     <FiMapPin className="w-4 h-4" />
                     <span>
-                      {typeof user.profile.university === 'string'
-                        ? user.profile.university
-                        : user.profile.university?.name || user.profile.university?.short_name || 'Université'}
+                      {getUniversityName(user.profile.university)}
                     </span>
                     {user.profile?.academic_year_obj && (
                       <span className="ml-2">

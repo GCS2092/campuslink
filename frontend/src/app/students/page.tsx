@@ -8,6 +8,7 @@ import { FiUserPlus, FiCheck, FiX, FiUsers, FiMapPin, FiUser, FiLogOut, FiArrowL
 import { userService, type User, type FriendshipStatus } from '@/services/userService'
 import FilterBar from '@/components/FilterBar'
 import toast from 'react-hot-toast'
+import { getUniversityName } from '@/utils/typeHelpers'
 
 const UNIVERSITIES = [
   'ESMT',
@@ -314,9 +315,7 @@ export default function StudentsPage() {
                           </Link>
                           {suggestion.profile?.university && (
                             <p className="text-sm text-gray-600 truncate">
-                              {typeof suggestion.profile.university === 'string'
-                                ? suggestion.profile.university
-                                : suggestion.profile.university?.name || suggestion.profile.university?.short_name}
+                              {getUniversityName(suggestion.profile.university)}
                             </p>
                           )}
                           {(suggestion as any).suggestion_reasons && (suggestion as any).suggestion_reasons.length > 0 && (
@@ -424,9 +423,7 @@ export default function StudentsPage() {
                         <div className="flex items-center gap-2 mb-3 text-xs sm:text-sm text-gray-600 dark:text-gray-400">
                           <FiMapPin className="w-3 h-3 sm:w-4 sm:h-4 flex-shrink-0" />
                           <span className="truncate">
-                            {typeof student.profile.university === 'string' 
-                              ? student.profile.university 
-                              : student.profile.university?.name || student.profile.university?.short_name || 'Université'}
+                            {getUniversityName(student.profile.university)}
                           </span>
                         </div>
                       )}
