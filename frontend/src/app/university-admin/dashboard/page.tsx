@@ -5,51 +5,13 @@ import { useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { FiUsers, FiCalendar, FiCheckCircle, FiXCircle, FiClock, FiLogOut, FiArrowLeft, FiShield, FiUserCheck, FiFileText, FiBookOpen, FiMapPin, FiBook, FiSettings } from 'react-icons/fi'
-import { adminService } from '@/services/adminService'
-
-interface DashboardStats {
-  pending_students_count: number
-  active_students_count: number
-  total_students_count: number
-  verified_students_count: number
-  unverified_students_count: number
-  events_count: number
-  groups_count: number
-  posts_count: number
-  class_leaders_count: number
-  registrations_last_7_days: number
-  registrations_last_30_days: number
-  registrations_this_month: number
-  active_students_last_7_days: number
-  active_students_last_30_days: number
-  activity_rate: number
-  verification_rate: number
-  upcoming_events: number
-  past_events: number
-  events_this_month: number
-  verified_groups: number
-  public_groups: number
-  groups_this_month: number
-  university: {
-    id: string
-    name: string
-    short_name: string
-  }
-  recent_registrations: Array<{
-    id: string
-    username: string
-    email: string
-    date_joined: string
-    is_active: boolean
-    is_verified: boolean
-  }>
-}
+import { adminService, type UniversityAdminDashboardStats } from '@/services/adminService'
 
 export default function UniversityAdminDashboardPage() {
   const { user, loading, logout } = useAuth()
   const router = useRouter()
   const [mounted, setMounted] = useState(false)
-  const [stats, setStats] = useState<DashboardStats | null>(null)
+  const [stats, setStats] = useState<UniversityAdminDashboardStats | null>(null)
   const [isLoading, setIsLoading] = useState(true)
 
   useEffect(() => {

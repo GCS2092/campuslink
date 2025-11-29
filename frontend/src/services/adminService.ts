@@ -17,6 +17,44 @@ export interface DashboardStats {
   }>
 }
 
+export interface UniversityAdminDashboardStats {
+  pending_students_count: number
+  active_students_count: number
+  total_students_count: number
+  verified_students_count: number
+  unverified_students_count: number
+  events_count: number
+  groups_count: number
+  posts_count: number
+  class_leaders_count: number
+  registrations_last_7_days: number
+  registrations_last_30_days: number
+  registrations_this_month: number
+  active_students_last_7_days: number
+  active_students_last_30_days: number
+  activity_rate: number
+  verification_rate: number
+  upcoming_events: number
+  past_events: number
+  events_this_month: number
+  verified_groups: number
+  public_groups: number
+  groups_this_month: number
+  university: {
+    id: string
+    name: string
+    short_name: string
+  }
+  recent_registrations: Array<{
+    id: string
+    username: string
+    email: string
+    date_joined: string
+    is_active: boolean
+    is_verified: boolean
+  }>
+}
+
 export const adminService = {
   getPendingStudents: async (params?: {
     university?: string
@@ -51,7 +89,7 @@ export const adminService = {
     return response.data
   },
 
-  getUniversityAdminDashboardStats: async (): Promise<DashboardStats> => {
+  getUniversityAdminDashboardStats: async (): Promise<UniversityAdminDashboardStats> => {
     const response = await api.get('/users/university-admin/dashboard-stats/')
     return response.data
   },
