@@ -101,11 +101,11 @@ export const universityService = {
 
   createCampus: async (campusData: Partial<Campus> & { university: string }) => {
     // Convert university object/string to university_id
+    const { university, ...restData } = campusData
     const payload = {
-      ...campusData,
-      university_id: typeof campusData.university === 'string' ? campusData.university : campusData.university
+      ...restData,
+      university_id: typeof university === 'string' ? university : university
     }
-    delete payload.university
     const response = await api.post('/users/campuses/', payload)
     return response.data
   },
@@ -139,11 +139,11 @@ export const universityService = {
 
   createDepartment: async (departmentData: Partial<Department> & { university: string }) => {
     // Convert university object/string to university_id
+    const { university, ...restData } = departmentData
     const payload = {
-      ...departmentData,
-      university_id: typeof departmentData.university === 'string' ? departmentData.university : departmentData.university
+      ...restData,
+      university_id: typeof university === 'string' ? university : university
     }
-    delete payload.university
     const response = await api.post('/users/departments/', payload)
     return response.data
   },
