@@ -12,6 +12,8 @@ eggs/
 .eggs/
 lib/
 lib64/
+# But allow frontend/src/lib/ for Firebase and other frontend libraries
+!frontend/src/lib/
 parts/
 sdist/
 var/
