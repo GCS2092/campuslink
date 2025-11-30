@@ -30,24 +30,10 @@ class CategoryViewSet(viewsets.ReadOnlyModelViewSet):
     permission_classes = [AllowAny]
     
     def get_queryset(self):
-        """Get categories with cache."""
-        from core.cache import get_cached_categories, cache_categories
-        
-        # Try to get from cache
-        cached = get_cached_categories()
-        if cached:
-            # Return queryset from cached IDs
-            category_ids = [c['id'] for c in cached]
-            return Category.objects.filter(id__in=category_ids).order_by('name')
-        
-        # Get from database
-        queryset = Category.objects.all().order_by('name')
-        
-        # Cache the results
-        categories_data = [{'id': str(c.id), 'name': c.name, 'slug': c.slug} for c in queryset]
-        cache_categories(categories_data)
-        
-        return queryset
+        """Get categories from database."""
+        # Note: Cache functions removed as they were causing import errors
+        # Can be re-implemented later if Redis is available
+        return Category.objects.all().order_by('name')
 
 
 class EventViewSet(viewsets.ModelViewSet):
