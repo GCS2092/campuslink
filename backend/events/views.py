@@ -348,6 +348,12 @@ class EventViewSet(viewsets.ModelViewSet):
     
     def retrieve(self, request, *args, **kwargs):
         """Retrieve event and increment views."""
+        pk = self.kwargs.get('pk')
+        # Skip retrieve for action routes
+        if pk in ['recommended', 'upcoming', 'past', 'my-events']:
+            from django.http import Http404
+            raise Http404("Cette route n'est pas un événement spécifique")
+        
         try:
             instance = self.get_object()
             
