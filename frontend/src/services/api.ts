@@ -91,11 +91,38 @@ api.interceptors.response.use(
             return api(originalRequest)
           }
         } catch (refreshError) {
-          // Refresh failed, logout user
+          // Check if error is due to inactive/unverified account
+          const errorMessage = error.response?.data?.detail || error.response?.data?.message || ''
+          if (errorMessage.includes('activé') || errorMessage.includes('vérifié') || errorMessage.includes('active') || errorMessage.includes('verified')) {
+            // Account needs activation, redirect to pending-approval
+            localStorage.removeItem('access_token')
+            localStorage.removeItem('refresh_token')
+            if (window.location.pathname !== '/pending-approval') {
+              window.location.href = '/pending-approval'
+            }
+            return Promise.reject(error)
+          }
+          
+          // Refresh failed for other reasons, logout user
           localStorage.removeItem('access_token')
           localStorage.removeItem('refresh_token')
-          window.location.href = '/login'
+          if (window.location.pathname !== '/login') {
+            window.location.href = '/login'
+          }
           return Promise.reject(refreshError)
+        }
+      }
+    }
+
+    // Check if 401 is due to inactive/unverified account (even after retry)
+    if (error.response?.status === 401) {
+      const errorMessage = error.response?.data?.detail || error.response?.data?.message || ''
+      if (errorMessage.includes('activé') || errorMessage.includes('vérifié') || errorMessage.includes('active') || errorMessage.includes('verified')) {
+        // Account needs activation, redirect to pending-approval
+        if (typeof window !== 'undefined' && window.location.pathname !== '/pending-approval') {
+          localStorage.removeItem('access_token')
+          localStorage.removeItem('refresh_token')
+          window.location.href = '/pending-approval'
         }
       }
     }

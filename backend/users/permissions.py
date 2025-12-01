@@ -15,7 +15,16 @@ class IsActiveAndVerified(permissions.BasePermission):
     def has_permission(self, request, view):
         if not request.user or not request.user.is_authenticated:
             return False
-        return request.user.is_active and request.user.is_verified
+        
+        if not request.user.is_active:
+            from rest_framework.exceptions import PermissionDenied
+            raise PermissionDenied('Votre compte n\'est pas activé. Veuillez attendre la validation par un administrateur.')
+        
+        if not request.user.is_verified:
+            from rest_framework.exceptions import PermissionDenied
+            raise PermissionDenied('Votre compte n\'est pas vérifié. Veuillez attendre la validation par un administrateur.')
+        
+        return True
 
 
 class IsActiveAndVerifiedOrReadOnly(permissions.BasePermission):
