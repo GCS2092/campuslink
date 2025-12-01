@@ -11,6 +11,7 @@ from .models import FeedItem
 from .serializers import FeedItemSerializer
 from .permissions import CanManageFeed, CanViewFeed
 from users.models import User
+from users.permissions import IsActiveAndVerified
 
 
 class FeedItemViewSet(viewsets.ModelViewSet):
@@ -73,7 +74,7 @@ class FeedItemViewSet(viewsets.ModelViewSet):
         Instantiates and returns the list of permissions that this view requires.
         """
         if self.action in ['create', 'update', 'partial_update', 'destroy']:
-            permission_classes = [IsAuthenticated, CanManageFeed]
+            permission_classes = [IsAuthenticated, IsActiveAndVerified, CanManageFeed]
         else:
             permission_classes = [IsAuthenticated]
         return [permission() for permission in permission_classes]

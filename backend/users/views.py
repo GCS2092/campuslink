@@ -670,7 +670,7 @@ def send_friend_request(request):
 
 
 @api_view(['PUT'])
-@permission_classes([IsAuthenticated])
+@permission_classes([IsAuthenticated, IsActiveAndVerified])
 def accept_friend_request(request, friendship_id):
     """Accept a friend request."""
     try:
@@ -702,7 +702,7 @@ def accept_friend_request(request, friendship_id):
 
 
 @api_view(['PUT'])
-@permission_classes([IsAuthenticated])
+@permission_classes([IsAuthenticated, IsActiveAndVerified])
 def reject_friend_request(request, friendship_id):
     """Reject a friend request."""
     try:

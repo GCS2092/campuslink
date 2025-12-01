@@ -10,12 +10,13 @@ from django.utils import timezone
 from .models import Conversation, Participant, Message
 from .serializers import ConversationSerializer, MessageSerializer, ParticipantSerializer
 from users.models import User
+from users.permissions import IsActiveAndVerified, IsActiveAndVerifiedOrReadOnly
 
 
 class ConversationViewSet(viewsets.ModelViewSet):
     """ViewSet for conversations."""
     serializer_class = ConversationSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, IsActiveAndVerifiedOrReadOnly]
     
     def get_queryset(self):
         """Return conversations where user is a participant."""
@@ -247,7 +248,7 @@ class ConversationViewSet(viewsets.ModelViewSet):
 class MessageViewSet(viewsets.ModelViewSet):
     """ViewSet for messages."""
     serializer_class = MessageSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, IsActiveAndVerifiedOrReadOnly]
     
     def get_queryset(self):
         """Return messages for conversations where user is a participant."""
