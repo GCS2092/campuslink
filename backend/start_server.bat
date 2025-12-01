@@ -15,7 +15,7 @@ if exist "venv\Scripts\python.exe" (
     echo Utilisation de Python depuis ..\venv\Scripts\python.exe
 ) else (
     echo ATTENTION: Environnement virtuel non trouve!
-    echo Utilisation de Python systeme.
+    echo Utilisation de Python sye.
     echo.
 )
 

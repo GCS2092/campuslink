@@ -41,6 +41,16 @@ export interface AuditLog {
 
 export const moderationService = {
   // Reports
+  createReport: async (data: {
+    content_type: string
+    content_id: string
+    reason: 'spam' | 'harassment' | 'inappropriate' | 'fake' | 'other'
+    description?: string
+  }) => {
+    const response = await api.post('/moderation/reports/', data)
+    return response.data
+  },
+
   getReports: async (params?: {
     status?: 'pending' | 'reviewed' | 'resolved' | 'dismissed'
     content_type?: string

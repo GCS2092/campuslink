@@ -506,6 +506,12 @@ class GroupPostViewSet(viewsets.ModelViewSet):
     serializer_class = GroupPostSerializer
     permission_classes = [IsAuthenticated]
     
+    def get_serializer_context(self):
+        """Add request to serializer context."""
+        context = super().get_serializer_context()
+        context['request'] = self.request
+        return context
+    
     def get_queryset(self):
         """Return posts for groups where user is member."""
         group_id = self.request.query_params.get('group')
@@ -564,3 +570,86 @@ class GroupPostViewSet(viewsets.ModelViewSet):
                 related_object_type='group_post',
                 related_object_id=post.id
             )
+    
+    @action(detail=True, methods=['post'], permission_classes=[IsAuthenticated])
+    def like(self, request, pk=None):
+        """Like a group post."""
+        from .models import GroupPostLike, Membership
+        
+        post = self.get_object()
+        user = request.user
+        
+        # Check if user is member of the group
+        is_member = Membership.objects.filter(
+            group=post.group,
+            user=user,
+            status='active'
+        ).exists()
+        
+        if not is_member:
+            return Response(
+                {'error': 'Vous devez être membre du groupe pour liker un post.'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+        
+        like, created = GroupPostLike.objects.get_or_create(user=user, post=post)
+        
+        if created:
+            post.likes_count += 1
+            post.save(update_fields=['likes_count'])
+            return Response({'message': 'Post liké.'}, status=status.HTTP_201_CREATED)
+        
+        return Response({'message': 'Déjà liké.'}, status=status.HTTP_200_OK)
+    
+    @action(detail=True, methods=['delete'], permission_classes=[IsAuthenticated])
+    def unlike(self, request, pk=None):
+        """Unlike a group post."""
+        from .models import GroupPostLike
+        
+        post = self.get_object()
+        user = request.user
+        
+        try:
+            like = GroupPostLike.objects.get(user=user, post=post)
+            like.delete()
+            post.likes_count = max(0, post.likes_count - 1)
+            post.save(update_fields=['likes_count'])
+            return Response({'message': 'Like retiré.'}, status=status.HTTP_200_OK)
+        except GroupPostLike.DoesNotExist:
+            return Response({'error': 'Like non trouvé.'}, status=status.HTTP_404_NOT_FOUND)
+    
+    @action(detail=True, methods=['get', 'post'], permission_classes=[IsAuthenticated])
+    def comments(self, request, pk=None):
+        """Get or create comments on a group post."""
+        from .models import GroupPostComment, Membership
+        from .serializers import GroupPostCommentSerializer
+        
+        post = self.get_object()
+        user = request.user
+        
+        # Check if user is member of the group
+        is_member = Membership.objects.filter(
+            group=post.group,
+            user=user,
+            status='active'
+        ).exists()
+        
+        if not is_member:
+            return Response(
+                {'error': 'Vous devez être membre du groupe pour voir/commenter les posts.'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+        
+        if request.method == 'GET':
+            comments = GroupPostComment.objects.filter(post=post).select_related('user', 'user__profile').order_by('created_at')
+            serializer = GroupPostCommentSerializer(comments, many=True, context={'request': request})
+            return Response(serializer.data)
+        
+        # POST - Create comment
+        serializer = GroupPostCommentSerializer(data=request.data)
+        if serializer.is_valid():
+            comment = serializer.save(post=post, user=user)
+            post.comments_count += 1
+            post.save(update_fields=['comments_count'])
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)

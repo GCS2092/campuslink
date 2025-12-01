@@ -2,7 +2,7 @@
 Serializers for groups app.
 """
 from rest_framework import serializers
-from .models import Group, Membership, GroupPost
+from .models import Group, Membership, GroupPost, GroupPostLike, GroupPostComment
 from users.serializers import UserSerializer
 
 
@@ -22,15 +22,35 @@ class MembershipSerializer(serializers.ModelSerializer):
 class GroupPostSerializer(serializers.ModelSerializer):
     """Serializer for GroupPost model."""
     author = UserSerializer(read_only=True)
+    is_liked = serializers.SerializerMethodField()
     
     class Meta:
         model = GroupPost
         fields = [
             'id', 'group', 'author', 'content', 'post_type',
             'image_url', 'video_url', 'likes_count', 'comments_count',
-            'created_at', 'updated_at'
+            'is_liked', 'created_at', 'updated_at'
         ]
         read_only_fields = ['id', 'author', 'likes_count', 'comments_count', 'created_at', 'updated_at']
+    
+    def get_is_liked(self, obj):
+        """Check if current user has liked this post."""
+        request = self.context.get('request')
+        if request and request.user.is_authenticated:
+            return GroupPostLike.objects.filter(user=request.user, post=obj).exists()
+        return False
+
+
+class GroupPostCommentSerializer(serializers.ModelSerializer):
+    """Serializer for GroupPostComment model."""
+    user = UserSerializer(read_only=True)
+    
+    class Meta:
+        model = GroupPostComment
+        fields = [
+            'id', 'post', 'user', 'content', 'created_at', 'updated_at'
+        ]
+        read_only_fields = ['id', 'user', 'created_at', 'updated_at']
 
 
 class GroupSerializer(serializers.ModelSerializer):

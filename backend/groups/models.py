@@ -133,3 +133,43 @@ class GroupPost(models.Model):
     
     def __str__(self):
         return f"{self.author.username} in {self.group.name}"
+
+
+class GroupPostLike(models.Model):
+    """Like on a group post."""
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    post = models.ForeignKey(GroupPost, on_delete=models.CASCADE, related_name='likes', db_index=True)
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='group_post_likes', db_index=True)
+    created_at = models.DateTimeField(default=timezone.now)
+    
+    class Meta:
+        db_table = 'groups_grouppostlike'
+        unique_together = ['post', 'user']
+        indexes = [
+            models.Index(fields=['post']),
+            models.Index(fields=['user']),
+        ]
+    
+    def __str__(self):
+        return f"{self.user.username} likes {self.post.id}"
+
+
+class GroupPostComment(models.Model):
+    """Comment on a group post."""
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    post = models.ForeignKey(GroupPost, on_delete=models.CASCADE, related_name='comments', db_index=True)
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='group_post_comments', db_index=True)
+    content = models.TextField()
+    created_at = models.DateTimeField(default=timezone.now)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        db_table = 'groups_grouppostcomment'
+        ordering = ['created_at']
+        indexes = [
+            models.Index(fields=['post']),
+            models.Index(fields=['user']),
+        ]
+    
+    def __str__(self):
+        return f"{self.user.username} on {self.post.id}"

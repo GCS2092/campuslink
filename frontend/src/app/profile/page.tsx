@@ -260,7 +260,7 @@ export default function ProfilePage() {
 
           {/* Statistics Cards */}
           {stats && (
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6">
+            <div className="grid grid-cols-2 sm:grid-cols-5 gap-4 mb-6">
               <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-xl p-4">
                 <div className="flex items-center gap-2 mb-2">
                   <FiCalendar className="w-5 h-5 text-blue-600" />
@@ -293,6 +293,16 @@ export default function ProfilePage() {
                 <p className="text-2xl font-bold text-orange-900">{stats.events.organized}</p>
                 <p className="text-xs text-orange-600">événements</p>
               </div>
+              {user.profile?.reputation_score !== undefined && (
+                <div className="bg-gradient-to-br from-yellow-50 to-yellow-100 rounded-xl p-4">
+                  <div className="flex items-center gap-2 mb-2">
+                    <FiBarChart2 className="w-5 h-5 text-yellow-600" />
+                    <span className="text-sm font-medium text-yellow-700">Réputation</span>
+                  </div>
+                  <p className="text-2xl font-bold text-yellow-900">{user.profile.reputation_score}</p>
+                  <p className="text-xs text-yellow-600">points</p>
+                </div>
+              )}
             </div>
           )}
 
