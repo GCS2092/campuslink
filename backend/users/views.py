@@ -291,12 +291,26 @@ def profile(request):
     """Get or update user profile."""
     if request.method == 'GET':
         # Allow inactive users to see their own profile
-        serializer = UserSerializer(request.user)
-        return Response(serializer.data)
+        try:
+            serializer = UserSerializer(request.user)
+            return Response(serializer.data)
+        except Exception as e:
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.error(f"Error getting user profile: {str(e)}", exc_info=True)
+            return Response(
+                {'error': 'Erreur lors de la récupération du profil.'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
     
     # Update profile and user
     user = request.user
-    profile = user.profile
+    try:
+        profile = user.profile
+    except AttributeError:
+        # Profile doesn't exist, create it
+        from .models import Profile
+        profile = Profile.objects.create(user=user)
     
     # Update User fields (first_name, last_name)
     user_data = {}

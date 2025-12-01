@@ -934,17 +934,36 @@ class CalendarViewSet(viewsets.ViewSet):
         try:
             limit = int(request.query_params.get('limit', 10))
             
+            # Validate limit
+            if limit < 1 or limit > 50:
+                limit = 10
+            
             recommended = get_recommended_events(request.user.id, limit=limit)
-            serializer = EventSerializer(recommended, many=True)
+            
+            # Ensure we return a list (get_recommended_events may return empty list or QuerySet)
+            if not recommended:
+                return Response([], status=status.HTTP_200_OK)
+            
+            # Handle both list and QuerySet
+            if isinstance(recommended, list):
+                events_list = recommended
+            else:
+                events_list = list(recommended)
+            
+            serializer = EventSerializer(events_list, many=True)
             return Response(serializer.data, status=status.HTTP_200_OK)
+        except ValueError:
+            # Invalid limit parameter
+            return Response(
+                {'error': 'Paramètre limit invalide.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
         except Exception as e:
             import logging
             logger = logging.getLogger(__name__)
             logger.error(f"Error in recommended events: {str(e)}", exc_info=True)
-            return Response(
-                {'error': 'Erreur lors de la récupération des événements recommandés.'},
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR
-            )
+            # Return empty list instead of error to prevent frontend issues
+            return Response([], status=status.HTTP_200_OK)
     
     @action(detail=True, methods=['get', 'post'], permission_classes=[AllowAny])
     def share(self, request, pk=None):

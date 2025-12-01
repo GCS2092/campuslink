@@ -22,39 +22,60 @@ def get_recommended_events(user_id, limit=10):
         limit: Maximum number of recommendations
     
     Returns:
-        QuerySet: Recommended events
+        list: Recommended events (empty list if no events found)
     """
     try:
         user = User.objects.select_related('profile').get(id=user_id)
     except User.DoesNotExist:
-        return Event.objects.none()
+        return []
     
-    # Get user interests
-    user_interests = user.profile.interests if hasattr(user, 'profile') and user.profile.interests else []
+    # Get user interests (safely handle missing profile)
+    user_interests = []
+    if hasattr(user, 'profile') and user.profile is not None:
+        user_interests = user.profile.interests if user.profile.interests else []
     
-    # Get user's university
-    user_university = user.profile.university if hasattr(user, 'profile') else None
+    # Get user's university (safely handle missing profile)
+    user_university = None
+    if hasattr(user, 'profile') and user.profile is not None:
+        user_university = user.profile.university
     
     # Get events user already participated/liked/favorited (to exclude)
-    participated_events = Participation.objects.filter(user=user).values_list('event_id', flat=True)
-    liked_events = EventLike.objects.filter(user=user).values_list('event_id', flat=True)
-    favorited_events = EventFavorite.objects.filter(user=user).values_list('event_id', flat=True)
-    excluded_event_ids = set(participated_events) | set(liked_events) | set(favorited_events)
+    try:
+        participated_events = Participation.objects.filter(user=user).values_list('event_id', flat=True)
+        liked_events = EventLike.objects.filter(user=user).values_list('event_id', flat=True)
+        favorited_events = EventFavorite.objects.filter(user=user).values_list('event_id', flat=True)
+        excluded_event_ids = set(participated_events) | set(liked_events) | set(favorited_events)
+    except Exception:
+        excluded_event_ids = set()
     
     # Base queryset: published events, future events
-    base_queryset = Event.objects.filter(
-        status='published',
-        start_date__gte=timezone.now()
-    ).exclude(id__in=excluded_event_ids)
+    try:
+        base_queryset = Event.objects.filter(
+            status='published',
+            start_date__gte=timezone.now()
+        ).exclude(id__in=excluded_event_ids).select_related('organizer', 'organizer__profile', 'category')
+        
+        # If no events found, return empty list
+        if not base_queryset.exists():
+            return []
+        
+        # Scoring system
+        recommended_events = []
+        
+        # Limit the queryset to avoid processing too many events
+        events_to_score = list(base_queryset[:limit * 3])
+    except Exception:
+        return []
     
-    # Scoring system
-    recommended_events = []
-    
-    for event in base_queryset[:limit * 3]:  # Get more to score
+    for event in events_to_score:
         score = 0
         
         # 1. University match (high weight)
-        if user_university and hasattr(event.organizer, 'profile') and event.organizer.profile and event.organizer.profile.university == user_university:
+        if (user_university and 
+            hasattr(event.organizer, 'profile') and 
+            event.organizer.profile is not None and 
+            event.organizer.profile.university is not None and
+            event.organizer.profile.university == user_university):
             score += 50
         
         # 2. Interest match (if event category matches user interests)
