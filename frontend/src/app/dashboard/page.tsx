@@ -28,6 +28,12 @@ export default function DashboardPage() {
     if (mounted && !loading && !user) {
       router.push('/login')
     } else if (mounted && user) {
+      // Vérifier si l'utilisateur est actif et vérifié
+      if (!user.is_active || !user.is_verified) {
+        router.push('/pending-approval')
+        return
+      }
+      
       if (user.role === 'admin') {
         // Seuls les admins globaux sont redirigés vers le dashboard admin
         router.push('/admin/dashboard')

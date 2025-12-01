@@ -11,7 +11,7 @@ User = get_user_model()
 
 
 class Command(BaseCommand):
-    help = 'Désactive tous les comptes utilisateurs sauf les administrateurs et responsables d\'école'
+    help = 'Désactive tous les comptes utilisateurs sauf les administrateurs (role=admin uniquement)'
 
     def add_arguments(self, parser):
         parser.add_argument(
@@ -34,13 +34,9 @@ class Command(BaseCommand):
         self.stdout.write(self.style.SUCCESS('=' * 70))
         self.stdout.write('')
 
-        # Récupérer tous les utilisateurs sauf admin et university_admin
+        # Récupérer tous les utilisateurs sauf admin (SEULEMENT admin, pas university_admin)
         users_to_deactivate = User.objects.exclude(
-            role__in=['admin', 'university_admin']
-        ).exclude(
-            is_staff=True
-        ).exclude(
-            is_superuser=True
+            role='admin'
         )
 
         # Compter les utilisateurs
@@ -55,19 +51,15 @@ class Command(BaseCommand):
         self.stdout.write(f'   À désactiver: {to_deactivate_count}')
         self.stdout.write('')
 
-        # Afficher les utilisateurs qui seront conservés actifs
+        # Afficher les utilisateurs qui seront conservés actifs (SEULEMENT admin)
         active_admins = User.objects.filter(
-            role__in=['admin', 'university_admin']
+            role='admin'
         ).filter(is_active=True)
-        
-        active_staff = User.objects.filter(
-            is_staff=True
-        ).exclude(role__in=['admin', 'university_admin']).filter(is_active=True)
 
         self.stdout.write(self.style.WARNING('👑 COMPTES QUI RESTERONT ACTIFS:'))
         self.stdout.write(f'   Administrateurs (admin): {User.objects.filter(role="admin", is_active=True).count()}')
-        self.stdout.write(f'   Responsables d\'école (university_admin): {User.objects.filter(role="university_admin", is_active=True).count()}')
-        self.stdout.write(f'   Staff (autres): {active_staff.count()}')
+        self.stdout.write('')
+        self.stdout.write(self.style.ERROR('⚠️  ATTENTION: TOUS les autres comptes seront désactivés, y compris university_admin!'))
         self.stdout.write('')
 
         if active_admins.exists():
@@ -78,7 +70,8 @@ class Command(BaseCommand):
 
         if not force and not dry_run:
             # Demander confirmation
-            self.stdout.write(self.style.WARNING('⚠️  ATTENTION: Cette action va désactiver tous les comptes sauf les administrateurs et responsables d\'école.'))
+            self.stdout.write(self.style.WARNING('⚠️  ATTENTION: Cette action va désactiver TOUS les comptes sauf les administrateurs (role=admin).'))
+            self.stdout.write(self.style.ERROR('⚠️  Les university_admin seront AUSSI désactivés!'))
             confirm = input('Voulez-vous continuer? (oui/non): ')
             if confirm.lower() not in ['oui', 'o', 'yes', 'y']:
                 self.stdout.write(self.style.ERROR('❌ Opération annulée.'))
@@ -110,11 +103,10 @@ class Command(BaseCommand):
                 self.stdout.write(f'   Total inactifs: {total_inactive}')
                 self.stdout.write('')
 
-                # Vérifier les admins et responsables d'école
+                # Vérifier les admins
                 active_admins_count = User.objects.filter(role='admin', is_active=True).count()
-                active_university_admins_count = User.objects.filter(role='university_admin', is_active=True).count()
                 
                 self.stdout.write(self.style.SUCCESS('👑 COMPTES ADMINISTRATEURS ACTIFS:'))
                 self.stdout.write(f'   Administrateurs (admin): {active_admins_count}')
-                self.stdout.write(f'   Responsables d\'école (university_admin): {active_university_admins_count}')
+                self.stdout.write(f'   ⚠️  Tous les autres comptes (y compris university_admin) sont maintenant inactifs')
 

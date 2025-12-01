@@ -34,6 +34,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const refreshUser = useCallback(async () => {
     try {
       const userData = await authService.getProfile()
+      
+      // Vérifier si l'utilisateur est actif et vérifié
+      // Si non, déconnecter et rediriger vers la page d'attente
+      if (userData && (!userData.is_active || !userData.is_verified)) {
+        // L'utilisateur n'est pas actif ou vérifié, déconnecter
+        authService.logout()
+        setUser(null)
+        // Rediriger vers pending-approval si on est dans le navigateur
+        if (typeof window !== 'undefined' && window.location.pathname !== '/pending-approval') {
+          window.location.href = '/pending-approval'
+        }
+        return
+      }
+      
       setUser(userData)
     } catch (error) {
       console.error('Error fetching user:', error)
