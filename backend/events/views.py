@@ -1044,12 +1044,11 @@ class CalendarViewSet(viewsets.ViewSet):
     def map_events(self, request):
         """Get events with geolocation for map display using GeoDjango."""
         try:
-            # Filter events with location (prefer location_point, fallback to lat/lng)
+            # Filter events with location (only use lat/lng fields which are always available)
             queryset = self.get_queryset().filter(
-                status='published'
-            ).filter(
-                Q(location_point__isnull=False) | 
-                Q(location_lat__isnull=False, location_lng__isnull=False)
+                status='published',
+                location_lat__isnull=False,
+                location_lng__isnull=False
             )
             
             # Apply filters
@@ -1059,33 +1058,47 @@ class CalendarViewSet(viewsets.ViewSet):
             
             if lat and lng:
                 try:
-                    from django.contrib.gis.geos import Point
-                    from django.contrib.gis.measure import D
-                    from django.contrib.gis.db.models.functions import Distance
+                    lat_float = float(lat)
+                    lng_float = float(lng)
+                    radius_float = float(radius)
                     
-                    user_location = Point(float(lng), float(lat), srid=4326)
-                    
-                    # Use location_point if available, otherwise use lat/lng
-                    queryset = queryset.annotate(
-                        distance=Case(
-                            When(location_point__isnull=False,
-                                 then=Distance('location_point', user_location)),
-                            default=Distance(
-                                Point(F('location_lng'), F('location_lat'), srid=4326),
-                                user_location
-                            ),
-                            output_field=models.FloatField()
-                        )
-                    ).filter(
-                        distance__lte=D(km=float(radius))
-                    ).order_by('distance')
-                except (ValueError, ImportError):
-                    # If GIS is not available, use simple bounding box
+                    # Try to use GeoDjango if available
                     try:
-                        lat_float = float(lat)
-                        lng_float = float(lng)
-                        radius_float = float(radius)
-                        # Approximate: 1 degree ≈ 111 km
+                        from django.contrib.gis.geos import Point
+                        from django.contrib.gis.measure import D
+                        from django.contrib.gis.db.models.functions import Distance
+                        
+                        user_location = Point(float(lng), float(lat), srid=4326)
+                        
+                        # Check if location_point field exists in model
+                        if hasattr(Event, 'location_point'):
+                            # Use location_point if available
+                            queryset = queryset.annotate(
+                                distance=Case(
+                                    When(location_point__isnull=False,
+                                         then=Distance('location_point', user_location)),
+                                    default=Distance(
+                                        Point(F('location_lng'), F('location_lat'), srid=4326),
+                                        user_location
+                                    ),
+                                    output_field=models.FloatField()
+                                )
+                            ).filter(
+                                distance__lte=D(km=radius_float)
+                            ).order_by('distance')
+                        else:
+                            # Fallback to bounding box if location_point doesn't exist
+                            lat_delta = radius_float / 111.0
+                            lng_delta = radius_float / (111.0 * abs(lat_float / 90.0) if lat_float != 0 else 1)
+                            
+                            queryset = queryset.filter(
+                                location_lat__gte=lat_float - lat_delta,
+                                location_lat__lte=lat_float + lat_delta,
+                                location_lng__gte=lng_float - lng_delta,
+                                location_lng__lte=lng_float + lng_delta
+                            )
+                    except (ImportError, AttributeError):
+                        # If GIS is not available, use simple bounding box
                         lat_delta = radius_float / 111.0
                         lng_delta = radius_float / (111.0 * abs(lat_float / 90.0) if lat_float != 0 else 1)
                         
@@ -1095,8 +1108,12 @@ class CalendarViewSet(viewsets.ViewSet):
                             location_lng__gte=lng_float - lng_delta,
                             location_lng__lte=lng_float + lng_delta
                         )
-                    except ValueError:
-                        pass
+                except (ValueError, TypeError) as e:
+                    import logging
+                    logger = logging.getLogger(__name__)
+                    logger.warning(f"Invalid lat/lng/radius parameters: {str(e)}")
+                    # Return empty result if parameters are invalid
+                    queryset = queryset.none()
             
             # Limit results for map
             queryset = queryset[:100]
@@ -1111,7 +1128,7 @@ class CalendarViewSet(viewsets.ViewSet):
             logger = logging.getLogger(__name__)
             logger.error(f"Error in map_events: {str(e)}", exc_info=True)
             return Response(
-                {'error': 'Erreur lors de la récupération des événements pour la carte.'},
+                {'error': 'Erreur lors de la récupération des événements pour la carte.', 'details': str(e)},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
 
