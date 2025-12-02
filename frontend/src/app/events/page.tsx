@@ -250,23 +250,23 @@ export default function EventsPage() {
           </div>
         </div>
 
-        {/* Filters (Admin only) */}
+        {/* Filters (Admin only) - Improved Responsive Design */}
         {isAdmin && (
-          <div className="mb-6 flex flex-wrap gap-4">
-            <div className="relative flex-1 min-w-[200px]">
+          <div className="mb-6 space-y-3 sm:space-y-0 sm:flex sm:flex-wrap sm:gap-4">
+            <div className="relative flex-1 min-w-full sm:min-w-[200px]">
               <FiSearch className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
               <input
                 type="text"
                 placeholder="Rechercher un événement..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-12 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                className="w-full pl-12 pr-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-transparent shadow-sm"
               />
             </div>
             <select
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
-              className="px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+              className="w-full sm:w-auto px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-transparent shadow-sm bg-white"
             >
               <option value="">Tous les statuts</option>
               <option value="published">Publié</option>
@@ -325,7 +325,7 @@ export default function EventsPage() {
             <p className="text-gray-600">Il n&apos;y a pas encore d&apos;événements disponibles.</p>
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 sm:gap-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-5 lg:gap-6">
             {events.map((event) => (
               <div key={event.id} className="group bg-white rounded-xl shadow-md overflow-hidden hover:shadow-xl transition-all duration-300 border border-gray-100 hover:border-primary-300 hover:-translate-y-1">
                 <div className="p-5 sm:p-6">
