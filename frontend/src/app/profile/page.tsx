@@ -1,7 +1,7 @@
 'use client'
 
 import { useAuth } from '@/context/AuthContext'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { useEffect, useState } from 'react'
 import { FiUser, FiMail, FiPhone, FiMapPin, FiEdit2, FiSave, FiX, FiCalendar, FiUsers, FiHash, FiTrendingUp, FiArrowRight, FiClock, FiBarChart2 } from 'react-icons/fi'
 import Link from 'next/link'
@@ -41,6 +41,7 @@ interface ProfileStats {
 export default function ProfilePage() {
   const { user, loading, refreshUser } = useAuth()
   const router = useRouter()
+  const searchParams = useSearchParams()
   const [mounted, setMounted] = useState(false)
   const [isEditing, setIsEditing] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
@@ -77,8 +78,20 @@ export default function ProfilePage() {
       })
       loadStats()
       loadDetailedStats()
+      
+      // Check if edit parameter is present
+      if (searchParams.get('edit') === 'true') {
+        setIsEditing(true)
+        // Scroll to edit section
+        setTimeout(() => {
+          const editSection = document.getElementById('profile-edit-section')
+          if (editSection) {
+            editSection.scrollIntoView({ behavior: 'smooth', block: 'start' })
+          }
+        }, 100)
+      }
     }
-  }, [mounted, user, loading, router])
+  }, [mounted, user, loading, router, searchParams])
 
   const loadStats = async () => {
     if (!user) return
@@ -190,7 +203,7 @@ export default function ProfilePage() {
         )}
 
         {/* Profile Header - Improved Design */}
-        <div className="bg-white rounded-2xl shadow-xl p-6 sm:p-8 mb-6 border border-gray-100">
+        <div id="profile-edit-section" className="bg-white rounded-2xl shadow-xl p-6 sm:p-8 mb-6 border border-gray-100">
           <div className="flex items-start justify-between mb-6">
             <div className="flex items-center gap-4">
               <div className="relative">
@@ -261,7 +274,7 @@ export default function ProfilePage() {
           {/* Statistics Cards - Improved Design */}
           {stats && (
             <div className="grid grid-cols-2 sm:grid-cols-5 gap-4 mb-6">
-              <div className="group bg-gradient-to-br from-blue-50 to-blue-100 rounded-xl p-5 shadow-md hover:shadow-xl transition-all duration-300 border border-blue-200/50 hover:-translate-y-1">
+              <div className="group bg-gradient-to-br from-blue-50 to-blue-100 rounded-xl p-4 shadow-md hover:shadow-xl transition-all duration-300 border border-blue-200/50 hover:-translate-y-1">
                 <div className="flex items-center gap-2 mb-2">
                   <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform">
                     <FiCalendar className="w-5 h-5 text-white" />
@@ -271,7 +284,7 @@ export default function ProfilePage() {
                 <p className="text-3xl font-bold text-blue-900">{stats.events.participated}</p>
                 <p className="text-xs text-blue-600 font-medium">participations</p>
               </div>
-              <div className="group bg-gradient-to-br from-purple-50 to-purple-100 rounded-xl p-5 shadow-md hover:shadow-xl transition-all duration-300 border border-purple-200/50 hover:-translate-y-1">
+              <div className="group bg-gradient-to-br from-purple-50 to-purple-100 rounded-xl p-4 shadow-md hover:shadow-xl transition-all duration-300 border border-purple-200/50 hover:-translate-y-1">
                 <div className="flex items-center gap-2 mb-2">
                   <div className="w-10 h-10 bg-gradient-to-br from-purple-500 to-purple-600 rounded-lg flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform">
                     <FiHash className="w-5 h-5 text-white" />
@@ -281,7 +294,7 @@ export default function ProfilePage() {
                 <p className="text-3xl font-bold text-purple-900">{stats.groups.member}</p>
                 <p className="text-xs text-purple-600 font-medium">membres</p>
               </div>
-              <div className="group bg-gradient-to-br from-green-50 to-green-100 rounded-xl p-5 shadow-md hover:shadow-xl transition-all duration-300 border border-green-200/50 hover:-translate-y-1">
+              <div className="group bg-gradient-to-br from-green-50 to-green-100 rounded-xl p-4 shadow-md hover:shadow-xl transition-all duration-300 border border-green-200/50 hover:-translate-y-1">
                 <div className="flex items-center gap-2 mb-2">
                   <div className="w-10 h-10 bg-gradient-to-br from-green-500 to-green-600 rounded-lg flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform">
                     <FiUsers className="w-5 h-5 text-white" />
@@ -291,7 +304,7 @@ export default function ProfilePage() {
                 <p className="text-3xl font-bold text-green-900">{stats.friends.count}</p>
                 <p className="text-xs text-green-600 font-medium">connexions</p>
               </div>
-              <div className="group bg-gradient-to-br from-orange-50 to-orange-100 rounded-xl p-5 shadow-md hover:shadow-xl transition-all duration-300 border border-orange-200/50 hover:-translate-y-1">
+              <div className="group bg-gradient-to-br from-orange-50 to-orange-100 rounded-xl p-4 shadow-md hover:shadow-xl transition-all duration-300 border border-orange-200/50 hover:-translate-y-1">
                 <div className="flex items-center gap-2 mb-2">
                   <div className="w-10 h-10 bg-gradient-to-br from-orange-500 to-orange-600 rounded-lg flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform">
                     <FiTrendingUp className="w-5 h-5 text-white" />
@@ -302,7 +315,7 @@ export default function ProfilePage() {
                 <p className="text-xs text-orange-600 font-medium">événements</p>
               </div>
               {user.profile?.reputation_score !== undefined && (
-                <div className="group bg-gradient-to-br from-yellow-50 to-yellow-100 rounded-xl p-5 shadow-md hover:shadow-xl transition-all duration-300 border border-yellow-200/50 hover:-translate-y-1">
+                <div className="group bg-gradient-to-br from-yellow-50 to-yellow-100 rounded-xl p-4 shadow-md hover:shadow-xl transition-all duration-300 border border-yellow-200/50 hover:-translate-y-1">
                   <div className="flex items-center gap-2 mb-2">
                     <div className="w-10 h-10 bg-gradient-to-br from-yellow-500 to-yellow-600 rounded-lg flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform">
                       <FiBarChart2 className="w-5 h-5 text-white" />
