@@ -247,35 +247,35 @@ export default function StudentsPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-primary-50 to-secondary-50 page-with-bottom-nav">
-      {/* Header with navigation and logout - Improved Design */}
-      <header className="bg-white shadow-md border-b border-gray-200 sticky top-0 z-10">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-5">
+      {/* Header - CampusLink Design */}
+      <header className="bg-gradient-to-r from-primary-600 via-primary-500 to-secondary-600 shadow-lg border-b border-primary-700 sticky top-0 z-10">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 sm:py-4">
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3 sm:gap-4">
+            <div className="flex items-center gap-3">
               <button
                 onClick={handleGoBack}
-                className="p-2.5 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-xl transition-all duration-200"
+                className="p-2 text-white hover:bg-white/20 rounded-xl transition-all duration-200"
                 title="Retour"
               >
                 <FiArrowLeft className="w-5 h-5 sm:w-6 sm:h-6" />
               </button>
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-gradient-to-br from-primary-500 to-secondary-500 rounded-xl flex items-center justify-center shadow-md">
-                  <FiUsers className="w-5 h-5 text-white" />
+                <div className="w-10 h-10 sm:w-12 sm:h-12 bg-white/20 backdrop-blur-sm rounded-xl flex items-center justify-center shadow-lg">
+                  <FiUsers className="w-6 h-6 sm:w-7 sm:h-7 text-white" />
                 </div>
                 <div>
-                  <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Découvrir les Étudiants</h1>
-                  <p className="text-gray-600 text-xs sm:text-sm hidden sm:block">Trouvez et connectez-vous avec d&apos;autres étudiants</p>
+                  <h1 className="text-xl sm:text-2xl font-bold text-white drop-shadow-lg">Découvrir les Étudiants</h1>
+                  <p className="text-white/90 text-xs sm:text-sm hidden sm:block">Trouvez et connectez-vous avec d&apos;autres étudiants</p>
                 </div>
               </div>
             </div>
             <button
               onClick={handleLogout}
-              className="flex items-center gap-2 px-4 py-2.5 text-sm sm:text-base text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-xl transition-all duration-200"
+              className="flex items-center gap-2 px-3 sm:px-4 py-2 sm:py-2.5 bg-white/20 hover:bg-white/30 backdrop-blur-sm text-white rounded-xl transition-all duration-300 shadow-md hover:shadow-lg hover:scale-105 border border-white/30"
               title="Déconnexion"
             >
               <FiLogOut className="w-4 h-4 sm:w-5 sm:h-5" />
-              <span className="hidden sm:inline">Déconnexion</span>
+              <span className="hidden sm:inline font-semibold">Déconnexion</span>
             </button>
           </div>
         </div>
@@ -283,14 +283,17 @@ export default function StudentsPage() {
       
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6 lg:py-8">
 
-        {/* Friend Suggestions Section - Improved Design */}
+        {/* Friend Suggestions Section - Enhanced Design */}
         {suggestions.length > 0 && (
           <div className="bg-white rounded-2xl shadow-xl p-5 sm:p-6 mb-6 border border-gray-100">
-            <div className="flex items-center gap-3 mb-4">
-              <div className="w-10 h-10 bg-gradient-to-br from-primary-500 to-secondary-500 rounded-xl flex items-center justify-center shadow-md">
+            <div className="flex items-center gap-3 mb-5">
+              <div className="w-10 h-10 bg-gradient-to-br from-primary-500 to-secondary-500 rounded-xl flex items-center justify-center shadow-lg">
                 <FiZap className="w-5 h-5 text-white" />
               </div>
-              <h2 className="text-lg sm:text-xl font-bold text-gray-900">Suggestions d'amis</h2>
+              <div>
+                <h2 className="text-lg sm:text-xl font-bold text-gray-900">Suggestions d'amis</h2>
+                <p className="text-sm text-gray-600">Personnes que vous pourriez connaître</p>
+              </div>
             </div>
             {isLoadingSuggestions ? (
               <div className="text-center py-8">
@@ -304,7 +307,7 @@ export default function StudentsPage() {
                   return (
                     <div
                       key={suggestion.id}
-                      className="group bg-white rounded-xl p-4 border border-gray-200 hover:border-primary-300 hover:shadow-lg transition-all duration-300 hover:-translate-y-1"
+                      className="group bg-gradient-to-br from-white to-gray-50 rounded-xl p-4 border border-gray-200 hover:border-primary-300 hover:shadow-xl transition-all duration-300 hover:-translate-y-1"
                     >
                       <div className="flex items-start gap-3">
                         <Link href={`/users/${suggestion.id}`} className="flex-shrink-0">
@@ -396,7 +399,7 @@ export default function StudentsPage() {
               {students.map((student) => (
                 <div
                   key={student.id}
-                  className="group bg-white dark:bg-gray-800 rounded-xl shadow-md overflow-hidden hover:shadow-xl transition-all duration-300 border border-gray-100 dark:border-gray-700 hover:border-primary-300 dark:hover:border-primary-600 hover:-translate-y-1"
+                  className="group bg-gradient-to-br from-white to-gray-50 dark:from-gray-800 dark:to-gray-900 rounded-xl shadow-lg overflow-hidden hover:shadow-2xl transition-all duration-300 border border-gray-200 dark:border-gray-700 hover:border-primary-400 dark:hover:border-primary-600 hover:-translate-y-1"
                 >
                   <Link href={`/users/${student.id}`} className="block">
                     <div className="p-4 sm:p-6 cursor-pointer">
