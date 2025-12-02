@@ -79,7 +79,7 @@ class Command(BaseCommand):
         users = queryset.order_by('username')
         
         for i, user in enumerate(users, 1):
-            self.stdout.write(f'{i}. {self.style.BOLD(user.username)}')
+            self.stdout.write(f'{i}. {self.style.SUCCESS(user.username)}')
             self.stdout.write(f'   📧 Email: {user.email}')
             self.stdout.write(f'   👤 Nom complet: {user.first_name} {user.last_name}')
             
