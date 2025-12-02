@@ -365,8 +365,10 @@ export default function MessagesPage() {
     }
     // Pour les conversations privées, utiliser la photo de profil
     const otherParticipant = conv.participants?.find((p) => p.user.id !== user?.id)
-    if (otherParticipant?.user?.profile?.profile_picture) {
-      return { type: 'image', value: otherParticipant.user.profile.profile_picture }
+    // Vérifier si profile existe (peut être présent dans les données mais pas dans le type)
+    const userWithProfile = otherParticipant?.user as any
+    if (userWithProfile?.profile?.profile_picture) {
+      return { type: 'image', value: userWithProfile.profile.profile_picture }
     }
     return { type: 'initial', value: otherParticipant?.user.username?.[0] || 'U' }
   }
