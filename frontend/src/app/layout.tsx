@@ -5,6 +5,7 @@ import { Providers } from './providers'
 import BottomNavigation from '@/components/BottomNavigation'
 import AdminBottomNavigation from '@/components/AdminBottomNavigation'
 import UniversityAdminBottomNavigation from '@/components/UniversityAdminBottomNavigation'
+import PageLoader from '@/components/PageLoader'
 
 const inter = Inter({ subsets: ['latin'] })
 
@@ -27,6 +28,7 @@ export default function RootLayout({
     <html lang="fr">
       <body className={inter.className}>
         <Providers>
+          <PageLoader />
           {children}
           <BottomNavigation />
           <AdminBottomNavigation />
