@@ -7,6 +7,7 @@ import { FiSettings, FiLock, FiBell, FiUser, FiArrowLeft, FiLogOut, FiSave, FiEy
 import { userService } from '@/services/userService'
 import toast from 'react-hot-toast'
 import Link from 'next/link'
+import CampusLinkHeader from '@/components/CampusLinkHeader'
 
 export default function SettingsPage() {
   const { user, loading, logout } = useAuth()
