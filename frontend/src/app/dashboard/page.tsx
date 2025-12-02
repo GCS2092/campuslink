@@ -93,9 +93,8 @@ export default function DashboardPage() {
       const friendsData = await userService.getFriends()
       const friendsCount = Array.isArray(friendsData) ? friendsData.length : friendsData?.results?.length || friendsData?.count || 0
       
-      // Charger les groupes de l'utilisateur
-      const groupsData = await groupService.getMyGroups()
-      const groupsCount = Array.isArray(groupsData) ? groupsData.length : groupsData?.results?.length || groupsData?.count || 0
+      // Utiliser groups_count depuis les stats du profil
+      const groupsCount = profileStats?.groups_count || 0
       
       // Compter les événements à venir
       const eventsData = await eventService.getMyEvents()
@@ -117,8 +116,8 @@ export default function DashboardPage() {
         const profileStats = await userService.getProfileStats()
         setStats({
           friends: profileStats?.friends_count || user?.profile?.friends_count || 0,
-          events: 0,
-          groups: 0,
+          events: profileStats?.events_count || 0,
+          groups: profileStats?.groups_count || 0,
         })
       } catch (e) {
         // Ignorer l'erreur
