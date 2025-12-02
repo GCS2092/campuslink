@@ -37,8 +37,11 @@ export default function EventsPage() {
     if (user) {
       loadCategories()
       loadEvents()
+    } else if (!loading) {
+      // Si l'utilisateur n'est pas connecté et le chargement est terminé, arrêter le chargement des événements
+      setIsLoadingEvents(false)
     }
-  }, [user, searchTerm, statusFilter, advancedFilters])
+  }, [user, searchTerm, statusFilter, advancedFilters, loading])
 
   const loadCategories = async () => {
     try {
@@ -50,6 +53,10 @@ export default function EventsPage() {
   }
 
   const loadEvents = async () => {
+    if (!user) {
+      setIsLoadingEvents(false)
+      return
+    }
     setIsLoadingEvents(true)
     try {
       const params: any = {}
@@ -57,7 +64,8 @@ export default function EventsPage() {
         params.search = searchTerm
       }
       // Admins can filter by status
-      if (isAdmin && statusFilter) {
+      const userIsAdmin = user?.role === 'admin' || user?.role === 'class_leader'
+      if (userIsAdmin && statusFilter) {
         params.status = statusFilter
       }
       // Advanced filters
