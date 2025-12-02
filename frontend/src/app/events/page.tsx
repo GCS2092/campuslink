@@ -277,31 +277,36 @@ export default function EventsPage() {
           </div>
         )}
 
-        {/* Search Bar and Advanced Filters (Non-admin) */}
+        {/* Search Bar and Advanced Filters (Non-admin) - Improved Responsive Design */}
         {!isAdmin && (
-          <div className="mb-6 space-y-4">
-            <div className="flex items-center gap-4">
-              <div className="relative flex-1">
-                <FiSearch className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
-                <input
-                  type="text"
-                  placeholder="Rechercher un événement..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-full pl-12 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+          <div className="mb-6 space-y-3 sm:space-y-4">
+            {/* Search Bar - Full Width on Mobile */}
+            <div className="relative w-full">
+              <FiSearch className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+              <input
+                type="text"
+                placeholder="Rechercher un événement..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-full pl-12 pr-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-transparent shadow-sm"
+              />
+            </div>
+            
+            {/* Filters Row - Responsive Layout */}
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 sm:gap-4">
+              <div className="flex-1 sm:flex-initial">
+                <AdvancedEventFilters
+                  categories={categories}
+                  currentFilters={advancedFilters}
+                  onFiltersChange={setAdvancedFilters}
                 />
               </div>
-              <AdvancedEventFilters
-                categories={categories}
-                currentFilters={advancedFilters}
-                onFiltersChange={setAdvancedFilters}
-              />
               <Link
                 href="/events/map"
-                className="px-4 py-3 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition flex items-center gap-2"
+                className="px-4 py-3 bg-white border border-gray-300 rounded-xl hover:bg-gray-50 hover:border-primary-300 transition-all duration-200 flex items-center justify-center gap-2 shadow-sm hover:shadow-md"
               >
-                <FiMapPin className="w-5 h-5" />
-                <span className="hidden sm:inline">Carte</span>
+                <FiMapPin className="w-5 h-5 text-primary-600" />
+                <span className="font-medium text-gray-700">Carte</span>
               </Link>
             </div>
           </div>
