@@ -3,7 +3,7 @@
 import { useAuth } from '@/context/AuthContext'
 import { useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
-import { FiLogOut, FiBell, FiCalendar, FiUsers, FiImage, FiMapPin, FiClock, FiEdit2, FiGlobe, FiBarChart2, FiZap, FiArrowRight } from 'react-icons/fi'
+import { FiLogOut, FiBell, FiCalendar, FiUsers, FiImage, FiMapPin, FiClock, FiEdit2, FiGlobe, FiLock, FiBarChart2, FiZap, FiArrowRight } from 'react-icons/fi'
 import { feedService, type FeedItem } from '@/services/feedService'
 import { eventService, type Event } from '@/services/eventService'
 import NotificationBell from '@/components/NotificationBell'
