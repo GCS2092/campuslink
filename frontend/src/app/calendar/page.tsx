@@ -141,22 +141,26 @@ export default function CalendarPage() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-primary-50 to-secondary-50 page-with-bottom-nav">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-        {/* Header */}
-        <div className="bg-white rounded-2xl shadow-lg p-4 sm:p-6 mb-6">
-          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+        {/* Header - Improved Design */}
+        <div className="relative bg-gradient-to-br from-primary-500 via-primary-600 to-secondary-600 rounded-2xl shadow-xl p-5 sm:p-6 mb-6 overflow-hidden">
+          {/* Decorative Background Elements */}
+          <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -mr-16 -mt-16"></div>
+          <div className="absolute bottom-0 left-0 w-24 h-24 bg-white/10 rounded-full -ml-12 -mb-12"></div>
+          
+          <div className="relative z-10 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
             <div className="flex items-center gap-4">
-              <div className="w-12 h-12 bg-gradient-to-br from-primary-500 to-secondary-500 rounded-xl flex items-center justify-center">
+              <div className="w-12 h-12 bg-white/20 backdrop-blur-sm rounded-xl flex items-center justify-center shadow-lg">
                 <FiCalendar className="w-6 h-6 text-white" />
               </div>
               <div>
-                <h1 className="text-2xl font-bold text-gray-900">Mon Calendrier</h1>
-                <p className="text-sm text-gray-600">Vos événements en un coup d'œil</p>
+                <h1 className="text-2xl sm:text-3xl font-bold text-white drop-shadow-lg">Mon Calendrier</h1>
+                <p className="text-sm sm:text-base text-white/90">Vos événements en un coup d'œil</p>
               </div>
             </div>
             <div className="flex items-center gap-2">
               <button
                 onClick={handleExportCalendar}
-                className="flex items-center gap-2 px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition"
+                className="flex items-center gap-2 px-5 py-3 bg-white text-primary-600 rounded-xl hover:bg-white/90 transition-all duration-300 shadow-lg hover:shadow-xl hover:-translate-y-1 font-semibold"
               >
                 <FiDownload className="w-4 h-4" />
                 <span className="hidden sm:inline">Exporter</span>
@@ -230,12 +234,12 @@ export default function CalendarPage() {
 
         {/* Calendar View */}
         {isLoading ? (
-          <div className="bg-white rounded-2xl shadow-lg p-12 text-center">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600 mx-auto"></div>
-            <p className="mt-4 text-gray-600">Chargement des événements...</p>
+          <div className="bg-white rounded-2xl shadow-xl p-12 text-center border border-gray-100">
+            <div className="animate-spin rounded-full h-8 w-8 border-3 border-primary-600 border-t-transparent mx-auto"></div>
+            <p className="mt-4 text-gray-600 font-medium">Chargement des événements...</p>
           </div>
         ) : viewMode === 'month' ? (
-          <div className="bg-white rounded-2xl shadow-lg p-4 sm:p-6">
+          <div className="bg-white rounded-2xl shadow-xl p-4 sm:p-6 border border-gray-100">
             {/* Weekday Headers */}
             <div className="grid grid-cols-7 gap-2 mb-2">
               {['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'].map(day => (
@@ -287,7 +291,7 @@ export default function CalendarPage() {
             </div>
           </div>
         ) : viewMode === 'week' ? (
-          <div className="bg-white rounded-2xl shadow-lg p-4 sm:p-6">
+          <div className="bg-white rounded-2xl shadow-xl p-4 sm:p-6 border border-gray-100">
             <div className="space-y-4">
               {weekDays.map(day => {
                 const dayEvents = getEventsForDate(day)
@@ -309,7 +313,7 @@ export default function CalendarPage() {
                               <Link
                                 key={event.id}
                                 href={`/events/${event.id}`}
-                                className="block p-3 bg-gray-50 hover:bg-gray-100 rounded-lg transition"
+                                className="group block p-3 bg-gray-50 hover:bg-gray-100 rounded-xl transition-all duration-200 hover:shadow-md border border-gray-200 hover:border-primary-300"
                               >
                                 <div className="flex items-start justify-between">
                                   <div className="flex-1">
@@ -345,7 +349,7 @@ export default function CalendarPage() {
             </div>
           </div>
         ) : (
-          <div className="bg-white rounded-2xl shadow-lg p-4 sm:p-6">
+          <div className="bg-white rounded-2xl shadow-xl p-4 sm:p-6 border border-gray-100">
             <div className="mb-4">
               <h3 className="text-lg font-semibold text-gray-900 mb-2">
                 {format(currentDate, 'EEEE d MMMM yyyy')}
@@ -362,7 +366,7 @@ export default function CalendarPage() {
                   <Link
                     key={event.id}
                     href={`/events/${event.id}`}
-                    className="block p-4 bg-gray-50 hover:bg-gray-100 rounded-lg transition border border-gray-200"
+                    className="group block p-4 bg-gray-50 hover:bg-gray-100 rounded-xl transition-all duration-200 border border-gray-200 hover:border-primary-300 hover:shadow-md"
                   >
                     <div className="flex items-start justify-between">
                       <div className="flex-1">

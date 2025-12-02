@@ -149,117 +149,129 @@ export default function DashboardPage() {
       </header>
 
       {/* Main Content */}
-      <main className="max-w-4xl mx-auto px-3 sm:px-4 lg:px-6 py-3 sm:py-4">
-        {/* Welcome Section */}
-        <div className="bg-white rounded-lg sm:rounded-xl shadow-md p-3 sm:p-4 mb-3 sm:mb-4">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-3">
-            <div>
-              <h2 className="text-base sm:text-lg font-bold text-gray-900 mb-0.5">
-                Bienvenue, {user.first_name || user.username || user.email}!
+      <main className="max-w-4xl mx-auto px-3 sm:px-4 lg:px-6 py-4 sm:py-6">
+        {/* Welcome Section - Improved Design */}
+        <div className="relative bg-gradient-to-br from-primary-500 via-primary-600 to-secondary-600 rounded-2xl shadow-xl p-5 sm:p-6 mb-5 sm:mb-6 overflow-hidden">
+          {/* Decorative Background Elements */}
+          <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -mr-16 -mt-16"></div>
+          <div className="absolute bottom-0 left-0 w-24 h-24 bg-white/10 rounded-full -ml-12 -mb-12"></div>
+          
+          <div className="relative z-10 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4">
+            <div className="flex-1">
+              <h2 className="text-xl sm:text-2xl font-bold text-white mb-2 drop-shadow-lg">
+                👋 Bienvenue, {user.first_name || user.username || user.email}!
               </h2>
-              <p className="text-xs sm:text-sm text-gray-600">
+              <p className="text-sm sm:text-base text-white/90 leading-relaxed">
                 {user.is_verified
                   ? user.role === 'class_leader'
                     ? 'En tant que responsable de classe, vous pouvez gérer les actualités de votre école'
-                    : 'Découvrez les actualités de votre campus'
+                    : 'Découvrez les actualités de votre campus et restez connecté avec votre communauté'
                   : 'Vérifiez votre compte pour accéder à toutes les fonctionnalités.'}
               </p>
             </div>
           </div>
         </div>
 
-        {/* Quick Actions Section */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3 mb-3 sm:mb-4">
+        {/* Quick Actions Section - Improved Design */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4 mb-4 sm:mb-5">
           <Link
             href="/profile"
-            className="bg-white rounded-lg shadow-sm p-2.5 sm:p-3 hover:shadow-md transition-all duration-200 border border-gray-100 hover:border-primary-300 group"
+            className="group relative bg-white rounded-xl shadow-md hover:shadow-xl transition-all duration-300 p-4 sm:p-5 border border-gray-100 hover:border-primary-300 hover:-translate-y-1"
           >
-            <div className="flex flex-col items-center text-center gap-1.5">
-              <div className="w-10 h-10 sm:w-11 sm:h-11 bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg flex items-center justify-center group-hover:scale-105 transition-transform">
-                <FiUser className="w-5 h-5 sm:w-5.5 sm:h-5.5 text-white" />
+            <div className="flex flex-col items-center text-center gap-2">
+              <div className="relative w-12 h-12 sm:w-14 sm:h-14 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl flex items-center justify-center group-hover:scale-110 group-hover:rotate-3 transition-all duration-300 shadow-lg">
+                <FiUser className="w-6 h-6 sm:w-7 sm:h-7 text-white" />
               </div>
-              <span className="text-[10px] sm:text-xs font-semibold text-gray-700">Mon Profil</span>
+              <span className="text-xs sm:text-sm font-semibold text-gray-700 group-hover:text-primary-600 transition-colors">Mon Profil</span>
             </div>
+            <div className="absolute inset-0 bg-gradient-to-br from-blue-50/0 to-blue-50/0 group-hover:from-blue-50/50 group-hover:to-transparent rounded-xl transition-all duration-300"></div>
           </Link>
 
           <Link
             href="/settings"
-            className="bg-white rounded-lg shadow-sm p-2.5 sm:p-3 hover:shadow-md transition-all duration-200 border border-gray-100 hover:border-primary-300 group"
+            className="group relative bg-white rounded-xl shadow-md hover:shadow-xl transition-all duration-300 p-4 sm:p-5 border border-gray-100 hover:border-purple-300 hover:-translate-y-1"
           >
-            <div className="flex flex-col items-center text-center gap-1.5">
-              <div className="w-10 h-10 sm:w-11 sm:h-11 bg-gradient-to-br from-purple-500 to-purple-600 rounded-lg flex items-center justify-center group-hover:scale-105 transition-transform">
-                <FiSettings className="w-5 h-5 sm:w-5.5 sm:h-5.5 text-white" />
+            <div className="flex flex-col items-center text-center gap-2">
+              <div className="relative w-12 h-12 sm:w-14 sm:h-14 bg-gradient-to-br from-purple-500 to-purple-600 rounded-xl flex items-center justify-center group-hover:scale-110 group-hover:rotate-3 transition-all duration-300 shadow-lg">
+                <FiSettings className="w-6 h-6 sm:w-7 sm:h-7 text-white" />
               </div>
-              <span className="text-[10px] sm:text-xs font-semibold text-gray-700">Paramètres</span>
+              <span className="text-xs sm:text-sm font-semibold text-gray-700 group-hover:text-purple-600 transition-colors">Paramètres</span>
             </div>
+            <div className="absolute inset-0 bg-gradient-to-br from-purple-50/0 to-purple-50/0 group-hover:from-purple-50/50 group-hover:to-transparent rounded-xl transition-all duration-300"></div>
           </Link>
 
           <Link
             href="/settings?tab=security"
-            className="bg-white rounded-lg shadow-sm p-2.5 sm:p-3 hover:shadow-md transition-all duration-200 border border-gray-100 hover:border-primary-300 group"
+            className="group relative bg-white rounded-xl shadow-md hover:shadow-xl transition-all duration-300 p-4 sm:p-5 border border-gray-100 hover:border-red-300 hover:-translate-y-1"
           >
-            <div className="flex flex-col items-center text-center gap-1.5">
-              <div className="w-10 h-10 sm:w-11 sm:h-11 bg-gradient-to-br from-red-500 to-red-600 rounded-lg flex items-center justify-center group-hover:scale-105 transition-transform">
-                <FiKey className="w-5 h-5 sm:w-5.5 sm:h-5.5 text-white" />
+            <div className="flex flex-col items-center text-center gap-2">
+              <div className="relative w-12 h-12 sm:w-14 sm:h-14 bg-gradient-to-br from-red-500 to-red-600 rounded-xl flex items-center justify-center group-hover:scale-110 group-hover:rotate-3 transition-all duration-300 shadow-lg">
+                <FiKey className="w-6 h-6 sm:w-7 sm:h-7 text-white" />
               </div>
-              <span className="text-[10px] sm:text-xs font-semibold text-gray-700">Mot de passe</span>
+              <span className="text-xs sm:text-sm font-semibold text-gray-700 group-hover:text-red-600 transition-colors">Mot de passe</span>
             </div>
+            <div className="absolute inset-0 bg-gradient-to-br from-red-50/0 to-red-50/0 group-hover:from-red-50/50 group-hover:to-transparent rounded-xl transition-all duration-300"></div>
           </Link>
 
           <Link
             href="/settings?tab=notifications"
-            className="bg-white rounded-lg shadow-sm p-2.5 sm:p-3 hover:shadow-md transition-all duration-200 border border-gray-100 hover:border-primary-300 group"
+            className="group relative bg-white rounded-xl shadow-md hover:shadow-xl transition-all duration-300 p-4 sm:p-5 border border-gray-100 hover:border-green-300 hover:-translate-y-1"
           >
-            <div className="flex flex-col items-center text-center gap-1.5">
-              <div className="w-10 h-10 sm:w-11 sm:h-11 bg-gradient-to-br from-green-500 to-green-600 rounded-lg flex items-center justify-center group-hover:scale-105 transition-transform">
-                <FiBell className="w-5 h-5 sm:w-5.5 sm:h-5.5 text-white" />
+            <div className="flex flex-col items-center text-center gap-2">
+              <div className="relative w-12 h-12 sm:w-14 sm:h-14 bg-gradient-to-br from-green-500 to-green-600 rounded-xl flex items-center justify-center group-hover:scale-110 group-hover:rotate-3 transition-all duration-300 shadow-lg">
+                <FiBell className="w-6 h-6 sm:w-7 sm:h-7 text-white" />
               </div>
-              <span className="text-[10px] sm:text-xs font-semibold text-gray-700">Notifications</span>
+              <span className="text-xs sm:text-sm font-semibold text-gray-700 group-hover:text-green-600 transition-colors">Notifications</span>
             </div>
+            <div className="absolute inset-0 bg-gradient-to-br from-green-50/0 to-green-50/0 group-hover:from-green-50/50 group-hover:to-transparent rounded-xl transition-all duration-300"></div>
           </Link>
         </div>
 
-        {/* Additional Quick Actions */}
-        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 sm:gap-3 mb-3 sm:mb-4">
+        {/* Additional Quick Actions - Improved Design */}
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 sm:gap-4 mb-5 sm:mb-6">
           <Link
             href="/calendar"
-            className="bg-white rounded-lg shadow-sm p-2.5 sm:p-3 hover:shadow-md transition-all duration-200 border border-gray-100 hover:border-primary-300 group"
+            className="group relative bg-white rounded-xl shadow-md hover:shadow-xl transition-all duration-300 p-4 sm:p-5 border border-gray-100 hover:border-indigo-300 hover:-translate-y-1"
           >
-            <div className="flex flex-col items-center text-center gap-1.5">
-              <div className="w-10 h-10 sm:w-11 sm:h-11 bg-gradient-to-br from-indigo-500 to-indigo-600 rounded-lg flex items-center justify-center group-hover:scale-105 transition-transform">
-                <FiCalendar className="w-5 h-5 sm:w-5.5 sm:h-5.5 text-white" />
+            <div className="flex flex-col items-center text-center gap-2">
+              <div className="relative w-12 h-12 sm:w-14 sm:h-14 bg-gradient-to-br from-indigo-500 to-indigo-600 rounded-xl flex items-center justify-center group-hover:scale-110 group-hover:rotate-3 transition-all duration-300 shadow-lg">
+                <FiCalendar className="w-6 h-6 sm:w-7 sm:h-7 text-white" />
               </div>
-              <span className="text-[10px] sm:text-xs font-semibold text-gray-700">Calendrier</span>
+              <span className="text-xs sm:text-sm font-semibold text-gray-700 group-hover:text-indigo-600 transition-colors">Calendrier</span>
             </div>
+            <div className="absolute inset-0 bg-gradient-to-br from-indigo-50/0 to-indigo-50/0 group-hover:from-indigo-50/50 group-hover:to-transparent rounded-xl transition-all duration-300"></div>
           </Link>
 
           <Link
             href="/friends-activity"
-            className="bg-white rounded-lg shadow-sm p-2.5 sm:p-3 hover:shadow-md transition-all duration-200 border border-gray-100 hover:border-primary-300 group"
+            className="group relative bg-white rounded-xl shadow-md hover:shadow-xl transition-all duration-300 p-4 sm:p-5 border border-gray-100 hover:border-pink-300 hover:-translate-y-1"
           >
-            <div className="flex flex-col items-center text-center gap-1.5">
-              <div className="w-10 h-10 sm:w-11 sm:h-11 bg-gradient-to-br from-pink-500 to-pink-600 rounded-lg flex items-center justify-center group-hover:scale-105 transition-transform">
-                <FiUsers className="w-5 h-5 sm:w-5.5 sm:h-5.5 text-white" />
+            <div className="flex flex-col items-center text-center gap-2">
+              <div className="relative w-12 h-12 sm:w-14 sm:h-14 bg-gradient-to-br from-pink-500 to-pink-600 rounded-xl flex items-center justify-center group-hover:scale-110 group-hover:rotate-3 transition-all duration-300 shadow-lg">
+                <FiUsers className="w-6 h-6 sm:w-7 sm:h-7 text-white" />
               </div>
-              <span className="text-[10px] sm:text-xs font-semibold text-gray-700">Activité Amis</span>
+              <span className="text-xs sm:text-sm font-semibold text-gray-700 group-hover:text-pink-600 transition-colors">Activité Amis</span>
             </div>
+            <div className="absolute inset-0 bg-gradient-to-br from-pink-50/0 to-pink-50/0 group-hover:from-pink-50/50 group-hover:to-transparent rounded-xl transition-all duration-300"></div>
           </Link>
         </div>
 
-        {/* Recommended Events Section - Pour vous */}
+        {/* Recommended Events Section - Pour vous - Improved Design */}
         {recommendedEvents.length > 0 && (
-          <div className="mb-4 sm:mb-5">
-            <div className="flex items-center justify-between mb-3">
-              <div className="flex items-center gap-1.5">
-                <FiZap className="w-4 h-4 sm:w-4.5 sm:h-4.5 text-primary-600" />
-                <h3 className="text-base sm:text-lg font-bold text-gray-900">Pour vous</h3>
+          <div className="mb-5 sm:mb-6">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-2">
+                <div className="w-10 h-10 bg-gradient-to-br from-primary-500 to-secondary-500 rounded-lg flex items-center justify-center shadow-md">
+                  <FiZap className="w-5 h-5 text-white" />
+                </div>
+                <h3 className="text-lg sm:text-xl font-bold text-gray-900">Pour vous</h3>
               </div>
               <Link
                 href="/events"
-                className="text-xs sm:text-sm text-primary-600 hover:text-primary-700 font-medium flex items-center gap-1"
+                className="text-sm sm:text-base text-primary-600 hover:text-primary-700 font-semibold flex items-center gap-1.5 hover:gap-2 transition-all group"
               >
                 Voir tout
-                <FiArrowRight className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                <FiArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
               </Link>
             </div>
             {isLoadingRecommended ? (
@@ -268,24 +280,25 @@ export default function DashboardPage() {
                 <p className="mt-3 text-gray-600 text-xs">Chargement des recommandations...</p>
               </div>
             ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                 {recommendedEvents.map((event) => (
                   <Link
                     key={event.id}
                     href={`/events/${event.id}`}
-                    className="bg-white rounded-lg shadow-sm overflow-hidden hover:shadow-md transition-all duration-200 border border-gray-100 hover:border-primary-300"
+                    className="group bg-white rounded-xl shadow-md overflow-hidden hover:shadow-xl transition-all duration-300 border border-gray-100 hover:border-primary-300 hover:-translate-y-1"
                   >
                     {event.image_url && (
-                      <div className="h-32 sm:h-36 bg-gray-200 relative overflow-hidden">
+                      <div className="h-40 sm:h-44 bg-gray-200 relative overflow-hidden">
                         <img
                           src={event.image_url}
                           alt={event.title}
-                          className="w-full h-full object-cover"
+                          className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
                         />
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent"></div>
                       </div>
                     )}
-                    <div className="p-3">
-                      <h4 className="font-semibold text-sm text-gray-900 mb-1.5 line-clamp-2">{event.title}</h4>
+                    <div className="p-4">
+                      <h4 className="font-bold text-base text-gray-900 mb-2 line-clamp-2 group-hover:text-primary-600 transition-colors">{event.title}</h4>
                       <div className="space-y-1 text-xs text-gray-600">
                         <div className="flex items-center gap-1.5">
                           <FiCalendar className="w-3.5 h-3.5" />
@@ -317,10 +330,15 @@ export default function DashboardPage() {
           </div>
         )}
 
-        {/* Feed Section - Actualités */}
-        <div className="space-y-3 sm:space-y-4">
-          <div className="flex items-center justify-between">
-            <h3 className="text-base sm:text-lg font-bold text-gray-900">Actualités</h3>
+        {/* Feed Section - Actualités - Improved Design */}
+        <div className="space-y-4 sm:space-y-5">
+          <div className="flex items-center justify-between mb-1">
+            <div className="flex items-center gap-2">
+              <div className="w-10 h-10 bg-gradient-to-br from-orange-500 to-red-500 rounded-lg flex items-center justify-center shadow-md">
+                <FiBell className="w-5 h-5 text-white" />
+              </div>
+              <h3 className="text-lg sm:text-xl font-bold text-gray-900">Actualités</h3>
+            </div>
             <div className="flex items-center gap-2">
               {isResponsible && (
                 <button
@@ -343,22 +361,36 @@ export default function DashboardPage() {
 
           {/* Feed Items */}
           {isLoadingFeed ? (
-            <div className="bg-white rounded-lg shadow-sm p-6 text-center">
-              <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary-600 mx-auto"></div>
-              <p className="mt-3 text-gray-600 text-xs">Chargement des actualités...</p>
+            <div className="bg-white rounded-xl shadow-md p-8 text-center border border-gray-100">
+              <div className="animate-spin rounded-full h-8 w-8 border-3 border-primary-600 border-t-transparent mx-auto"></div>
+              <p className="mt-4 text-gray-600 text-sm font-medium">Chargement des actualités...</p>
             </div>
           ) : feedItems.length === 0 ? (
-            <div className="bg-white rounded-lg shadow-sm p-6 text-center">
-              <FiCalendar className="w-10 h-10 sm:w-12 sm:h-12 text-gray-400 mx-auto mb-3" />
-              <h4 className="text-base font-semibold text-gray-900 mb-1.5">Aucune actualité pour le moment</h4>
-              <p className="text-xs text-gray-600 mb-3">
+            <div className="bg-white rounded-xl shadow-md p-8 text-center border border-gray-100">
+              <div className="w-16 h-16 bg-gradient-to-br from-gray-100 to-gray-200 rounded-full flex items-center justify-center mx-auto mb-4">
+                <FiCalendar className="w-8 h-8 text-gray-400" />
+              </div>
+              <h4 className="text-lg font-bold text-gray-900 mb-2">Aucune actualité pour le moment</h4>
+              <p className="text-sm text-gray-600 mb-4">
                 Les actualités de votre campus apparaîtront ici
               </p>
-              <div className="text-[10px] sm:text-xs text-gray-500 space-y-0.5">
-                <p>• Événements en cours d&apos;organisation</p>
-                <p>• Événements récemment organisés</p>
-                <p>• Nouvelles publications des groupes</p>
-                <p>• Actualités des différentes écoles</p>
+              <div className="text-xs sm:text-sm text-gray-500 space-y-1.5 max-w-md mx-auto">
+                <p className="flex items-center justify-center gap-2">
+                  <span className="w-1.5 h-1.5 bg-primary-500 rounded-full"></span>
+                  Événements en cours d&apos;organisation
+                </p>
+                <p className="flex items-center justify-center gap-2">
+                  <span className="w-1.5 h-1.5 bg-primary-500 rounded-full"></span>
+                  Événements récemment organisés
+                </p>
+                <p className="flex items-center justify-center gap-2">
+                  <span className="w-1.5 h-1.5 bg-primary-500 rounded-full"></span>
+                  Nouvelles publications des groupes
+                </p>
+                <p className="flex items-center justify-center gap-2">
+                  <span className="w-1.5 h-1.5 bg-primary-500 rounded-full"></span>
+                  Actualités des différentes écoles
+                </p>
               </div>
             </div>
           ) : (
@@ -378,10 +410,10 @@ export default function DashboardPage() {
                        return (
                          <article
                            key={itemId}
-                           className="bg-white rounded-lg shadow-sm overflow-hidden hover:shadow-md transition-all duration-300 border border-gray-100"
+                           className="bg-white rounded-xl shadow-md overflow-hidden hover:shadow-xl transition-all duration-300 border border-gray-100 hover:-translate-y-1"
                          >
-                           {/* Feed Item Header with Gradient */}
-                           <div className="bg-gradient-to-r from-primary-50 to-secondary-50 p-3 sm:p-4 border-b border-gray-200">
+                           {/* Feed Item Header with Gradient - Improved */}
+                           <div className="bg-gradient-to-r from-primary-50 via-primary-50/80 to-secondary-50 p-4 sm:p-5 border-b border-gray-200">
                              <div className="flex items-start gap-3">
                                {/* Author Avatar & Icon */}
                                <div className="relative flex-shrink-0">
@@ -458,14 +490,14 @@ export default function DashboardPage() {
                              </div>
                            </div>
 
-                           {/* Feed Item Content */}
-                           <div className="p-3 sm:p-4">
+                           {/* Feed Item Content - Improved */}
+                           <div className="p-4 sm:p-5">
                              {itemImage && (
-                               <div className="rounded-lg overflow-hidden mb-3 shadow-sm">
+                               <div className="rounded-xl overflow-hidden mb-4 shadow-lg">
                                  <img
                                    src={itemImage.startsWith('http') ? itemImage : `${process.env.NEXT_PUBLIC_API_URL?.replace('/api', '')}${itemImage}`}
                                    alt={itemTitle}
-                                   className="w-full h-40 sm:h-56 object-cover hover:scale-105 transition-transform duration-500"
+                                   className="w-full h-48 sm:h-64 object-cover hover:scale-110 transition-transform duration-700"
                                  />
                                </div>
                              )}
@@ -487,10 +519,10 @@ export default function DashboardPage() {
                              )}
                            </div>
                            
-                           {/* Footer with Type Badge */}
-                           <div className="px-3 sm:px-4 py-2 bg-gray-50 border-t border-gray-100">
+                           {/* Footer with Type Badge - Improved */}
+                           <div className="px-4 sm:px-5 py-3 bg-gradient-to-r from-gray-50 to-gray-100/50 border-t border-gray-200">
                              <div className="flex items-center justify-between">
-                               <span className="text-[10px] sm:text-xs font-semibold text-gray-500 uppercase tracking-wide">
+                               <span className="text-xs sm:text-sm font-bold text-gray-600 uppercase tracking-wide">
                                  {itemType === 'event' ? '📅 Événement' : 
                                   itemType === 'group' ? '👥 Groupe' : 
                                   itemType === 'announcement' ? '📢 Annonce' : 

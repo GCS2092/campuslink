@@ -154,23 +154,28 @@ export default function SettingsPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-primary-50 to-secondary-50 page-with-bottom-nav">
-      {/* Header */}
-      <header className="bg-white shadow-sm border-b border-gray-200 sticky top-0 z-10">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 sm:py-4">
+      {/* Header - Improved Design */}
+      <header className="bg-white shadow-md border-b border-gray-200 sticky top-0 z-10">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-5">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3 sm:gap-4">
               <button
                 onClick={handleGoBack}
-                className="p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition"
+                className="p-2.5 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-xl transition-all duration-200"
                 title="Retour"
               >
                 <FiArrowLeft className="w-5 h-5 sm:w-6 sm:h-6" />
               </button>
-              <div>
-                <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Paramètres</h1>
-                <p className="text-gray-600 text-xs sm:text-sm hidden sm:block">
-                  Gérez vos préférences et votre compte
-                </p>
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-gradient-to-br from-primary-500 to-secondary-500 rounded-xl flex items-center justify-center shadow-md">
+                  <FiSettings className="w-5 h-5 text-white" />
+                </div>
+                <div>
+                  <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Paramètres</h1>
+                  <p className="text-gray-600 text-xs sm:text-sm hidden sm:block">
+                    Gérez vos préférences et votre compte
+                  </p>
+                </div>
               </div>
             </div>
             <button
@@ -186,8 +191,8 @@ export default function SettingsPage() {
       </header>
 
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6">
-        {/* Tabs */}
-        <div className="bg-white rounded-xl shadow-md p-4 mb-6">
+        {/* Tabs - Improved Design */}
+        <div className="bg-white rounded-xl shadow-lg p-4 sm:p-5 mb-6 border border-gray-100">
           <div className="flex flex-wrap gap-2">
             <button
               onClick={() => setActiveTab('account')}
@@ -225,9 +230,9 @@ export default function SettingsPage() {
           </div>
         </div>
 
-        {/* Account Tab */}
+        {/* Account Tab - Improved Design */}
         {activeTab === 'account' && (
-          <div className="bg-white rounded-xl shadow-md p-6">
+          <div className="bg-white rounded-xl shadow-lg p-6 sm:p-8 border border-gray-100">
             <h2 className="text-xl font-bold text-gray-900 mb-4 flex items-center gap-2">
               <FiUser className="w-5 h-5 text-primary-600" />
               Informations du compte
@@ -266,9 +271,9 @@ export default function SettingsPage() {
           </div>
         )}
 
-        {/* Security Tab */}
+        {/* Security Tab - Improved Design */}
         {activeTab === 'security' && (
-          <div className="bg-white rounded-xl shadow-md p-6">
+          <div className="bg-white rounded-xl shadow-lg p-6 sm:p-8 border border-gray-100">
             <h2 className="text-xl font-bold text-gray-900 mb-4 flex items-center gap-2">
               <FiLock className="w-5 h-5 text-primary-600" />
               Sécurité
@@ -349,9 +354,9 @@ export default function SettingsPage() {
           </div>
         )}
 
-        {/* Notifications Tab */}
+        {/* Notifications Tab - Improved Design */}
         {activeTab === 'notifications' && (
-          <div className="bg-white rounded-xl shadow-md p-6">
+          <div className="bg-white rounded-xl shadow-lg p-6 sm:p-8 border border-gray-100">
             <h2 className="text-xl font-bold text-gray-900 mb-4 flex items-center gap-2">
               <FiBell className="w-5 h-5 text-primary-600" />
               Préférences de notifications

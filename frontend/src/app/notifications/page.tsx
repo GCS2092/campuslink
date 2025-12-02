@@ -124,19 +124,24 @@ export default function NotificationsPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-primary-50 to-secondary-50 page-with-bottom-nav">
-      {/* Header */}
-      <header className="bg-white shadow-sm border-b border-gray-200 sticky top-0 z-10">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 sm:py-4">
+      {/* Header - Improved Design */}
+      <header className="bg-white shadow-md border-b border-gray-200 sticky top-0 z-10">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-5">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3 sm:gap-4">
               <button
                 onClick={() => router.push('/dashboard')}
-                className="p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition"
+                className="p-2.5 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-xl transition-all duration-200"
                 title="Retour"
               >
                 <FiArrowLeft className="w-5 h-5 sm:w-6 sm:h-6" />
               </button>
-              <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Notifications</h1>
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-gradient-to-br from-primary-500 to-secondary-500 rounded-xl flex items-center justify-center shadow-md">
+                  <FiBell className="w-5 h-5 text-white" />
+                </div>
+                <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Notifications</h1>
+              </div>
             </div>
             <button
               onClick={() => {
@@ -155,8 +160,8 @@ export default function NotificationsPage() {
 
       {/* Main Content */}
       <main className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6">
-        {/* Filters */}
-        <div className="bg-white rounded-xl shadow-md p-4 mb-6">
+        {/* Filters - Improved Design */}
+        <div className="bg-white rounded-xl shadow-lg p-4 sm:p-5 mb-6 border border-gray-100">
           <div className="flex items-center justify-between mb-4">
             <div className="flex gap-2">
               <button
@@ -216,7 +221,7 @@ export default function NotificationsPage() {
               <div
                 key={notification.id}
                 onClick={() => handleNotificationClick(notification)}
-                className={`bg-white rounded-xl shadow-md p-4 sm:p-6 cursor-pointer hover:shadow-lg transition ${
+                className={`bg-white rounded-xl shadow-md p-4 sm:p-6 cursor-pointer hover:shadow-xl transition-all duration-300 border border-gray-100 hover:border-primary-300 hover:-translate-y-1 ${
                   !notification.is_read ? 'border-l-4 border-primary-600' : ''
                 }`}
               >

@@ -588,13 +588,18 @@ export default function MessagesPage() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-primary-50 to-secondary-50 dark:from-gray-900 dark:to-gray-800 page-with-bottom-nav">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg overflow-hidden">
+        <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl overflow-hidden border border-gray-100 dark:border-gray-700">
           <div className="flex flex-col lg:flex-row h-[600px]">
             {/* Conversations List */}
             <div className="w-full lg:w-1/3 border-r border-gray-200 dark:border-gray-700 flex flex-col">
-              <div className="p-4 border-b border-gray-200 dark:border-gray-700">
+              <div className="p-4 sm:p-5 border-b border-gray-200 dark:border-gray-700 bg-gradient-to-r from-primary-50 to-secondary-50 dark:from-gray-800 dark:to-gray-800">
                 <div className="flex items-center justify-between mb-4">
-                  <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Messages</h1>
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 bg-gradient-to-br from-primary-500 to-secondary-500 rounded-xl flex items-center justify-center shadow-md">
+                      <FiMessageSquare className="w-5 h-5 text-white" />
+                    </div>
+                    <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Messages</h1>
+                  </div>
                   <div className="flex gap-2">
                     {activeTab === 'private' && (
                       <button
@@ -695,7 +700,7 @@ export default function MessagesPage() {
                             <button
                               key={group.id}
                               onClick={() => handleOpenGroupChat(group.id)}
-                              className="w-full p-3 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition flex items-center gap-3 text-left"
+                              className="w-full p-3 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-700 transition-all duration-200 flex items-center gap-3 text-left hover:shadow-sm"
                             >
                               <div className="w-12 h-12 bg-purple-100 dark:bg-purple-900/30 rounded-full flex items-center justify-center flex-shrink-0">
                                 <FiHash className="w-6 h-6 text-purple-600 dark:text-purple-400" />
@@ -740,7 +745,7 @@ export default function MessagesPage() {
                             <button
                               key={friendUser.id}
                               onClick={() => handleCreatePrivateConversation(friendUser.id)}
-                              className="w-full p-3 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition flex items-center gap-3 text-left"
+                              className="w-full p-3 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-700 transition-all duration-200 flex items-center gap-3 text-left hover:shadow-sm"
                             >
                               <div className="w-12 h-12 bg-primary-100 dark:bg-primary-900/30 rounded-full flex items-center justify-center flex-shrink-0">
                                 <span className="text-primary-600 dark:text-primary-400 font-semibold">
@@ -785,8 +790,8 @@ export default function MessagesPage() {
                       <div
                         key={conv.id}
                         onClick={() => setSelectedConversation(conv)}
-                        className={`p-4 border-b border-gray-100 dark:border-gray-700 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700/50 transition ${
-                          isSelected ? 'bg-primary-50 dark:bg-primary-900/20' : ''
+                        className={`p-4 border-b border-gray-100 dark:border-gray-700 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-all duration-200 ${
+                          isSelected ? 'bg-primary-50 dark:bg-primary-900/20 border-l-4 border-l-primary-600' : ''
                         }`}
                       >
                         <div className="flex items-center gap-3">

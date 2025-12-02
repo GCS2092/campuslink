@@ -189,8 +189,8 @@ export default function ProfilePage() {
           </div>
         )}
 
-        {/* Profile Header */}
-        <div className="bg-white rounded-2xl shadow-lg p-6 mb-6">
+        {/* Profile Header - Improved Design */}
+        <div className="bg-white rounded-2xl shadow-xl p-6 sm:p-8 mb-6 border border-gray-100">
           <div className="flex items-start justify-between mb-6">
             <div className="flex items-center gap-4">
               <div className="relative">
@@ -258,49 +258,59 @@ export default function ProfilePage() {
             )}
           </div>
 
-          {/* Statistics Cards */}
+          {/* Statistics Cards - Improved Design */}
           {stats && (
             <div className="grid grid-cols-2 sm:grid-cols-5 gap-4 mb-6">
-              <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-xl p-4">
+              <div className="group bg-gradient-to-br from-blue-50 to-blue-100 rounded-xl p-5 shadow-md hover:shadow-xl transition-all duration-300 border border-blue-200/50 hover:-translate-y-1">
                 <div className="flex items-center gap-2 mb-2">
-                  <FiCalendar className="w-5 h-5 text-blue-600" />
-                  <span className="text-sm font-medium text-blue-700">Événements</span>
+                  <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform">
+                    <FiCalendar className="w-5 h-5 text-white" />
+                  </div>
+                  <span className="text-sm font-semibold text-blue-700">Événements</span>
                 </div>
-                <p className="text-2xl font-bold text-blue-900">{stats.events.participated}</p>
-                <p className="text-xs text-blue-600">participations</p>
+                <p className="text-3xl font-bold text-blue-900">{stats.events.participated}</p>
+                <p className="text-xs text-blue-600 font-medium">participations</p>
               </div>
-              <div className="bg-gradient-to-br from-purple-50 to-purple-100 rounded-xl p-4">
+              <div className="group bg-gradient-to-br from-purple-50 to-purple-100 rounded-xl p-5 shadow-md hover:shadow-xl transition-all duration-300 border border-purple-200/50 hover:-translate-y-1">
                 <div className="flex items-center gap-2 mb-2">
-                  <FiHash className="w-5 h-5 text-purple-600" />
-                  <span className="text-sm font-medium text-purple-700">Groupes</span>
+                  <div className="w-10 h-10 bg-gradient-to-br from-purple-500 to-purple-600 rounded-lg flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform">
+                    <FiHash className="w-5 h-5 text-white" />
+                  </div>
+                  <span className="text-sm font-semibold text-purple-700">Groupes</span>
                 </div>
-                <p className="text-2xl font-bold text-purple-900">{stats.groups.member}</p>
-                <p className="text-xs text-purple-600">membres</p>
+                <p className="text-3xl font-bold text-purple-900">{stats.groups.member}</p>
+                <p className="text-xs text-purple-600 font-medium">membres</p>
               </div>
-              <div className="bg-gradient-to-br from-green-50 to-green-100 rounded-xl p-4">
+              <div className="group bg-gradient-to-br from-green-50 to-green-100 rounded-xl p-5 shadow-md hover:shadow-xl transition-all duration-300 border border-green-200/50 hover:-translate-y-1">
                 <div className="flex items-center gap-2 mb-2">
-                  <FiUsers className="w-5 h-5 text-green-600" />
-                  <span className="text-sm font-medium text-green-700">Amis</span>
+                  <div className="w-10 h-10 bg-gradient-to-br from-green-500 to-green-600 rounded-lg flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform">
+                    <FiUsers className="w-5 h-5 text-white" />
+                  </div>
+                  <span className="text-sm font-semibold text-green-700">Amis</span>
                 </div>
-                <p className="text-2xl font-bold text-green-900">{stats.friends.count}</p>
-                <p className="text-xs text-green-600">connexions</p>
+                <p className="text-3xl font-bold text-green-900">{stats.friends.count}</p>
+                <p className="text-xs text-green-600 font-medium">connexions</p>
               </div>
-              <div className="bg-gradient-to-br from-orange-50 to-orange-100 rounded-xl p-4">
+              <div className="group bg-gradient-to-br from-orange-50 to-orange-100 rounded-xl p-5 shadow-md hover:shadow-xl transition-all duration-300 border border-orange-200/50 hover:-translate-y-1">
                 <div className="flex items-center gap-2 mb-2">
-                  <FiTrendingUp className="w-5 h-5 text-orange-600" />
-                  <span className="text-sm font-medium text-orange-700">Organisés</span>
+                  <div className="w-10 h-10 bg-gradient-to-br from-orange-500 to-orange-600 rounded-lg flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform">
+                    <FiTrendingUp className="w-5 h-5 text-white" />
+                  </div>
+                  <span className="text-sm font-semibold text-orange-700">Organisés</span>
                 </div>
-                <p className="text-2xl font-bold text-orange-900">{stats.events.organized}</p>
-                <p className="text-xs text-orange-600">événements</p>
+                <p className="text-3xl font-bold text-orange-900">{stats.events.organized}</p>
+                <p className="text-xs text-orange-600 font-medium">événements</p>
               </div>
               {user.profile?.reputation_score !== undefined && (
-                <div className="bg-gradient-to-br from-yellow-50 to-yellow-100 rounded-xl p-4">
+                <div className="group bg-gradient-to-br from-yellow-50 to-yellow-100 rounded-xl p-5 shadow-md hover:shadow-xl transition-all duration-300 border border-yellow-200/50 hover:-translate-y-1">
                   <div className="flex items-center gap-2 mb-2">
-                    <FiBarChart2 className="w-5 h-5 text-yellow-600" />
-                    <span className="text-sm font-medium text-yellow-700">Réputation</span>
+                    <div className="w-10 h-10 bg-gradient-to-br from-yellow-500 to-yellow-600 rounded-lg flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform">
+                      <FiBarChart2 className="w-5 h-5 text-white" />
+                    </div>
+                    <span className="text-sm font-semibold text-yellow-700">Réputation</span>
                   </div>
-                  <p className="text-2xl font-bold text-yellow-900">{user.profile.reputation_score}</p>
-                  <p className="text-xs text-yellow-600">points</p>
+                  <p className="text-3xl font-bold text-yellow-900">{user.profile.reputation_score}</p>
+                  <p className="text-xs text-yellow-600 font-medium">points</p>
                 </div>
               )}
             </div>

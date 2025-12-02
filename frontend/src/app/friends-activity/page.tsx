@@ -110,32 +110,42 @@ export default function FriendsActivityPage() {
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="max-w-4xl mx-auto px-4 py-6">
-        {/* Header */}
-        <div className="flex items-center justify-between mb-6">
-          <div className="flex items-center gap-4">
-            <Link
-              href="/dashboard"
-              className="p-2 hover:bg-gray-200 rounded-lg transition"
-            >
-              <FiArrowLeft className="w-5 h-5 text-gray-700" />
-            </Link>
-            <div>
-              <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
-                <FiUsers className="w-6 h-6 text-primary-600" />
-                Activité des Amis
-              </h1>
-              <p className="text-sm text-gray-600 mt-1">
-                Découvrez ce que vos amis font sur CampusLink
-              </p>
+        {/* Header - Improved Design */}
+        <div className="relative bg-gradient-to-br from-primary-500 via-primary-600 to-secondary-600 rounded-2xl shadow-xl p-5 sm:p-6 mb-6 overflow-hidden">
+          {/* Decorative Background Elements */}
+          <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -mr-16 -mt-16"></div>
+          <div className="absolute bottom-0 left-0 w-24 h-24 bg-white/10 rounded-full -ml-12 -mb-12"></div>
+          
+          <div className="relative z-10 flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <Link
+                href="/dashboard"
+                className="p-2.5 hover:bg-white/20 rounded-xl transition-all duration-200"
+              >
+                <FiArrowLeft className="w-5 h-5 text-white" />
+              </Link>
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 bg-white/20 backdrop-blur-sm rounded-xl flex items-center justify-center shadow-lg">
+                  <FiUsers className="w-6 h-6 text-white" />
+                </div>
+                <div>
+                  <h1 className="text-2xl sm:text-3xl font-bold text-white drop-shadow-lg">
+                    Activité des Amis
+                  </h1>
+                  <p className="text-sm sm:text-base text-white/90 mt-1">
+                    Découvrez ce que vos amis font sur CampusLink
+                  </p>
+                </div>
+              </div>
             </div>
+            <button
+              onClick={loadActivities}
+              disabled={isLoading}
+              className="p-3 bg-white/20 backdrop-blur-sm hover:bg-white/30 rounded-xl transition-all duration-200 disabled:opacity-50 shadow-lg"
+            >
+              <FiRefreshCw className={`w-5 h-5 text-white ${isLoading ? 'animate-spin' : ''}`} />
+            </button>
           </div>
-          <button
-            onClick={loadActivities}
-            disabled={isLoading}
-            className="p-2 hover:bg-gray-200 rounded-lg transition disabled:opacity-50"
-          >
-            <FiRefreshCw className={`w-5 h-5 text-gray-700 ${isLoading ? 'animate-spin' : ''}`} />
-          </button>
         </div>
 
         {/* Activities List */}
@@ -166,7 +176,7 @@ export default function FriendsActivityPage() {
             {activities.map((activity) => (
               <div
                 key={activity.id}
-                className={`bg-white rounded-xl shadow-md p-6 border-2 ${getActivityColor(activity.type)} hover:shadow-lg transition`}
+                className={`bg-white rounded-xl shadow-md p-6 border-2 ${getActivityColor(activity.type)} hover:shadow-xl transition-all duration-300 hover:-translate-y-1`}
               >
                 <div className="flex gap-4">
                   {/* Friend Avatar */}

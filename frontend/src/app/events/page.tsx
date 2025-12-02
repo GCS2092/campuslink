@@ -207,30 +207,41 @@ export default function EventsPage() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-primary-50 to-secondary-50 page-with-bottom-nav">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Header */}
-        <div className="mb-8">
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-3xl font-bold text-gray-900 mb-2">
-                {isAdmin ? 'Gestion des Événements' : 'Événements'}
-              </h1>
-              <p className="text-gray-600">
-                {isAdmin 
-                  ? 'Surveillez et modérez les événements créés par les étudiants' 
-                  : 'Découvrez les événements près de chez vous'}
-              </p>
+        {/* Header - Improved Design */}
+        <div className="mb-6 sm:mb-8">
+          <div className="relative bg-gradient-to-br from-primary-500 via-primary-600 to-secondary-600 rounded-2xl shadow-xl p-6 sm:p-8 mb-6 overflow-hidden">
+            {/* Decorative Background Elements */}
+            <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -mr-16 -mt-16"></div>
+            <div className="absolute bottom-0 left-0 w-24 h-24 bg-white/10 rounded-full -ml-12 -mb-12"></div>
+            
+            <div className="relative z-10 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+              <div className="flex-1">
+                <div className="flex items-center gap-3 mb-2">
+                  <div className="w-12 h-12 bg-white/20 backdrop-blur-sm rounded-xl flex items-center justify-center shadow-lg">
+                    <FiCalendar className="w-6 h-6 text-white" />
+                  </div>
+                  <h1 className="text-2xl sm:text-3xl font-bold text-white drop-shadow-lg">
+                    {isAdmin ? 'Gestion des Événements' : 'Événements'}
+                  </h1>
+                </div>
+                <p className="text-white/90 text-sm sm:text-base">
+                  {isAdmin 
+                    ? 'Surveillez et modérez les événements créés par les étudiants' 
+                    : 'Découvrez les événements près de chez vous'}
+                </p>
+              </div>
+              {!isAdmin && user?.is_verified && (
+                <Link
+                  href="/events/create"
+                  className="px-5 py-3 bg-white text-primary-600 rounded-xl hover:bg-white/90 transition-all duration-300 font-semibold flex items-center gap-2 shadow-lg hover:shadow-xl hover:-translate-y-1"
+                >
+                  <FiCalendar className="w-5 h-5" />
+                  <span className="hidden sm:inline">Créer un événement</span>
+                  <span className="sm:hidden">Créer</span>
+                </Link>
+              )}
             </div>
-            {!isAdmin && user?.is_verified && (
-              <Link
-                href="/events/create"
-                className="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition font-medium flex items-center gap-2"
-              >
-                <FiCalendar className="w-4 h-4" />
-                Créer un événement
-              </Link>
-            )}
           </div>
-        </div>
 
         {/* Filters (Admin only) */}
         {isAdmin && (
@@ -296,16 +307,16 @@ export default function EventsPage() {
             <p className="mt-4 text-gray-600">Chargement des événements...</p>
           </div>
         ) : events.length === 0 ? (
-          <div className="bg-white rounded-2xl shadow-lg p-12 text-center">
+          <div className="bg-white rounded-2xl shadow-xl p-12 text-center border border-gray-100">
             <FiCalendar className="w-16 h-16 text-gray-400 mx-auto mb-4" />
             <h3 className="text-xl font-semibold text-gray-900 mb-2">Aucun événement</h3>
             <p className="text-gray-600">Il n&apos;y a pas encore d&apos;événements disponibles.</p>
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 sm:gap-6">
             {events.map((event) => (
-              <div key={event.id} className="bg-white rounded-xl shadow-md overflow-hidden hover:shadow-lg transition">
-                <div className="p-6">
+              <div key={event.id} className="group bg-white rounded-xl shadow-md overflow-hidden hover:shadow-xl transition-all duration-300 border border-gray-100 hover:border-primary-300 hover:-translate-y-1">
+                <div className="p-5 sm:p-6">
                   <div className="flex items-start justify-between mb-2">
                     <h3 className="text-xl font-semibold text-gray-900 flex-1">{event.title}</h3>
                     {isAdmin && (

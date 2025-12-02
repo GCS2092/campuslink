@@ -247,39 +247,50 @@ export default function GroupsPage() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-primary-50 to-secondary-50 page-with-bottom-nav">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Header */}
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6 sm:mb-8">
-          <div>
-            <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-2">
-              {isAdmin ? 'Gestion des Groupes' : 'Groupes'}
-            </h1>
-            <p className="text-sm sm:text-base text-gray-600">
-              {isAdmin ? 'Surveillez et modérez les groupes créés par les étudiants' : 'Rejoignez des groupes et clubs'}
-            </p>
-          </div>
-          {!isAdmin && (
-            <div className="flex gap-2 w-full sm:w-auto">
-              {invitations.length > 0 && (
-                <button
-                  onClick={() => {
-                    const element = document.getElementById('invitations-section')
-                    element?.scrollIntoView({ behavior: 'smooth' })
-                  }}
-                  className="flex items-center gap-2 px-4 py-2 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700 transition text-sm sm:text-base w-full sm:w-auto justify-center relative"
-                >
-                  <FiMail className="w-4 h-4 sm:w-5 sm:h-5" />
-                  <span>Invitations ({invitations.length})</span>
-                </button>
-              )}
-              <button
-                onClick={() => setShowCreateModal(true)}
-                className="flex items-center gap-2 px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition text-sm sm:text-base w-full sm:w-auto justify-center"
-              >
-                <FiPlus className="w-4 h-4 sm:w-5 sm:h-5" />
-                <span>Créer un groupe</span>
-              </button>
+        {/* Header - Improved Design */}
+        <div className="relative bg-gradient-to-br from-primary-500 via-primary-600 to-secondary-600 rounded-2xl shadow-xl p-6 sm:p-8 mb-6 sm:mb-8 overflow-hidden">
+          {/* Decorative Background Elements */}
+          <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -mr-16 -mt-16"></div>
+          <div className="absolute bottom-0 left-0 w-24 h-24 bg-white/10 rounded-full -ml-12 -mb-12"></div>
+          
+          <div className="relative z-10 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+            <div className="flex-1">
+              <div className="flex items-center gap-3 mb-2">
+                <div className="w-12 h-12 bg-white/20 backdrop-blur-sm rounded-xl flex items-center justify-center shadow-lg">
+                  <FiUsers className="w-6 h-6 text-white" />
+                </div>
+                <h1 className="text-2xl sm:text-3xl font-bold text-white drop-shadow-lg">
+                  {isAdmin ? 'Gestion des Groupes' : 'Groupes'}
+                </h1>
+              </div>
+              <p className="text-white/90 text-sm sm:text-base">
+                {isAdmin ? 'Surveillez et modérez les groupes créés par les étudiants' : 'Rejoignez des groupes et clubs'}
+              </p>
             </div>
-          )}
+            {!isAdmin && (
+              <div className="flex gap-3 w-full sm:w-auto">
+                {invitations.length > 0 && (
+                  <button
+                    onClick={() => {
+                      const element = document.getElementById('invitations-section')
+                      element?.scrollIntoView({ behavior: 'smooth' })
+                    }}
+                    className="flex items-center gap-2 px-5 py-3 bg-yellow-500 text-white rounded-xl hover:bg-yellow-600 transition-all duration-300 text-sm sm:text-base w-full sm:w-auto justify-center shadow-lg hover:shadow-xl hover:-translate-y-1 font-semibold"
+                  >
+                    <FiMail className="w-4 h-4 sm:w-5 sm:h-5" />
+                    <span>Invitations ({invitations.length})</span>
+                  </button>
+                )}
+                <button
+                  onClick={() => setShowCreateModal(true)}
+                  className="flex items-center gap-2 px-5 py-3 bg-white text-primary-600 rounded-xl hover:bg-white/90 transition-all duration-300 text-sm sm:text-base w-full sm:w-auto justify-center shadow-lg hover:shadow-xl hover:-translate-y-1 font-semibold"
+                >
+                  <FiPlus className="w-4 h-4 sm:w-5 sm:h-5" />
+                  <span>Créer un groupe</span>
+                </button>
+              </div>
+            )}
+          </div>
         </div>
 
         {/* Admin Filters */}
@@ -379,18 +390,23 @@ export default function GroupsPage() {
             <p className="mt-4 text-gray-600">Chargement des groupes...</p>
           </div>
         ) : groups.length === 0 ? (
-          <div className="bg-white rounded-2xl shadow-lg p-12 text-center">
-            <FiUsers className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-            <h3 className="text-xl font-semibold text-gray-900 mb-2">Aucun groupe</h3>
+          <div className="bg-white rounded-2xl shadow-xl p-12 text-center border border-gray-100">
+            <div className="w-20 h-20 bg-gradient-to-br from-gray-100 to-gray-200 rounded-full flex items-center justify-center mx-auto mb-4">
+              <FiUsers className="w-10 h-10 text-gray-400" />
+            </div>
+            <h3 className="text-xl font-bold text-gray-900 mb-2">Aucun groupe</h3>
             <p className="text-gray-600 mb-4">Il n&apos;y a pas encore de groupes disponibles.</p>
-            <button className="px-6 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition">
+            <button 
+              onClick={() => setShowCreateModal(true)}
+              className="px-6 py-3 bg-primary-600 text-white rounded-xl hover:bg-primary-700 transition-all duration-300 shadow-lg hover:shadow-xl hover:-translate-y-1 font-semibold"
+            >
               Créer le premier groupe
             </button>
           </div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
             {groups.map((group) => (
-              <div key={group.id} className="bg-white rounded-xl shadow-md overflow-hidden hover:shadow-lg transition">
+              <div key={group.id} className="group bg-white rounded-xl shadow-md overflow-hidden hover:shadow-xl transition-all duration-300 border border-gray-100 hover:border-primary-300 hover:-translate-y-1">
                 <div className="p-4 sm:p-6">
                   <div className="flex items-start justify-between mb-2">
                     <h3 className="text-lg sm:text-xl font-semibold text-gray-900 flex-1">{group.name}</h3>

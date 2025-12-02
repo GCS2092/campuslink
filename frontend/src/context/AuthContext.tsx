@@ -90,6 +90,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const logout = () => {
     authService.logout()
     setUser(null)
+    // Rediriger vers la page d'accueil après déconnexion
+    if (typeof window !== 'undefined') {
+      window.location.href = '/'
+    }
   }
 
   return (
