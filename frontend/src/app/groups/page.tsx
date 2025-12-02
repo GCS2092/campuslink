@@ -203,9 +203,11 @@ export default function GroupsPage() {
         is_public: true,
       })
       await loadGroups()
+      toast.success('Groupe créé avec succès!')
     } catch (error: any) {
       console.error('Error creating group:', error)
-      alert(error.response?.data?.error || 'Erreur lors de la création du groupe')
+      const errorMessage = error.response?.data?.error || error.response?.data?.message || 'Erreur lors de la création du groupe'
+      toast.error(typeof errorMessage === 'string' ? errorMessage : 'Erreur lors de la création du groupe')
     } finally {
       setIsSubmitting(false)
     }
