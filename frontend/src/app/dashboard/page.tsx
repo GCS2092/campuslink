@@ -3,7 +3,8 @@
 import { useAuth } from '@/context/AuthContext'
 import { useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
-import { FiLogOut, FiBell, FiCalendar, FiUsers, FiImage, FiMapPin, FiClock, FiEdit2, FiGlobe, FiLock, FiBarChart2, FiZap, FiArrowRight, FiSearch, FiSettings } from 'react-icons/fi'
+import { useHotkeys } from 'react-hotkeys-hook'
+import { FiLogOut, FiBell, FiCalendar, FiUsers, FiImage, FiMapPin, FiClock, FiEdit2, FiGlobe, FiLock, FiBarChart2, FiZap, FiArrowRight, FiSearch, FiSettings, FiShare2 } from 'react-icons/fi'
 import { feedService, type FeedItem } from '@/services/feedService'
 import { eventService, type Event } from '@/services/eventService'
 import { userService } from '@/services/userService'
@@ -12,6 +13,7 @@ import NotificationBell from '@/components/NotificationBell'
 import Link from 'next/link'
 import { getUniversityName } from '@/utils/typeHelpers'
 import toast from 'react-hot-toast'
+import MiniCalendar from '@/components/MiniCalendar'
 
 export default function DashboardPage() {
   const { user, loading, logout } = useAuth()
@@ -184,6 +186,39 @@ export default function DashboardPage() {
     logout()
   }
 
+  const handleShareFeedItem = async (item: FeedItem) => {
+    const itemTitle = item.title || item.event_data?.title || item.feed_data?.title || 'Actualité CampusLink'
+    const itemContent = item.content || item.event_data?.description || item.feed_data?.content || ''
+    const itemUrl = item.event_data ? `${window.location.origin}/events/${item.event_data.id}` : `${window.location.origin}/dashboard`
+    
+    // Utiliser Web Share API si disponible (mobile et certains navigateurs)
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: itemTitle,
+          text: itemContent.substring(0, 200) + (itemContent.length > 200 ? '...' : ''),
+          url: itemUrl,
+        })
+        toast.success('Partagé avec succès !')
+      } catch (error: any) {
+        // L'utilisateur a annulé le partage
+        if (error.name !== 'AbortError') {
+          console.error('Error sharing:', error)
+          toast.error('Erreur lors du partage')
+        }
+      }
+    } else {
+      // Fallback : copier le lien dans le presse-papiers
+      try {
+        await navigator.clipboard.writeText(itemUrl)
+        toast.success('Lien copié dans le presse-papiers !')
+      } catch (error) {
+        console.error('Error copying to clipboard:', error)
+        toast.error('Impossible de copier le lien')
+      }
+    }
+  }
+
   if (!mounted || loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary-50 to-secondary-50">
@@ -287,14 +322,26 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        {/* Citations du jour */}
-        <div className="bg-gradient-to-r from-yellow-50 to-orange-50 dark:from-yellow-900/20 dark:to-orange-900/20 rounded-xl shadow-md p-4 sm:p-5 mb-5 sm:mb-6 border border-yellow-200 dark:border-yellow-800">
-          <div className="flex items-start gap-3">
-            <div className="text-2xl">💡</div>
-            <div>
-              <p className="text-xs font-semibold text-yellow-800 dark:text-yellow-200 mb-1">Citation du jour</p>
-              <p className="text-sm sm:text-base text-gray-700 dark:text-gray-300 italic">"{todayQuote}"</p>
+        {/* Citations du jour et Calendrier Mini - Layout responsive */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-5 mb-5 sm:mb-6">
+          <div className="lg:col-span-2">
+            <div className="bg-gradient-to-r from-yellow-50 to-orange-50 dark:from-yellow-900/20 dark:to-orange-900/20 rounded-xl shadow-md p-4 sm:p-5 border border-yellow-200 dark:border-yellow-800">
+              <div className="flex items-start gap-3">
+                <div className="text-2xl">💡</div>
+                <div>
+                  <p className="text-xs font-semibold text-yellow-800 dark:text-yellow-200 mb-1">Citation du jour</p>
+                  <p className="text-sm sm:text-base text-gray-700 dark:text-gray-300 italic">"{todayQuote}"</p>
+                </div>
+              </div>
             </div>
+          </div>
+          <div className="lg:col-span-1">
+            <MiniCalendar
+              onDateSelect={(date) => {
+                // Rediriger vers le calendrier avec la date sélectionnée
+                router.push(`/calendar?date=${date.toISOString().split('T')[0]}`)
+              }}
+            />
           </div>
         </div>
 
@@ -460,74 +507,90 @@ export default function DashboardPage() {
                 <p className="mt-3 text-gray-600 text-xs">Chargement des recommandations...</p>
               </div>
             ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                {recommendedEvents
-                  .filter((event) => {
-                    if (eventFilter === 'all') return true
-                    const eventDate = new Date(event.start_date)
-                    const now = new Date()
-                    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
-                    const eventDay = new Date(eventDate.getFullYear(), eventDate.getMonth(), eventDate.getDate())
-                    
-                    if (eventFilter === 'today') {
-                      return eventDay.getTime() === today.getTime()
-                    }
-                    if (eventFilter === 'week') {
-                      const weekFromNow = new Date(today)
-                      weekFromNow.setDate(weekFromNow.getDate() + 7)
-                      return eventDate >= today && eventDate <= weekFromNow
-                    }
-                    if (eventFilter === 'month') {
-                      const monthFromNow = new Date(today)
-                      monthFromNow.setMonth(monthFromNow.getMonth() + 1)
-                      return eventDate >= today && eventDate <= monthFromNow
-                    }
-                    return true
-                  })
-                  .map((event) => (
-                  <Link
-                    key={event.id}
-                    href={`/events/${event.id}`}
-                    className="group bg-white rounded-xl shadow-md overflow-hidden hover:shadow-xl transition-all duration-300 border border-gray-100 hover:border-primary-300 hover:-translate-y-1"
-                  >
-                    {event.image_url && (
-                      <div className="h-40 sm:h-44 bg-gray-200 relative overflow-hidden">
-                        <img
-                          src={event.image_url}
-                          alt={event.title}
-                          className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
-                        />
-                        <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent"></div>
-                      </div>
-                    )}
-                    <div className="p-4">
-                      <h4 className="font-bold text-base text-gray-900 mb-2 line-clamp-2 group-hover:text-primary-600 transition-colors">{event.title}</h4>
-                      <div className="space-y-1 text-xs text-gray-600">
-                        <div className="flex items-center gap-1.5">
-                          <FiCalendar className="w-3.5 h-3.5" />
-                          <span>
-                            {new Date(event.start_date).toLocaleDateString('fr-FR', {
-                              day: 'numeric',
-                              month: 'short',
-                              hour: '2-digit',
-                              minute: '2-digit'
-                            })}
-                          </span>
-                        </div>
-                        <div className="flex items-center gap-1.5">
-                          <FiMapPin className="w-3.5 h-3.5" />
-                          <span className="truncate">{event.location}</span>
-                        </div>
-                        {event.participants_count !== undefined && (
-                          <div className="flex items-center gap-1.5">
-                            <FiUsers className="w-3.5 h-3.5" />
-                            <span>{event.participants_count} participants</span>
+              <div className="relative">
+                {/* Carrousel horizontal avec scroll natif */}
+                <div className="overflow-x-auto scrollbar-hide -mx-2 px-2 pb-4">
+                  <div className="flex gap-4" style={{ minWidth: 'max-content' }}>
+                    {recommendedEvents
+                      .filter((event) => {
+                        if (eventFilter === 'all') return true
+                        const eventDate = new Date(event.start_date)
+                        const now = new Date()
+                        const today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+                        const eventDay = new Date(eventDate.getFullYear(), eventDate.getMonth(), eventDate.getDate())
+                        
+                        if (eventFilter === 'today') {
+                          return eventDay.getTime() === today.getTime()
+                        }
+                        if (eventFilter === 'week') {
+                          const weekFromNow = new Date(today)
+                          weekFromNow.setDate(weekFromNow.getDate() + 7)
+                          return eventDate >= today && eventDate <= weekFromNow
+                        }
+                        if (eventFilter === 'month') {
+                          const monthFromNow = new Date(today)
+                          monthFromNow.setMonth(monthFromNow.getMonth() + 1)
+                          return eventDate >= today && eventDate <= monthFromNow
+                        }
+                        return true
+                      })
+                      .map((event) => (
+                        <Link
+                          key={event.id}
+                          href={`/events/${event.id}`}
+                          className="group bg-white rounded-xl shadow-md overflow-hidden hover:shadow-xl transition-all duration-300 border border-gray-100 hover:border-primary-300 hover:-translate-y-1 flex-shrink-0"
+                          style={{ width: '280px' }}
+                        >
+                          {event.image_url && (
+                            <div className="h-40 sm:h-44 bg-gray-200 relative overflow-hidden">
+                              <img
+                                src={event.image_url}
+                                alt={event.title}
+                                className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+                              />
+                              <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent"></div>
+                            </div>
+                          )}
+                          <div className="p-4">
+                            <h4 className="font-bold text-base text-gray-900 mb-2 line-clamp-2 group-hover:text-primary-600 transition-colors">{event.title}</h4>
+                            <div className="space-y-1 text-xs text-gray-600">
+                              <div className="flex items-center gap-1.5">
+                                <FiCalendar className="w-3.5 h-3.5" />
+                                <span>
+                                  {new Date(event.start_date).toLocaleDateString('fr-FR', {
+                                    day: 'numeric',
+                                    month: 'short',
+                                    hour: '2-digit',
+                                    minute: '2-digit'
+                                  })}
+                                </span>
+                              </div>
+                              <div className="flex items-center gap-1.5">
+                                <FiMapPin className="w-3.5 h-3.5" />
+                                <span className="truncate">{event.location}</span>
+                              </div>
+                              {event.participants_count !== undefined && (
+                                <div className="flex items-center gap-1.5">
+                                  <FiUsers className="w-3.5 h-3.5" />
+                                  <span>{event.participants_count} participants</span>
+                                </div>
+                              )}
+                            </div>
                           </div>
-                        )}
-                      </div>
-                    </div>
-                  </Link>
-                ))}
+                        </Link>
+                      ))}
+                  </div>
+                </div>
+                {/* Style pour masquer la scrollbar mais garder le scroll */}
+                <style jsx>{`
+                  .scrollbar-hide {
+                    -ms-overflow-style: none;
+                    scrollbar-width: none;
+                  }
+                  .scrollbar-hide::-webkit-scrollbar {
+                    display: none;
+                  }
+                `}</style>
               </div>
             )}
           </div>
@@ -722,7 +785,7 @@ export default function DashboardPage() {
                              )}
                            </div>
                            
-                           {/* Footer with Type Badge - Improved */}
+                           {/* Footer with Type Badge and Share - Improved */}
                            <div className="px-4 sm:px-5 py-3 bg-gradient-to-r from-gray-50 to-gray-100/50 border-t border-gray-200">
                              <div className="flex items-center justify-between">
                                <span className="text-xs sm:text-sm font-bold text-gray-600 uppercase tracking-wide">
@@ -731,6 +794,14 @@ export default function DashboardPage() {
                                   itemType === 'announcement' ? '📢 Annonce' : 
                                   '📰 Actualité'}
                                </span>
+                               <button
+                                 onClick={() => handleShareFeedItem(item)}
+                                 className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs text-gray-600 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-colors"
+                                 title="Partager"
+                               >
+                                 <FiShare2 className="w-3.5 h-3.5" />
+                                 <span className="hidden sm:inline">Partager</span>
+                               </button>
                              </div>
                            </div>
                          </article>

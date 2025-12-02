@@ -3,6 +3,7 @@
 import { useAuth } from '@/context/AuthContext'
 import { useRouter } from 'next/navigation'
 import { useEffect, useState, useRef, useCallback } from 'react'
+import { useHotkeys } from 'react-hotkeys-hook'
 import { FiMessageSquare, FiSend, FiSearch, FiRadio, FiX, FiUsers, FiGlobe, FiUser, FiHash, FiPlus, FiSmile, FiLogOut } from 'react-icons/fi'
 import { messagingService, Conversation, Message } from '@/services/messagingService'
 import { userService } from '@/services/userService'
