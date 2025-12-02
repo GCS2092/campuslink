@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
 import { FiBell, FiCheck, FiArrowLeft, FiLogOut } from 'react-icons/fi'
 import { notificationService, type Notification } from '@/services/notificationService'
+import CampusLinkHeader from '@/components/CampusLinkHeader'
 
 export default function NotificationsPage() {
   const { user, loading, logout } = useAuth()
