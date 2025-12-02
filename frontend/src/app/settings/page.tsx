@@ -164,40 +164,40 @@ export default function SettingsPage() {
       />
 
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6">
-        {/* Tabs - Improved Design */}
+        {/* Tabs - Improved Aligned Design */}
         <div className="bg-white rounded-xl shadow-lg p-4 sm:p-5 mb-6 border border-gray-100">
-          <div className="flex flex-wrap gap-2">
+          <div className="grid grid-cols-3 gap-2 sm:gap-3">
             <button
               onClick={() => setActiveTab('account')}
-              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition ${
+              className={`flex items-center justify-center gap-2 px-3 sm:px-4 py-2.5 sm:py-3 rounded-xl text-sm sm:text-base font-medium transition-all duration-200 ${
                 activeTab === 'account'
-                  ? 'bg-primary-600 text-white'
+                  ? 'bg-primary-600 text-white shadow-md'
                   : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
               }`}
             >
-              <FiUser className="w-4 h-4" />
+              <FiUser className="w-4 h-4 sm:w-5 sm:h-5" />
               <span>Compte</span>
             </button>
             <button
               onClick={() => setActiveTab('security')}
-              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition ${
+              className={`flex items-center justify-center gap-2 px-3 sm:px-4 py-2.5 sm:py-3 rounded-xl text-sm sm:text-base font-medium transition-all duration-200 ${
                 activeTab === 'security'
-                  ? 'bg-primary-600 text-white'
+                  ? 'bg-primary-600 text-white shadow-md'
                   : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
               }`}
             >
-              <FiLock className="w-4 h-4" />
+              <FiLock className="w-4 h-4 sm:w-5 sm:h-5" />
               <span>Sécurité</span>
             </button>
             <button
               onClick={() => setActiveTab('notifications')}
-              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition ${
+              className={`flex items-center justify-center gap-2 px-3 sm:px-4 py-2.5 sm:py-3 rounded-xl text-sm sm:text-base font-medium transition-all duration-200 ${
                 activeTab === 'notifications'
-                  ? 'bg-primary-600 text-white'
+                  ? 'bg-primary-600 text-white shadow-md'
                   : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
               }`}
             >
-              <FiBell className="w-4 h-4" />
+              <FiBell className="w-4 h-4 sm:w-5 sm:h-5" />
               <span>Notifications</span>
             </button>
           </div>
@@ -233,8 +233,8 @@ export default function SettingsPage() {
               </div>
               <div className="pt-4 border-t border-gray-200">
                 <Link
-                  href="/profile"
-                  className="inline-flex items-center gap-2 px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition"
+                  href="/profile?edit=true"
+                  className="inline-flex items-center gap-2 px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition shadow-md hover:shadow-lg"
                 >
                   <FiUser className="w-4 h-4" />
                   <span>Modifier mon profil</span>
