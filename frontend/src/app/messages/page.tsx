@@ -3,7 +3,7 @@
 import { useAuth } from '@/context/AuthContext'
 import { useRouter } from 'next/navigation'
 import { useEffect, useState, useRef, useCallback } from 'react'
-import { FiMessageSquare, FiSend, FiSearch, FiRadio, FiX, FiUsers, FiGlobe, FiUser, FiHash, FiPlus, FiSmile } from 'react-icons/fi'
+import { FiMessageSquare, FiSend, FiSearch, FiRadio, FiX, FiUsers, FiGlobe, FiUser, FiHash, FiPlus, FiSmile, FiLogOut } from 'react-icons/fi'
 import { messagingService, Conversation, Message } from '@/services/messagingService'
 import { userService } from '@/services/userService'
 import { groupService, Group } from '@/services/groupService'
@@ -13,7 +13,7 @@ import toast from 'react-hot-toast'
 type TabType = 'all' | 'groups' | 'private'
 
 export default function MessagesPage() {
-  const { user, loading } = useAuth()
+  const { user, loading, logout } = useAuth()
   const router = useRouter()
   const [mounted, setMounted] = useState(false)
   const [conversations, setConversations] = useState<Conversation[]>([])
@@ -595,10 +595,7 @@ export default function MessagesPage() {
               <div className="p-4 sm:p-5 border-b border-gray-200 dark:border-gray-700 bg-gradient-to-r from-primary-50 to-secondary-50 dark:from-gray-800 dark:to-gray-800">
                 <div className="flex items-center justify-between mb-4">
                   <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 bg-gradient-to-br from-primary-500 to-secondary-500 rounded-xl flex items-center justify-center shadow-md">
-                      <FiMessageSquare className="w-5 h-5 text-white" />
-                    </div>
-                    <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Messages</h1>
+                    <h2 className="text-lg sm:text-xl font-bold text-gray-900 dark:text-white">Conversations</h2>
                   </div>
                   <div className="flex gap-2">
                     {activeTab === 'private' && (
