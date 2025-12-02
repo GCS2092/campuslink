@@ -26,6 +26,15 @@ export default function DashboardPage() {
 
   useEffect(() => {
     if (mounted && !loading && !user) {
+      // Vérifier si on est en train de se déconnecter (pas de token)
+      // Si pas de token, logout() va gérer la redirection vers /
+      const token = localStorage.getItem('access_token')
+      if (!token) {
+        // Pas de token = déconnexion en cours, ne pas rediriger
+        // logout() gère déjà la redirection vers /
+        return
+      }
+      // Token présent mais user null = erreur, rediriger vers login
       router.push('/login')
     } else if (mounted && user) {
       // Vérifier si l'utilisateur est actif et vérifié
@@ -106,8 +115,8 @@ export default function DashboardPage() {
   }
 
   const handleLogout = () => {
+    // logout() gère déjà la redirection vers / avec window.location.href
     logout()
-    router.push('/')
   }
 
   if (!mounted || loading) {
