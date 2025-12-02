@@ -3,12 +3,15 @@
 import { useAuth } from '@/context/AuthContext'
 import { useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
-import { FiLogOut, FiBell, FiCalendar, FiUsers, FiImage, FiMapPin, FiClock, FiEdit2, FiGlobe, FiLock, FiBarChart2, FiZap, FiArrowRight } from 'react-icons/fi'
+import { FiLogOut, FiBell, FiCalendar, FiUsers, FiImage, FiMapPin, FiClock, FiEdit2, FiGlobe, FiLock, FiBarChart2, FiZap, FiArrowRight, FiSearch, FiSettings } from 'react-icons/fi'
 import { feedService, type FeedItem } from '@/services/feedService'
 import { eventService, type Event } from '@/services/eventService'
+import { userService } from '@/services/userService'
+import { groupService } from '@/services/groupService'
 import NotificationBell from '@/components/NotificationBell'
 import Link from 'next/link'
 import { getUniversityName } from '@/utils/typeHelpers'
+import toast from 'react-hot-toast'
 
 export default function DashboardPage() {
   const { user, loading, logout } = useAuth()
@@ -18,7 +21,23 @@ export default function DashboardPage() {
   const [isLoadingFeed, setIsLoadingFeed] = useState(false)
   const [recommendedEvents, setRecommendedEvents] = useState<Event[]>([])
   const [isLoadingRecommended, setIsLoadingRecommended] = useState(false)
+  const [stats, setStats] = useState({ friends: 0, events: 0, groups: 0 })
+  const [isLoadingStats, setIsLoadingStats] = useState(false)
+  const [eventFilter, setEventFilter] = useState<'all' | 'today' | 'week' | 'month'>('all')
   const isResponsible = user?.role === 'class_leader' || user?.role === 'admin'
+
+  // Citations du jour
+  const dailyQuotes = [
+    "Chaque jour est une nouvelle opportunité de grandir et d'apprendre.",
+    "Le succès commence par la décision d'essayer.",
+    "Votre éducation est votre arme la plus puissante.",
+    "Les rêves deviennent réalité quand nous agissons.",
+    "L'excellence n'est pas une compétence, c'est une attitude.",
+    "Investissez en vous-même, c'est le meilleur investissement.",
+    "Le savoir est le seul bien qui augmente quand on le partage.",
+    "L'avenir appartient à ceux qui croient en la beauté de leurs rêves.",
+  ]
+  const todayQuote = dailyQuotes[new Date().getDate() % dailyQuotes.length]
 
   useEffect(() => {
     setMounted(true)
@@ -58,8 +77,54 @@ export default function DashboardPage() {
     if (user) {
       loadFeed()
       loadRecommendedEvents()
+      loadStats()
     }
   }, [user])
+
+  const loadStats = async () => {
+    setIsLoadingStats(true)
+    try {
+      // Charger les statistiques du profil
+      const profileStats = await userService.getProfileStats()
+      
+      // Charger les amis
+      const friendsData = await userService.getFriends()
+      const friendsCount = Array.isArray(friendsData) ? friendsData.length : friendsData?.results?.length || friendsData?.count || 0
+      
+      // Charger les groupes de l'utilisateur
+      const groupsData = await groupService.getMyGroups()
+      const groupsCount = Array.isArray(groupsData) ? groupsData.length : groupsData?.results?.length || groupsData?.count || 0
+      
+      // Compter les événements à venir
+      const eventsData = await eventService.getMyEvents()
+      const eventsList = Array.isArray(eventsData) ? eventsData : eventsData?.results || []
+      const upcomingEvents = eventsList.filter((e: Event) => {
+        const eventDate = new Date(e.start_date)
+        return eventDate > new Date()
+      }).length
+      
+      setStats({
+        friends: friendsCount,
+        events: upcomingEvents,
+        groups: groupsCount,
+      })
+    } catch (error) {
+      console.error('Error loading stats:', error)
+      // Utiliser les stats du profil si disponibles
+      try {
+        const profileStats = await userService.getProfileStats()
+        setStats({
+          friends: profileStats?.friends_count || user?.profile?.friends_count || 0,
+          events: 0,
+          groups: 0,
+        })
+      } catch (e) {
+        // Ignorer l'erreur
+      }
+    } finally {
+      setIsLoadingStats(false)
+    }
+  }
 
   const loadRecommendedEvents = async () => {
     setIsLoadingRecommended(true)
@@ -185,6 +250,54 @@ export default function DashboardPage() {
           </div>
         </div>
 
+        {/* Statistiques Rapides */}
+        <div className="grid grid-cols-3 gap-3 sm:gap-4 mb-5 sm:mb-6">
+          <div className="bg-white rounded-xl shadow-md p-4 border border-gray-100">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg flex items-center justify-center">
+                <FiUsers className="w-5 h-5 text-white" />
+              </div>
+              <div>
+                <p className="text-xs text-gray-500">Amis</p>
+                <p className="text-lg font-bold text-gray-900">{isLoadingStats ? '...' : stats.friends}</p>
+              </div>
+            </div>
+          </div>
+          <div className="bg-white rounded-xl shadow-md p-4 border border-gray-100">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 bg-gradient-to-br from-green-500 to-green-600 rounded-lg flex items-center justify-center">
+                <FiCalendar className="w-5 h-5 text-white" />
+              </div>
+              <div>
+                <p className="text-xs text-gray-500">Événements</p>
+                <p className="text-lg font-bold text-gray-900">{isLoadingStats ? '...' : stats.events}</p>
+              </div>
+            </div>
+          </div>
+          <div className="bg-white rounded-xl shadow-md p-4 border border-gray-100">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 bg-gradient-to-br from-purple-500 to-purple-600 rounded-lg flex items-center justify-center">
+                <FiUsers className="w-5 h-5 text-white" />
+              </div>
+              <div>
+                <p className="text-xs text-gray-500">Groupes</p>
+                <p className="text-lg font-bold text-gray-900">{isLoadingStats ? '...' : stats.groups}</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Citations du jour */}
+        <div className="bg-gradient-to-r from-yellow-50 to-orange-50 dark:from-yellow-900/20 dark:to-orange-900/20 rounded-xl shadow-md p-4 sm:p-5 mb-5 sm:mb-6 border border-yellow-200 dark:border-yellow-800">
+          <div className="flex items-start gap-3">
+            <div className="text-2xl">💡</div>
+            <div>
+              <p className="text-xs font-semibold text-yellow-800 dark:text-yellow-200 mb-1">Citation du jour</p>
+              <p className="text-sm sm:text-base text-gray-700 dark:text-gray-300 italic">"{todayQuote}"</p>
+            </div>
+          </div>
+        </div>
+
         {/* Quick Actions - Improved Design */}
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 sm:gap-4 mb-5 sm:mb-6">
           <Link
@@ -212,6 +325,45 @@ export default function DashboardPage() {
             </div>
             <div className="absolute inset-0 bg-gradient-to-br from-pink-50/0 to-pink-50/0 group-hover:from-pink-50/50 group-hover:to-transparent rounded-xl transition-all duration-300"></div>
           </Link>
+
+          <Link
+            href="/search"
+            className="group relative bg-white rounded-xl shadow-md hover:shadow-xl transition-all duration-300 p-4 sm:p-5 border border-gray-100 hover:border-teal-300 hover:-translate-y-1"
+          >
+            <div className="flex flex-col items-center text-center gap-2">
+              <div className="relative w-12 h-12 sm:w-14 sm:h-14 bg-gradient-to-br from-teal-500 to-teal-600 rounded-xl flex items-center justify-center group-hover:scale-110 group-hover:rotate-3 transition-all duration-300 shadow-lg">
+                <FiSearch className="w-6 h-6 sm:w-7 sm:h-7 text-white" />
+              </div>
+              <span className="text-xs sm:text-sm font-semibold text-gray-700 group-hover:text-teal-600 transition-colors">Recherche</span>
+            </div>
+            <div className="absolute inset-0 bg-gradient-to-br from-teal-50/0 to-teal-50/0 group-hover:from-teal-50/50 group-hover:to-transparent rounded-xl transition-all duration-300"></div>
+          </Link>
+
+          <Link
+            href="/groups"
+            className="group relative bg-white rounded-xl shadow-md hover:shadow-xl transition-all duration-300 p-4 sm:p-5 border border-gray-100 hover:border-purple-300 hover:-translate-y-1"
+          >
+            <div className="flex flex-col items-center text-center gap-2">
+              <div className="relative w-12 h-12 sm:w-14 sm:h-14 bg-gradient-to-br from-purple-500 to-purple-600 rounded-xl flex items-center justify-center group-hover:scale-110 group-hover:rotate-3 transition-all duration-300 shadow-lg">
+                <FiUsers className="w-6 h-6 sm:w-7 sm:h-7 text-white" />
+              </div>
+              <span className="text-xs sm:text-sm font-semibold text-gray-700 group-hover:text-purple-600 transition-colors">Groupes</span>
+            </div>
+            <div className="absolute inset-0 bg-gradient-to-br from-purple-50/0 to-purple-50/0 group-hover:from-purple-50/50 group-hover:to-transparent rounded-xl transition-all duration-300"></div>
+          </Link>
+
+          <Link
+            href="/settings"
+            className="group relative bg-white rounded-xl shadow-md hover:shadow-xl transition-all duration-300 p-4 sm:p-5 border border-gray-100 hover:border-gray-400 hover:-translate-y-1"
+          >
+            <div className="flex flex-col items-center text-center gap-2">
+              <div className="relative w-12 h-12 sm:w-14 sm:h-14 bg-gradient-to-br from-gray-500 to-gray-600 rounded-xl flex items-center justify-center group-hover:scale-110 group-hover:rotate-3 transition-all duration-300 shadow-lg">
+                <FiSettings className="w-6 h-6 sm:w-7 sm:h-7 text-white" />
+              </div>
+              <span className="text-xs sm:text-sm font-semibold text-gray-700 group-hover:text-gray-600 transition-colors">Paramètres</span>
+            </div>
+            <div className="absolute inset-0 bg-gradient-to-br from-gray-50/0 to-gray-50/0 group-hover:from-gray-50/50 group-hover:to-transparent rounded-xl transition-all duration-300"></div>
+          </Link>
         </div>
 
         {/* Recommended Events Section - Pour vous - Improved Design */}
@@ -224,13 +376,83 @@ export default function DashboardPage() {
                 </div>
                 <h3 className="text-lg sm:text-xl font-bold text-gray-900">Pour vous</h3>
               </div>
-              <Link
-                href="/events"
-                className="text-sm sm:text-base text-primary-600 hover:text-primary-700 font-semibold flex items-center gap-1.5 hover:gap-2 transition-all group"
-              >
-                Voir tout
-                <FiArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
-              </Link>
+              <div className="flex items-center gap-2 flex-wrap">
+                {/* Bouton Export Calendrier */}
+                <button
+                  onClick={async () => {
+                    try {
+                      const blob = await eventService.exportCalendar(true)
+                      const url = window.URL.createObjectURL(blob)
+                      const a = document.createElement('a')
+                      a.href = url
+                      a.download = 'campuslink-calendar.ics'
+                      document.body.appendChild(a)
+                      a.click()
+                      window.URL.revokeObjectURL(url)
+                      document.body.removeChild(a)
+                      toast.success('Calendrier exporté avec succès !')
+                    } catch (error) {
+                      console.error('Error exporting calendar:', error)
+                      toast.error('Erreur lors de l\'export du calendrier')
+                    }
+                  }}
+                  className="px-3 py-1.5 text-xs sm:text-sm bg-primary-600 hover:bg-primary-700 text-white rounded-lg transition-colors flex items-center gap-1.5 shadow-sm"
+                  title="Exporter le calendrier"
+                >
+                  <FiCalendar className="w-3.5 h-3.5" />
+                  <span className="hidden sm:inline">Export</span>
+                </button>
+                {/* Filtres rapides */}
+                <div className="flex gap-1 bg-gray-100 dark:bg-gray-700 rounded-lg p-1">
+                  <button
+                    onClick={() => setEventFilter('all')}
+                    className={`px-2 py-1 text-xs font-medium rounded transition ${
+                      eventFilter === 'all'
+                        ? 'bg-white dark:bg-gray-600 text-primary-600 dark:text-primary-400 shadow-sm'
+                        : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
+                    }`}
+                  >
+                    Tous
+                  </button>
+                  <button
+                    onClick={() => setEventFilter('today')}
+                    className={`px-2 py-1 text-xs font-medium rounded transition ${
+                      eventFilter === 'today'
+                        ? 'bg-white dark:bg-gray-600 text-primary-600 dark:text-primary-400 shadow-sm'
+                        : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
+                    }`}
+                  >
+                    Aujourd'hui
+                  </button>
+                  <button
+                    onClick={() => setEventFilter('week')}
+                    className={`px-2 py-1 text-xs font-medium rounded transition ${
+                      eventFilter === 'week'
+                        ? 'bg-white dark:bg-gray-600 text-primary-600 dark:text-primary-400 shadow-sm'
+                        : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
+                    }`}
+                  >
+                    Cette semaine
+                  </button>
+                  <button
+                    onClick={() => setEventFilter('month')}
+                    className={`px-2 py-1 text-xs font-medium rounded transition ${
+                      eventFilter === 'month'
+                        ? 'bg-white dark:bg-gray-600 text-primary-600 dark:text-primary-400 shadow-sm'
+                        : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
+                    }`}
+                  >
+                    Ce mois
+                  </button>
+                </div>
+                <Link
+                  href="/events"
+                  className="text-sm sm:text-base text-primary-600 hover:text-primary-700 font-semibold flex items-center gap-1.5 hover:gap-2 transition-all group"
+                >
+                  Voir tout
+                  <FiArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+                </Link>
+              </div>
             </div>
             {isLoadingRecommended ? (
               <div className="bg-white rounded-lg shadow-sm p-6 text-center">
@@ -239,7 +461,30 @@ export default function DashboardPage() {
               </div>
             ) : (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                {recommendedEvents.map((event) => (
+                {recommendedEvents
+                  .filter((event) => {
+                    if (eventFilter === 'all') return true
+                    const eventDate = new Date(event.start_date)
+                    const now = new Date()
+                    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+                    const eventDay = new Date(eventDate.getFullYear(), eventDate.getMonth(), eventDate.getDate())
+                    
+                    if (eventFilter === 'today') {
+                      return eventDay.getTime() === today.getTime()
+                    }
+                    if (eventFilter === 'week') {
+                      const weekFromNow = new Date(today)
+                      weekFromNow.setDate(weekFromNow.getDate() + 7)
+                      return eventDate >= today && eventDate <= weekFromNow
+                    }
+                    if (eventFilter === 'month') {
+                      const monthFromNow = new Date(today)
+                      monthFromNow.setMonth(monthFromNow.getMonth() + 1)
+                      return eventDate >= today && eventDate <= monthFromNow
+                    }
+                    return true
+                  })
+                  .map((event) => (
                   <Link
                     key={event.id}
                     href={`/events/${event.id}`}

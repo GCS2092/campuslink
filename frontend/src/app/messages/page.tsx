@@ -354,17 +354,30 @@ export default function MessagesPage() {
     return 'Conversation privée'
   }
 
-  const getDisplayAvatar = (conv: Conversation): string => {
+  const getDisplayAvatar = (conv: Conversation): { type: 'image' | 'initial'; value: string } => {
     if (conv.conversation_type === 'group') {
-      return conv.name?.[0] || conv.group?.name?.[0] || 'G'
+      // Pour les groupes, utiliser l'image du groupe si disponible
+      if (conv.group?.profile_image) {
+        return { type: 'image', value: conv.group.profile_image }
+      }
+      return { type: 'initial', value: conv.name?.[0] || conv.group?.name?.[0] || 'G' }
     }
+    // Pour les conversations privées, utiliser la photo de profil
     const otherParticipant = conv.participants?.find((p) => p.user.id !== user?.id)
-    return otherParticipant?.user.username?.[0] || 'U'
+    if (otherParticipant?.user?.profile?.profile_picture) {
+      return { type: 'image', value: otherParticipant.user.profile.profile_picture }
+    }
+    return { type: 'initial', value: otherParticipant?.user.username?.[0] || 'U' }
   }
 
   const getLastMessagePreview = (conv: Conversation): string => {
     if (conv.last_message) {
-      return conv.last_message.content || ''
+      const content = conv.last_message.content || ''
+      // Troncature intelligente : max 50 caractères
+      if (content.length > 50) {
+        return content.substring(0, 47) + '...'
+      }
+      return content
     }
     return 'Aucun message'
   }
@@ -540,6 +553,26 @@ export default function MessagesPage() {
       })
     }
 
+    // Tri intelligent : conversations avec messages non lus en haut
+    filtered = [...filtered].sort((a, b) => {
+      const aUnread = a.unread_count || 0
+      const bUnread = b.unread_count || 0
+      
+      // Si une conversation a des messages non lus et l'autre non
+      if (aUnread > 0 && bUnread === 0) return -1
+      if (aUnread === 0 && bUnread > 0) return 1
+      
+      // Si les deux ont des messages non lus, trier par nombre de non-lus (décroissant)
+      if (aUnread > 0 && bUnread > 0) {
+        return bUnread - aUnread
+      }
+      
+      // Sinon, trier par date du dernier message (plus récent en premier)
+      const aDate = a.last_message_at ? new Date(a.last_message_at).getTime() : 0
+      const bDate = b.last_message_at ? new Date(b.last_message_at).getTime() : 0
+      return bDate - aDate
+    })
+
     if (searchQuery.trim()) {
       const query = searchQuery.toLowerCase()
       filtered = filtered.filter((conv) => {
@@ -559,11 +592,25 @@ export default function MessagesPage() {
     const hours = Math.floor(diff / 3600000)
     const days = Math.floor(diff / 86400000)
 
+    // Aujourd'hui
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+    const messageDate = new Date(date.getFullYear(), date.getMonth(), date.getDate())
+    const isToday = messageDate.getTime() === today.getTime()
+    
+    // Hier
+    const yesterday = new Date(today)
+    yesterday.setDate(yesterday.getDate() - 1)
+    const isYesterday = messageDate.getTime() === yesterday.getTime()
+
     if (minutes < 1) return 'À l\'instant'
     if (minutes < 60) return `Il y a ${minutes} min`
-    if (hours < 24) return `Il y a ${hours}h`
-    if (days < 7) return `Il y a ${days}j`
-    return date.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })
+    if (hours < 24 && isToday) {
+      return date.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })
+    }
+    if (isYesterday) return 'Hier'
+    if (isToday) return date.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })
+    if (days < 7) return date.toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', month: 'short' })
+    return date.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: date.getFullYear() !== now.getFullYear() ? 'numeric' : undefined })
   }
 
   const isResponsible = user?.role === 'class_leader' || user?.role === 'admin'
@@ -793,7 +840,7 @@ export default function MessagesPage() {
                       >
                         <div className="flex items-center gap-3">
                           <div
-                            className={`w-12 h-12 rounded-full flex items-center justify-center ${
+                            className={`w-12 h-12 rounded-full flex items-center justify-center overflow-hidden ${
                               isGroup
                                 ? 'bg-purple-100 dark:bg-purple-900/30'
                                 : 'bg-primary-100 dark:bg-primary-900/30'
@@ -801,9 +848,24 @@ export default function MessagesPage() {
                           >
                             {isGroup ? (
                               <FiHash className={`w-6 h-6 ${isGroup ? 'text-purple-600 dark:text-purple-400' : 'text-primary-600 dark:text-primary-400'}`} />
+                            ) : avatar.type === 'image' ? (
+                              <img
+                                src={avatar.value}
+                                alt={displayName}
+                                className="w-full h-full object-cover"
+                                onError={(e) => {
+                                  // Fallback vers initiale si l'image ne charge pas
+                                  const target = e.target as HTMLImageElement
+                                  target.style.display = 'none'
+                                  const fallback = document.createElement('span')
+                                  fallback.className = `font-semibold ${isGroup ? 'text-purple-600 dark:text-purple-400' : 'text-primary-600 dark:text-primary-400'}`
+                                  fallback.textContent = displayName[0] || avatar.value[0] || 'U'
+                                  target.parentElement?.appendChild(fallback)
+                                }}
+                              />
                             ) : (
                               <span className={`font-semibold ${isGroup ? 'text-purple-600 dark:text-purple-400' : 'text-primary-600 dark:text-primary-400'}`}>
-                                {avatar}
+                                {avatar.value}
                               </span>
                             )}
                           </div>
@@ -880,16 +942,22 @@ export default function MessagesPage() {
                       </div>
                     ) : (
                       <>
-                        {messages.map((message: any) => {
+                        {messages.map((message: any, index: number) => {
                           const isOwnMessage = message.sender?.id === user?.id || message.sender_id === user?.id
                           const senderName = message.sender?.username || message.sender?.first_name || message.sender || 'Utilisateur'
                           const readBy = message.read_by || []
                           const reactions = message.reactions || []
                           
+                          // Vérifier si le message précédent est du même expéditeur et dans les 5 dernières minutes
+                          const prevMessage = index > 0 ? messages[index - 1] : null
+                          const isGrouped = prevMessage && 
+                            (prevMessage.sender?.id === message.sender?.id || prevMessage.sender_id === message.sender_id) &&
+                            new Date(message.created_at).getTime() - new Date(prevMessage.created_at).getTime() < 5 * 60 * 1000 // 5 minutes
+                          
                           return (
                             <div
                               key={message.id}
-                              className={`flex ${isOwnMessage ? 'justify-end' : 'justify-start'} group`}
+                              className={`flex ${isOwnMessage ? 'justify-end' : 'justify-start'} group ${isGrouped ? 'mt-1' : 'mt-4'}`}
                             >
                               <div className={`max-w-[70%] ${isOwnMessage ? 'flex flex-col items-end' : ''}`}>
                                 <div
