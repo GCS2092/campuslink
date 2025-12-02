@@ -3,7 +3,7 @@
 import { useAuth } from '@/context/AuthContext'
 import { useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
-import { FiLogOut, FiBell, FiCalendar, FiUsers, FiImage, FiMapPin, FiClock, FiEdit2, FiGlobe, FiLock, FiSettings, FiUser, FiKey, FiBarChart2, FiZap, FiArrowRight } from 'react-icons/fi'
+import { FiLogOut, FiBell, FiCalendar, FiUsers, FiImage, FiMapPin, FiClock, FiEdit2, FiGlobe, FiBarChart2, FiZap, FiArrowRight } from 'react-icons/fi'
 import { feedService, type FeedItem } from '@/services/feedService'
 import { eventService, type Event } from '@/services/eventService'
 import NotificationBell from '@/components/NotificationBell'
@@ -127,21 +127,25 @@ export default function DashboardPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-primary-50 to-secondary-50 page-with-bottom-nav">
-      {/* Header */}
-      <header className="bg-white shadow-sm border-b border-gray-200">
-        <div className="max-w-7xl mx-auto px-3 sm:px-4 lg:px-6 py-2 sm:py-3">
-          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 sm:gap-0">
-            <div className="flex items-center gap-2">
-              <h1 className="text-lg sm:text-xl font-bold text-gray-900">CampusLink</h1>
+      {/* Header - Improved Design */}
+      <header className="bg-gradient-to-r from-primary-600 via-primary-500 to-secondary-600 shadow-lg border-b border-primary-700">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 sm:py-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 sm:w-12 sm:h-12 bg-white/20 backdrop-blur-sm rounded-xl flex items-center justify-center shadow-lg">
+                <FiGlobe className="w-6 h-6 sm:w-7 sm:h-7 text-white" />
+              </div>
+              <h1 className="text-xl sm:text-2xl font-bold text-white drop-shadow-lg">CampusLink</h1>
             </div>
-            <div className="flex items-center gap-2 sm:gap-3 w-full sm:w-auto justify-end">
+            <div className="flex items-center gap-2 sm:gap-3">
               <NotificationBell userId={user?.id} />
               <button
                 onClick={handleLogout}
-                className="flex items-center gap-1.5 px-2 sm:px-3 py-1.5 text-xs sm:text-sm text-gray-600 hover:text-gray-900 transition"
+                className="flex items-center gap-2 px-3 sm:px-4 py-2 sm:py-2.5 bg-white/20 hover:bg-white/30 backdrop-blur-sm text-white rounded-xl transition-all duration-300 shadow-md hover:shadow-lg hover:scale-105 border border-white/30"
+                title="Déconnexion"
               >
-                <FiLogOut className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-                <span className="hidden sm:inline">Déconnexion</span>
+                <FiLogOut className="w-4 h-4 sm:w-5 sm:h-5" />
+                <span className="hidden sm:inline font-semibold">Déconnexion</span>
               </button>
             </div>
           </div>
@@ -172,62 +176,7 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        {/* Quick Actions Section - Improved Design */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4 mb-4 sm:mb-5">
-          <Link
-            href="/profile"
-            className="group relative bg-white rounded-xl shadow-md hover:shadow-xl transition-all duration-300 p-4 sm:p-5 border border-gray-100 hover:border-primary-300 hover:-translate-y-1"
-          >
-            <div className="flex flex-col items-center text-center gap-2">
-              <div className="relative w-12 h-12 sm:w-14 sm:h-14 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl flex items-center justify-center group-hover:scale-110 group-hover:rotate-3 transition-all duration-300 shadow-lg">
-                <FiUser className="w-6 h-6 sm:w-7 sm:h-7 text-white" />
-              </div>
-              <span className="text-xs sm:text-sm font-semibold text-gray-700 group-hover:text-primary-600 transition-colors">Mon Profil</span>
-            </div>
-            <div className="absolute inset-0 bg-gradient-to-br from-blue-50/0 to-blue-50/0 group-hover:from-blue-50/50 group-hover:to-transparent rounded-xl transition-all duration-300"></div>
-          </Link>
-
-          <Link
-            href="/settings"
-            className="group relative bg-white rounded-xl shadow-md hover:shadow-xl transition-all duration-300 p-4 sm:p-5 border border-gray-100 hover:border-purple-300 hover:-translate-y-1"
-          >
-            <div className="flex flex-col items-center text-center gap-2">
-              <div className="relative w-12 h-12 sm:w-14 sm:h-14 bg-gradient-to-br from-purple-500 to-purple-600 rounded-xl flex items-center justify-center group-hover:scale-110 group-hover:rotate-3 transition-all duration-300 shadow-lg">
-                <FiSettings className="w-6 h-6 sm:w-7 sm:h-7 text-white" />
-              </div>
-              <span className="text-xs sm:text-sm font-semibold text-gray-700 group-hover:text-purple-600 transition-colors">Paramètres</span>
-            </div>
-            <div className="absolute inset-0 bg-gradient-to-br from-purple-50/0 to-purple-50/0 group-hover:from-purple-50/50 group-hover:to-transparent rounded-xl transition-all duration-300"></div>
-          </Link>
-
-          <Link
-            href="/settings?tab=security"
-            className="group relative bg-white rounded-xl shadow-md hover:shadow-xl transition-all duration-300 p-4 sm:p-5 border border-gray-100 hover:border-red-300 hover:-translate-y-1"
-          >
-            <div className="flex flex-col items-center text-center gap-2">
-              <div className="relative w-12 h-12 sm:w-14 sm:h-14 bg-gradient-to-br from-red-500 to-red-600 rounded-xl flex items-center justify-center group-hover:scale-110 group-hover:rotate-3 transition-all duration-300 shadow-lg">
-                <FiKey className="w-6 h-6 sm:w-7 sm:h-7 text-white" />
-              </div>
-              <span className="text-xs sm:text-sm font-semibold text-gray-700 group-hover:text-red-600 transition-colors">Mot de passe</span>
-            </div>
-            <div className="absolute inset-0 bg-gradient-to-br from-red-50/0 to-red-50/0 group-hover:from-red-50/50 group-hover:to-transparent rounded-xl transition-all duration-300"></div>
-          </Link>
-
-          <Link
-            href="/settings?tab=notifications"
-            className="group relative bg-white rounded-xl shadow-md hover:shadow-xl transition-all duration-300 p-4 sm:p-5 border border-gray-100 hover:border-green-300 hover:-translate-y-1"
-          >
-            <div className="flex flex-col items-center text-center gap-2">
-              <div className="relative w-12 h-12 sm:w-14 sm:h-14 bg-gradient-to-br from-green-500 to-green-600 rounded-xl flex items-center justify-center group-hover:scale-110 group-hover:rotate-3 transition-all duration-300 shadow-lg">
-                <FiBell className="w-6 h-6 sm:w-7 sm:h-7 text-white" />
-              </div>
-              <span className="text-xs sm:text-sm font-semibold text-gray-700 group-hover:text-green-600 transition-colors">Notifications</span>
-            </div>
-            <div className="absolute inset-0 bg-gradient-to-br from-green-50/0 to-green-50/0 group-hover:from-green-50/50 group-hover:to-transparent rounded-xl transition-all duration-300"></div>
-          </Link>
-        </div>
-
-        {/* Additional Quick Actions - Improved Design */}
+        {/* Quick Actions - Improved Design */}
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 sm:gap-4 mb-5 sm:mb-6">
           <Link
             href="/calendar"

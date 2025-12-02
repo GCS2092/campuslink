@@ -2,7 +2,7 @@
 
 import { usePathname, useRouter } from 'next/navigation'
 import { useAuth } from '@/context/AuthContext'
-import { FiHome, FiCalendar, FiUsers, FiMessageSquare, FiUser } from 'react-icons/fi'
+import { FiHome, FiCalendar, FiUsers, FiMessageSquare, FiSettings } from 'react-icons/fi'
 
 interface NavItem {
   path: string
@@ -16,7 +16,7 @@ const navItems: NavItem[] = [
   { path: '/groups', icon: FiUsers, label: 'Groupes' },
   { path: '/students', icon: FiUsers, label: 'Étudiants' },
   { path: '/messages', icon: FiMessageSquare, label: 'Messages' },
-  { path: '/profile', icon: FiUser, label: 'Profil' },
+  { path: '/settings', icon: FiSettings, label: 'Paramètres' },
 ]
 
 export default function BottomNavigation() {
