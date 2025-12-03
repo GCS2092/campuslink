@@ -218,7 +218,7 @@ function SearchContent() {
                   {results.users.map((userResult) => (
                     <Link
                       key={userResult.id}
-                      href={`/students/${userResult.id}`}
+                      href={`/users/${userResult.id}`}
                       className="group bg-white rounded-xl shadow-md p-4 hover:shadow-xl transition-all duration-300 border border-gray-100 hover:border-primary-300 hover:-translate-y-1"
                     >
                       <div className="flex items-center gap-3">

@@ -14,6 +14,7 @@ import Link from 'next/link'
 import { getUniversityName } from '@/utils/typeHelpers'
 import toast from 'react-hot-toast'
 import MiniCalendar from '@/components/MiniCalendar'
+import HamburgerMenu from '@/components/HamburgerMenu'
 
 export default function DashboardPage() {
   const { user, loading, logout } = useAuth()
@@ -240,6 +241,7 @@ export default function DashboardPage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 sm:py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
+              <HamburgerMenu />
               <div className="w-10 h-10 sm:w-12 sm:h-12 bg-white/20 backdrop-blur-sm rounded-xl flex items-center justify-center shadow-lg">
                 <FiGlobe className="w-6 h-6 sm:w-7 sm:h-7 text-white" />
               </div>
@@ -344,69 +346,30 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        {/* Quick Actions - Improved Design */}
-        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 sm:gap-4 mb-5 sm:mb-6">
-          <Link
-            href="/calendar"
-            className="group relative bg-white rounded-xl shadow-md hover:shadow-xl transition-all duration-300 p-4 sm:p-5 border border-gray-100 hover:border-indigo-300 hover:-translate-y-1"
-          >
-            <div className="flex flex-col items-center text-center gap-2">
-              <div className="relative w-12 h-12 sm:w-14 sm:h-14 bg-gradient-to-br from-indigo-500 to-indigo-600 rounded-xl flex items-center justify-center group-hover:scale-110 group-hover:rotate-3 transition-all duration-300 shadow-lg">
-                <FiCalendar className="w-6 h-6 sm:w-7 sm:h-7 text-white" />
-              </div>
-              <span className="text-xs sm:text-sm font-semibold text-gray-700 group-hover:text-indigo-600 transition-colors">Calendrier</span>
-            </div>
-            <div className="absolute inset-0 bg-gradient-to-br from-indigo-50/0 to-indigo-50/0 group-hover:from-indigo-50/50 group-hover:to-transparent rounded-xl transition-all duration-300"></div>
-          </Link>
-
-          <Link
-            href="/friends-activity"
-            className="group relative bg-white rounded-xl shadow-md hover:shadow-xl transition-all duration-300 p-4 sm:p-5 border border-gray-100 hover:border-pink-300 hover:-translate-y-1"
-          >
-            <div className="flex flex-col items-center text-center gap-2">
-              <div className="relative w-12 h-12 sm:w-14 sm:h-14 bg-gradient-to-br from-pink-500 to-pink-600 rounded-xl flex items-center justify-center group-hover:scale-110 group-hover:rotate-3 transition-all duration-300 shadow-lg">
-                <FiUsers className="w-6 h-6 sm:w-7 sm:h-7 text-white" />
-              </div>
-              <span className="text-xs sm:text-sm font-semibold text-gray-700 group-hover:text-pink-600 transition-colors">Activité Amis</span>
-            </div>
-            <div className="absolute inset-0 bg-gradient-to-br from-pink-50/0 to-pink-50/0 group-hover:from-pink-50/50 group-hover:to-transparent rounded-xl transition-all duration-300"></div>
-          </Link>
-
-          <Link
-            href="/search"
-            className="group relative bg-white rounded-xl shadow-md hover:shadow-xl transition-all duration-300 p-4 sm:p-5 border border-gray-100 hover:border-teal-300 hover:-translate-y-1"
-          >
-            <div className="flex flex-col items-center text-center gap-2">
-              <div className="relative w-12 h-12 sm:w-14 sm:h-14 bg-gradient-to-br from-teal-500 to-teal-600 rounded-xl flex items-center justify-center group-hover:scale-110 group-hover:rotate-3 transition-all duration-300 shadow-lg">
-                <FiSearch className="w-6 h-6 sm:w-7 sm:h-7 text-white" />
-              </div>
-              <span className="text-xs sm:text-sm font-semibold text-gray-700 group-hover:text-teal-600 transition-colors">Recherche</span>
-            </div>
-            <div className="absolute inset-0 bg-gradient-to-br from-teal-50/0 to-teal-50/0 group-hover:from-teal-50/50 group-hover:to-transparent rounded-xl transition-all duration-300"></div>
-          </Link>
-
+        {/* Quick Actions - Reduced Size (only Groupes and Paramètres) */}
+        <div className="grid grid-cols-2 gap-2 sm:gap-3 mb-5 sm:mb-6">
           <Link
             href="/groups"
-            className="group relative bg-white rounded-xl shadow-md hover:shadow-xl transition-all duration-300 p-4 sm:p-5 border border-gray-100 hover:border-purple-300 hover:-translate-y-1"
+            className="group relative bg-white rounded-xl shadow-md hover:shadow-xl transition-all duration-300 p-3 sm:p-4 border border-gray-100 hover:border-purple-300 hover:-translate-y-1"
           >
-            <div className="flex flex-col items-center text-center gap-2">
-              <div className="relative w-12 h-12 sm:w-14 sm:h-14 bg-gradient-to-br from-purple-500 to-purple-600 rounded-xl flex items-center justify-center group-hover:scale-110 group-hover:rotate-3 transition-all duration-300 shadow-lg">
-                <FiUsers className="w-6 h-6 sm:w-7 sm:h-7 text-white" />
+            <div className="flex flex-col items-center text-center gap-1.5">
+              <div className="relative w-10 h-10 sm:w-11 sm:h-11 bg-gradient-to-br from-purple-500 to-purple-600 rounded-lg flex items-center justify-center group-hover:scale-110 group-hover:rotate-3 transition-all duration-300 shadow-lg">
+                <FiUsers className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
               </div>
-              <span className="text-xs sm:text-sm font-semibold text-gray-700 group-hover:text-purple-600 transition-colors">Groupes</span>
+              <span className="text-xs font-semibold text-gray-700 group-hover:text-purple-600 transition-colors">Groupes</span>
             </div>
             <div className="absolute inset-0 bg-gradient-to-br from-purple-50/0 to-purple-50/0 group-hover:from-purple-50/50 group-hover:to-transparent rounded-xl transition-all duration-300"></div>
           </Link>
 
           <Link
             href="/settings"
-            className="group relative bg-white rounded-xl shadow-md hover:shadow-xl transition-all duration-300 p-4 sm:p-5 border border-gray-100 hover:border-gray-400 hover:-translate-y-1"
+            className="group relative bg-white rounded-xl shadow-md hover:shadow-xl transition-all duration-300 p-3 sm:p-4 border border-gray-100 hover:border-gray-400 hover:-translate-y-1"
           >
-            <div className="flex flex-col items-center text-center gap-2">
-              <div className="relative w-12 h-12 sm:w-14 sm:h-14 bg-gradient-to-br from-gray-500 to-gray-600 rounded-xl flex items-center justify-center group-hover:scale-110 group-hover:rotate-3 transition-all duration-300 shadow-lg">
-                <FiSettings className="w-6 h-6 sm:w-7 sm:h-7 text-white" />
+            <div className="flex flex-col items-center text-center gap-1.5">
+              <div className="relative w-10 h-10 sm:w-11 sm:h-11 bg-gradient-to-br from-gray-500 to-gray-600 rounded-lg flex items-center justify-center group-hover:scale-110 group-hover:rotate-3 transition-all duration-300 shadow-lg">
+                <FiSettings className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
               </div>
-              <span className="text-xs sm:text-sm font-semibold text-gray-700 group-hover:text-gray-600 transition-colors">Paramètres</span>
+              <span className="text-xs font-semibold text-gray-700 group-hover:text-gray-600 transition-colors">Paramètres</span>
             </div>
             <div className="absolute inset-0 bg-gradient-to-br from-gray-50/0 to-gray-50/0 group-hover:from-gray-50/50 group-hover:to-transparent rounded-xl transition-all duration-300"></div>
           </Link>
@@ -597,31 +560,11 @@ export default function DashboardPage() {
 
         {/* Feed Section - Actualités - Improved Design */}
         <div className="space-y-4 sm:space-y-5">
-          <div className="flex items-center justify-between mb-1">
-            <div className="flex items-center gap-2">
-              <div className="w-10 h-10 bg-gradient-to-br from-orange-500 to-red-500 rounded-lg flex items-center justify-center shadow-md">
-                <FiBell className="w-5 h-5 text-white" />
-              </div>
-              <h3 className="text-lg sm:text-xl font-bold text-gray-900">Actualités</h3>
+          <div className="flex items-center gap-2 mb-1">
+            <div className="w-10 h-10 bg-gradient-to-br from-orange-500 to-red-500 rounded-lg flex items-center justify-center shadow-md">
+              <FiBell className="w-5 h-5 text-white" />
             </div>
-            <div className="flex items-center gap-2">
-              {isResponsible && (
-                <button
-                  onClick={() => router.push('/feed/manage')}
-                  className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 text-xs bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition"
-                >
-                  <FiEdit2 className="w-3.5 h-3.5" />
-                  <span className="hidden sm:inline">Gérer</span>
-                </button>
-              )}
-              <button
-                onClick={loadFeed}
-                disabled={isLoadingFeed}
-                className="text-xs sm:text-sm text-primary-600 hover:text-primary-700 font-medium disabled:opacity-50"
-              >
-                {isLoadingFeed ? 'Chargement...' : 'Actualiser'}
-              </button>
-            </div>
+            <h3 className="text-lg sm:text-xl font-bold text-gray-900">Actualités</h3>
           </div>
 
           {/* Feed Items */}
