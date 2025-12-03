@@ -346,34 +346,6 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        {/* Quick Actions - Reduced Size (only Groupes and Paramètres) */}
-        <div className="grid grid-cols-2 gap-2 sm:gap-3 mb-5 sm:mb-6">
-          <Link
-            href="/groups"
-            className="group relative bg-white rounded-xl shadow-md hover:shadow-xl transition-all duration-300 p-3 sm:p-4 border border-gray-100 hover:border-purple-300 hover:-translate-y-1"
-          >
-            <div className="flex flex-col items-center text-center gap-1.5">
-              <div className="relative w-10 h-10 sm:w-11 sm:h-11 bg-gradient-to-br from-purple-500 to-purple-600 rounded-lg flex items-center justify-center group-hover:scale-110 group-hover:rotate-3 transition-all duration-300 shadow-lg">
-                <FiUsers className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
-              </div>
-              <span className="text-xs font-semibold text-gray-700 group-hover:text-purple-600 transition-colors">Groupes</span>
-            </div>
-            <div className="absolute inset-0 bg-gradient-to-br from-purple-50/0 to-purple-50/0 group-hover:from-purple-50/50 group-hover:to-transparent rounded-xl transition-all duration-300"></div>
-          </Link>
-
-          <Link
-            href="/settings"
-            className="group relative bg-white rounded-xl shadow-md hover:shadow-xl transition-all duration-300 p-3 sm:p-4 border border-gray-100 hover:border-gray-400 hover:-translate-y-1"
-          >
-            <div className="flex flex-col items-center text-center gap-1.5">
-              <div className="relative w-10 h-10 sm:w-11 sm:h-11 bg-gradient-to-br from-gray-500 to-gray-600 rounded-lg flex items-center justify-center group-hover:scale-110 group-hover:rotate-3 transition-all duration-300 shadow-lg">
-                <FiSettings className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
-              </div>
-              <span className="text-xs font-semibold text-gray-700 group-hover:text-gray-600 transition-colors">Paramètres</span>
-            </div>
-            <div className="absolute inset-0 bg-gradient-to-br from-gray-50/0 to-gray-50/0 group-hover:from-gray-50/50 group-hover:to-transparent rounded-xl transition-all duration-300"></div>
-          </Link>
-        </div>
 
         {/* Recommended Events Section - Pour vous - Improved Design */}
         {recommendedEvents.length > 0 && (
