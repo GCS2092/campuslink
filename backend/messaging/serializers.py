@@ -27,9 +27,10 @@ class MessageSerializer(serializers.ModelSerializer):
         model = Message
         fields = [
             'id', 'conversation', 'sender', 'content', 'message_type',
-            'is_read', 'read_by', 'reactions', 'is_read_by_me', 'created_at', 'edited_at'
+            'is_read', 'read_by', 'reactions', 'is_read_by_me', 'created_at', 'edited_at',
+            'is_deleted_for_all', 'deleted_at'
         ]
-        read_only_fields = ['id', 'sender', 'is_read', 'read_by', 'reactions', 'created_at', 'edited_at']
+        read_only_fields = ['id', 'sender', 'is_read', 'read_by', 'reactions', 'created_at', 'edited_at', 'deleted_at']
     
     def get_is_read_by_me(self, obj):
         """Check if message is read by current user."""
@@ -47,7 +48,8 @@ class ParticipantSerializer(serializers.ModelSerializer):
         model = Participant
         fields = [
             'id', 'conversation', 'user', 'joined_at', 'left_at',
-            'is_active', 'last_read_at', 'unread_count'
+            'is_active', 'last_read_at', 'unread_count',
+            'is_pinned', 'is_archived', 'is_favorite', 'mute_notifications'
         ]
         read_only_fields = ['id', 'joined_at', 'left_at', 'unread_count']
 
@@ -59,12 +61,18 @@ class ConversationSerializer(serializers.ModelSerializer):
     last_message = serializers.SerializerMethodField()
     unread_count = serializers.SerializerMethodField()
     group = serializers.SerializerMethodField()
+    # User-specific conversation settings
+    is_pinned = serializers.SerializerMethodField()
+    is_archived = serializers.SerializerMethodField()
+    is_favorite = serializers.SerializerMethodField()
+    mute_notifications = serializers.SerializerMethodField()
     
     class Meta:
         model = Conversation
         fields = [
             'id', 'conversation_type', 'name', 'group', 'created_by', 'created_at',
-            'updated_at', 'last_message_at', 'participants', 'last_message', 'unread_count'
+            'updated_at', 'last_message_at', 'participants', 'last_message', 'unread_count',
+            'is_pinned', 'is_archived', 'is_favorite', 'mute_notifications'
         ]
         read_only_fields = ['id', 'created_by', 'created_at', 'updated_at', 'last_message_at']
     
@@ -147,4 +155,48 @@ class ConversationSerializer(serializers.ModelSerializer):
                 logger.error(f"Error getting unread count for conversation {obj.id}: {str(e)}")
                 return 0
         return 0
+    
+    def get_is_pinned(self, obj):
+        """Get is_pinned status for current user."""
+        request = self.context.get('request')
+        if request and request.user.is_authenticated:
+            try:
+                participant = obj.participants.get(user=request.user, is_active=True)
+                return participant.is_pinned
+            except Participant.DoesNotExist:
+                return False
+        return False
+    
+    def get_is_archived(self, obj):
+        """Get is_archived status for current user."""
+        request = self.context.get('request')
+        if request and request.user.is_authenticated:
+            try:
+                participant = obj.participants.get(user=request.user, is_active=True)
+                return participant.is_archived
+            except Participant.DoesNotExist:
+                return False
+        return False
+    
+    def get_is_favorite(self, obj):
+        """Get is_favorite status for current user."""
+        request = self.context.get('request')
+        if request and request.user.is_authenticated:
+            try:
+                participant = obj.participants.get(user=request.user, is_active=True)
+                return participant.is_favorite
+            except Participant.DoesNotExist:
+                return False
+        return False
+    
+    def get_mute_notifications(self, obj):
+        """Get mute_notifications status for current user."""
+        request = self.context.get('request')
+        if request and request.user.is_authenticated:
+            try:
+                participant = obj.participants.get(user=request.user, is_active=True)
+                return participant.mute_notifications
+            except Participant.DoesNotExist:
+                return False
+        return False
 

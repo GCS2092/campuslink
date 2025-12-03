@@ -219,3 +219,8 @@
 
 *Document mis à jour après implémentation des améliorations Phase 3*
 
+
+
+
+ Appliquer la migration sur le serveur  =  python manage.py migrate messaging
+ 

@@ -23,6 +23,10 @@ export interface Conversation {
   participants?: Participant[]
   last_message?: Message
   unread_count?: number
+  is_pinned?: boolean
+  is_archived?: boolean
+  is_favorite?: boolean
+  mute_notifications?: boolean
 }
 
 export interface Participant {
@@ -35,6 +39,10 @@ export interface Participant {
   joined_at: string
   is_active: boolean
   unread_count: number
+  is_pinned?: boolean
+  is_archived?: boolean
+  is_favorite?: boolean
+  mute_notifications?: boolean
 }
 
 export interface Message {
@@ -50,6 +58,8 @@ export interface Message {
   is_read: boolean
   created_at: string
   edited_at?: string
+  is_deleted_for_all?: boolean
+  deleted_at?: string
 }
 
 export interface BroadcastResponse {
@@ -62,8 +72,11 @@ export interface BroadcastResponse {
 }
 
 export const messagingService = {
-  getConversations: async (type?: 'private' | 'group') => {
-    const params = type ? { type } : {}
+  getConversations: async (type?: 'private' | 'group', archived?: boolean) => {
+    const params: any = type ? { type } : {}
+    if (archived !== undefined) {
+      params.archived = archived.toString()
+    }
     const response = await api.get('/messaging/conversations/', { params })
     return response.data
   },
@@ -128,6 +141,38 @@ export const messagingService = {
 
   markMessageRead: async (messageId: string) => {
     const response = await api.post(`/messaging/messages/${messageId}/mark_read/`)
+    return response.data
+  },
+
+  // Conversation actions
+  pinConversation: async (conversationId: string) => {
+    const response = await api.post(`/messaging/conversations/${conversationId}/pin/`)
+    return response.data
+  },
+
+  archiveConversation: async (conversationId: string) => {
+    const response = await api.post(`/messaging/conversations/${conversationId}/archive/`)
+    return response.data
+  },
+
+  favoriteConversation: async (conversationId: string) => {
+    const response = await api.post(`/messaging/conversations/${conversationId}/favorite/`)
+    return response.data
+  },
+
+  muteConversation: async (conversationId: string) => {
+    const response = await api.post(`/messaging/conversations/${conversationId}/mute/`)
+    return response.data
+  },
+
+  // Message actions
+  editMessage: async (messageId: string, content: string) => {
+    const response = await api.patch(`/messaging/messages/${messageId}/`, { content })
+    return response.data
+  },
+
+  deleteMessageForAll: async (messageId: string) => {
+    const response = await api.post(`/messaging/messages/${messageId}/delete_for_all/`)
     return response.data
   },
 }

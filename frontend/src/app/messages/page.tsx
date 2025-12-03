@@ -4,20 +4,23 @@ import { useAuth } from '@/context/AuthContext'
 import { useRouter } from 'next/navigation'
 import { useEffect, useState, useRef, useCallback } from 'react'
 import { useHotkeys } from 'react-hotkeys-hook'
-import { FiMessageSquare, FiSend, FiSearch, FiRadio, FiX, FiUsers, FiGlobe, FiUser, FiHash, FiPlus, FiSmile, FiLogOut } from 'react-icons/fi'
+import { FiMessageSquare, FiSend, FiSearch, FiRadio, FiX, FiUsers, FiGlobe, FiUser, FiHash, FiPlus, FiSmile, FiLogOut, FiBookmark, FiArchive, FiStar, FiBell, FiBellOff, FiEdit2, FiTrash2, FiMoreVertical } from 'react-icons/fi'
 import { messagingService, Conversation, Message } from '@/services/messagingService'
 import { userService } from '@/services/userService'
 import { groupService, Group } from '@/services/groupService'
 import { useWebSocket } from '@/hooks/useWebSocket'
 import toast from 'react-hot-toast'
+// Pull-to-refresh désactivé temporairement (problème de compatibilité avec Next.js)
+// import ReactPullToRefresh from 'react-pull-to-refresh'
 
-type TabType = 'all' | 'groups' | 'private'
+type TabType = 'all' | 'groups' | 'private' | 'archived'
 
 export default function MessagesPage() {
   const { user, loading, logout } = useAuth()
   const router = useRouter()
   const [mounted, setMounted] = useState(false)
   const [conversations, setConversations] = useState<Conversation[]>([])
+  const [archivedConversations, setArchivedConversations] = useState<Conversation[]>([])
   const [groupConversations, setGroupConversations] = useState<Conversation[]>([])
   const [privateConversations, setPrivateConversations] = useState<Conversation[]>([])
   const [selectedConversation, setSelectedConversation] = useState<Conversation | null>(null)
@@ -43,6 +46,9 @@ export default function MessagesPage() {
   const [typingUsers, setTypingUsers] = useState<Map<string, { username: string; timeout: NodeJS.Timeout }>>(new Map())
   const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null)
   const [showReactionPicker, setShowReactionPicker] = useState<string | null>(null)
+  const [editingMessageId, setEditingMessageId] = useState<string | null>(null)
+  const [editingMessageContent, setEditingMessageContent] = useState('')
+  const [showConversationMenu, setShowConversationMenu] = useState<string | null>(null)
   const reactionEmojis = ['👍', '❤️', '😂', '😮', '😢', '🙏']
 
   useEffect(() => {
@@ -267,12 +273,20 @@ export default function MessagesPage() {
     if (!user) return
     setIsLoadingConversations(true)
     try {
-      // Charger toutes les conversations
-      const allData = await messagingService.getConversations()
+      // Charger les conversations non archivées
+      const allData = await messagingService.getConversations(undefined, false)
       const allConvs = Array.isArray(allData) ? allData : allData?.results || []
       
-      // Trier par date du dernier message (plus récent en premier, comme WhatsApp)
+      // Charger les conversations archivées
+      const archivedData = await messagingService.getConversations(undefined, true)
+      const archivedConvs = Array.isArray(archivedData) ? archivedData : archivedData?.results || []
+      
+      // Trier : épinglées en premier, puis par date du dernier message (plus récent en premier)
       const sortedConvs = [...allConvs].sort((a: Conversation, b: Conversation) => {
+        // Épinglées en premier
+        if (a.is_pinned && !b.is_pinned) return -1
+        if (!a.is_pinned && b.is_pinned) return 1
+        // Puis par date
         const dateA = a.last_message_at ? new Date(a.last_message_at).getTime() : 0
         const dateB = b.last_message_at ? new Date(b.last_message_at).getTime() : 0
         return dateB - dateA // Plus récent en premier
@@ -291,15 +305,92 @@ export default function MessagesPage() {
       })
       
       setConversations(sortedConvs)
+      setArchivedConversations(archivedConvs)
       setGroupConversations(groups)
       setPrivateConversations(privates)
     } catch (error) {
       console.error('Error loading conversations:', error)
       setConversations([])
+      setArchivedConversations([])
       setGroupConversations([])
       setPrivateConversations([])
     } finally {
       setIsLoadingConversations(false)
+    }
+  }
+
+  // Conversation actions
+  const handlePinConversation = async (conversationId: string) => {
+    try {
+      const result = await messagingService.pinConversation(conversationId)
+      toast.success(result.message || 'Conversation épinglée')
+      await loadConversations()
+    } catch (error: any) {
+      toast.error(error?.response?.data?.error || 'Erreur lors de l\'épinglage')
+    }
+  }
+
+  const handleArchiveConversation = async (conversationId: string) => {
+    try {
+      const result = await messagingService.archiveConversation(conversationId)
+      toast.success(result.message || 'Conversation archivée')
+      await loadConversations()
+      // Si la conversation archivée était sélectionnée, désélectionner
+      if (selectedConversation?.id === conversationId) {
+        setSelectedConversation(null)
+      }
+    } catch (error: any) {
+      toast.error(error?.response?.data?.error || 'Erreur lors de l\'archivage')
+    }
+  }
+
+  const handleFavoriteConversation = async (conversationId: string) => {
+    try {
+      const result = await messagingService.favoriteConversation(conversationId)
+      toast.success(result.message || 'Conversation ajoutée aux favoris')
+      await loadConversations()
+    } catch (error: any) {
+      toast.error(error?.response?.data?.error || 'Erreur')
+    }
+  }
+
+  const handleMuteConversation = async (conversationId: string) => {
+    try {
+      const result = await messagingService.muteConversation(conversationId)
+      toast.success(result.message || 'Notifications modifiées')
+      await loadConversations()
+    } catch (error: any) {
+      toast.error(error?.response?.data?.error || 'Erreur')
+    }
+  }
+
+  // Message actions
+  const handleEditMessage = async (messageId: string) => {
+    if (!editingMessageContent.trim()) {
+      toast.error('Le message ne peut pas être vide')
+      return
+    }
+    try {
+      await messagingService.editMessage(messageId, editingMessageContent)
+      toast.success('Message modifié')
+      setEditingMessageId(null)
+      setEditingMessageContent('')
+      await loadMessages(selectedConversation!.id)
+    } catch (error: any) {
+      toast.error(error?.response?.data?.error || 'Erreur lors de la modification')
+    }
+  }
+
+  const handleDeleteMessageForAll = async (messageId: string) => {
+    if (!confirm('Êtes-vous sûr de vouloir supprimer ce message pour tous les participants ?')) {
+      return
+    }
+    try {
+      await messagingService.deleteMessageForAll(messageId)
+      toast.success('Message supprimé')
+      await loadMessages(selectedConversation!.id)
+    } catch (error: any) {
+      toast.error(error?.response?.data?.error || 'Erreur lors de la suppression')
     }
   }
 
@@ -390,6 +481,7 @@ export default function MessagesPage() {
     try {
       const data = await messagingService.getMessages(conversationId)
       const messagesList = Array.isArray(data) ? data : data?.results || []
+      // Filtrer les messages supprimés pour tous (mais les garder pour afficher "Ce message a été supprimé")
       // Inverser pour afficher du plus ancien au plus récent
       setMessages(messagesList.reverse())
     } catch (error) {
@@ -541,23 +633,29 @@ export default function MessagesPage() {
 
   const getFilteredConversations = (): Conversation[] => {
     let filtered: Conversation[] = []
+    const sourceList = activeTab === 'archived' ? archivedConversations : conversations
     
-    if (activeTab === 'all') {
-      filtered = conversations
+    if (activeTab === 'all' || activeTab === 'archived') {
+      filtered = sourceList
     } else if (activeTab === 'groups') {
       // Filtrer strictement les conversations de type 'group' avec double vérification
-      filtered = conversations.filter((conv: Conversation) => {
+      filtered = sourceList.filter((conv: Conversation) => {
         return conv.conversation_type === 'group' && (conv.group !== null && conv.group !== undefined)
       })
     } else if (activeTab === 'private') {
       // Filtrer strictement les conversations de type 'private' avec double vérification
-      filtered = conversations.filter((conv: Conversation) => {
+      filtered = sourceList.filter((conv: Conversation) => {
         return conv.conversation_type === 'private' && (conv.group === null || conv.group === undefined)
       })
     }
 
-    // Tri intelligent : conversations avec messages non lus en haut
+    // Tri intelligent : épinglées en premier, puis non lus, puis par date
     filtered = [...filtered].sort((a, b) => {
+      // Épinglées en premier
+      if (a.is_pinned && !b.is_pinned) return -1
+      if (!a.is_pinned && b.is_pinned) return 1
+      
+      // Puis conversations avec messages non lus
       const aUnread = a.unread_count || 0
       const bUnread = b.unread_count || 0
       
@@ -635,6 +733,14 @@ export default function MessagesPage() {
 
   const filteredConversations = getFilteredConversations()
 
+  const handleRefresh = async () => {
+    await loadConversations()
+    if (selectedConversation) {
+      await loadMessages(selectedConversation.id)
+    }
+    toast.success('Actualisé !')
+  }
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-primary-50 to-secondary-50 dark:from-gray-900 dark:to-gray-800 page-with-bottom-nav">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -670,10 +776,10 @@ export default function MessagesPage() {
                 </div>
                 
                 {/* Tabs */}
-                <div className="flex gap-2 mb-4">
+                <div className="flex gap-2 mb-4 flex-wrap">
                   <button
                     onClick={() => setActiveTab('all')}
-                    className={`flex-1 px-3 py-2 rounded-lg text-sm font-medium transition ${
+                    className={`flex-1 min-w-[80px] px-3 py-2 rounded-lg text-sm font-medium transition ${
                       activeTab === 'all'
                         ? 'bg-primary-600 text-white'
                         : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
@@ -683,25 +789,36 @@ export default function MessagesPage() {
                   </button>
                   <button
                     onClick={() => setActiveTab('groups')}
-                    className={`flex-1 px-3 py-2 rounded-lg text-sm font-medium transition flex items-center justify-center gap-1 ${
+                    className={`flex-1 min-w-[80px] px-3 py-2 rounded-lg text-sm font-medium transition flex items-center justify-center gap-1 ${
                       activeTab === 'groups'
                         ? 'bg-primary-600 text-white'
                         : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
                     }`}
                   >
                     <FiHash className="w-4 h-4" />
-                    Groupes
+                    <span className="hidden sm:inline">Groupes</span>
                   </button>
                   <button
                     onClick={() => setActiveTab('private')}
-                    className={`flex-1 px-3 py-2 rounded-lg text-sm font-medium transition flex items-center justify-center gap-1 ${
+                    className={`flex-1 min-w-[80px] px-3 py-2 rounded-lg text-sm font-medium transition flex items-center justify-center gap-1 ${
                       activeTab === 'private'
                         ? 'bg-primary-600 text-white'
                         : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
                     }`}
                   >
                     <FiUser className="w-4 h-4" />
-                    Privées
+                    <span className="hidden sm:inline">Privées</span>
+                  </button>
+                  <button
+                    onClick={() => setActiveTab('archived')}
+                    className={`flex-1 min-w-[80px] px-3 py-2 rounded-lg text-sm font-medium transition flex items-center justify-center gap-1 ${
+                      activeTab === 'archived'
+                        ? 'bg-primary-600 text-white'
+                        : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
+                    }`}
+                  >
+                    <FiArchive className="w-4 h-4" />
+                    <span className="hidden sm:inline">Archivées</span>
                   </button>
                 </div>
 
@@ -822,6 +939,8 @@ export default function MessagesPage() {
                         ? 'Aucune conversation de groupe'
                         : activeTab === 'private'
                         ? 'Aucune conversation privée'
+                        : activeTab === 'archived'
+                        ? 'Aucune conversation archivée'
                         : 'Aucune conversation'}
                     </p>
                   </div>
@@ -900,11 +1019,91 @@ export default function MessagesPage() {
                                 {conv.unread_count}
                               </span>
                             )}
-                          </div>
-                        </div>
-                      </div>
-                    )
-                  })
+                            {/* Conversation actions menu */}
+                            <div className="relative">
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  setShowConversationMenu(showConversationMenu === conv.id ? null : conv.id)
+                                }}
+                                className="p-1.5 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                                title="Options"
+                              >
+                                <FiMoreVertical className="w-4 h-4" />
+                              </button>
+                              {showConversationMenu === conv.id && (
+                                <>
+                                  <div
+                                    className="fixed inset-0 z-40"
+                                    onClick={() => setShowConversationMenu(null)}
+                                  />
+                                  <div className="absolute right-0 top-8 z-50 bg-white dark:bg-gray-800 rounded-lg shadow-xl border border-gray-200 dark:border-gray-700 py-1 min-w-[180px]">
+                                    <button
+                                      onClick={(e) => {
+                                        e.stopPropagation()
+                                        handlePinConversation(conv.id)
+                                        setShowConversationMenu(null)
+                                      }}
+                                      className="w-full px-4 py-2 text-left text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-2"
+                                    >
+                                      <FiBookmark className={`w-4 h-4 ${conv.is_pinned ? 'text-primary-600 fill-primary-600' : ''}`} />
+                                      {conv.is_pinned ? 'Désépingler' : 'Épingler'}
+                                    </button>
+                                    <button
+                                      onClick={(e) => {
+                                        e.stopPropagation()
+                                        handleArchiveConversation(conv.id)
+                                        setShowConversationMenu(null)
+                                      }}
+                                      className="w-full px-4 py-2 text-left text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-2"
+                                    >
+                                      <FiArchive className="w-4 h-4" />
+                                      {conv.is_archived ? 'Désarchiver' : 'Archiver'}
+                                    </button>
+                                    <button
+                                      onClick={(e) => {
+                                        e.stopPropagation()
+                                        handleFavoriteConversation(conv.id)
+                                        setShowConversationMenu(null)
+                                      }}
+                                      className="w-full px-4 py-2 text-left text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-2"
+                                    >
+                                      <FiStar className={`w-4 h-4 ${conv.is_favorite ? 'text-yellow-500 fill-yellow-500' : ''}`} />
+                                      {conv.is_favorite ? 'Retirer des favoris' : 'Ajouter aux favoris'}
+                                    </button>
+                                    <button
+                                      onClick={(e) => {
+                                        e.stopPropagation()
+                                        handleMuteConversation(conv.id)
+                                        setShowConversationMenu(null)
+                                      }}
+                                      className="w-full px-4 py-2 text-left text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-2"
+                                    >
+                                      {conv.mute_notifications ? (
+                                        <>
+                                          <FiBell className="w-4 h-4" />
+                                          Activer notifications
+                                        </>
+                                      ) : (
+                                        <>
+                                          <FiBellOff className="w-4 h-4" />
+                                          Désactiver notifications
+                                        </>
+                                      )}
+                                    </button>
+                                  </div>
+                                </>
+                              )}
+                            </div>
+                            {/* Pin indicator */}
+                            {conv.is_pinned && (
+                              <FiBookmark className="w-3 h-3 text-primary-600 fill-primary-600" title="Épinglée" />
+                            )}
+        </div>
+      </div>
+    </div>
+  )
+})
                 )}
               </div>
             </div>
@@ -975,25 +1174,85 @@ export default function MessagesPage() {
                                       {senderName}
                                     </p>
                                   )}
-                                  <p className="text-sm whitespace-pre-wrap break-words">{message.content}</p>
-                                  <div className="flex items-center justify-between gap-2 mt-1">
-                                    <p
-                                      className={`text-xs ${
-                                        isOwnMessage ? 'text-primary-100' : 'text-gray-500 dark:text-gray-400'
-                                      }`}
-                                    >
-                                      {formatMessageTime(message.created_at)}
-                                    </p>
-                                    {isOwnMessage && (
-                                      <div className="flex items-center gap-1">
-                                        {readBy.length > 0 ? (
-                                          <span className="text-primary-100 text-xs">✓✓</span>
-                                        ) : (
-                                          <span className="text-primary-200 text-xs">✓</span>
+                                  {editingMessageId === message.id ? (
+                                    <div className="space-y-2">
+                                      <textarea
+                                        value={editingMessageContent}
+                                        onChange={(e) => setEditingMessageContent(e.target.value)}
+                                        className="w-full p-2 rounded bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-sm border border-gray-300 dark:border-gray-600 focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                                        rows={2}
+                                        autoFocus
+                                      />
+                                      <div className="flex gap-2">
+                                        <button
+                                          onClick={() => handleEditMessage(message.id)}
+                                          className="px-3 py-1 bg-primary-600 text-white text-xs rounded hover:bg-primary-700 transition-colors"
+                                        >
+                                          Enregistrer
+                                        </button>
+                                        <button
+                                          onClick={() => {
+                                            setEditingMessageId(null)
+                                            setEditingMessageContent('')
+                                          }}
+                                          className="px-3 py-1 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 text-xs rounded hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors"
+                                        >
+                                          Annuler
+                                        </button>
+                                      </div>
+                                    </div>
+                                  ) : (
+                                    <>
+                                      {message.is_deleted_for_all ? (
+                                        <p className="text-sm italic opacity-70">Ce message a été supprimé</p>
+                                      ) : (
+                                        <p className="text-sm whitespace-pre-wrap break-words">{message.content}</p>
+                                      )}
+                                      {message.edited_at && (
+                                        <p className="text-xs opacity-70 mt-1">(modifié)</p>
+                                      )}
+                                      <div className="flex items-center justify-between gap-2 mt-1">
+                                        <p
+                                          className={`text-xs ${
+                                            isOwnMessage ? 'text-primary-100' : 'text-gray-500 dark:text-gray-400'
+                                          }`}
+                                        >
+                                          {formatMessageTime(message.created_at)}
+                                        </p>
+                                        {isOwnMessage && !message.is_deleted_for_all && (
+                                          <div className="flex items-center gap-1">
+                                            {readBy.length > 0 ? (
+                                              <span className="text-primary-100 text-xs">✓✓</span>
+                                            ) : (
+                                              <span className="text-primary-200 text-xs">✓</span>
+                                            )}
+                                          </div>
                                         )}
                                       </div>
-                                    )}
-                                  </div>
+                                      {/* Message actions for own messages */}
+                                      {isOwnMessage && !message.is_deleted_for_all && (
+                                        <div className="flex items-center gap-2 mt-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                          <button
+                                            onClick={() => {
+                                              setEditingMessageId(message.id)
+                                              setEditingMessageContent(message.content)
+                                            }}
+                                            className="p-1 text-primary-100 hover:bg-primary-700 rounded transition-colors"
+                                            title="Modifier"
+                                          >
+                                            <FiEdit2 className="w-3 h-3" />
+                                          </button>
+                                          <button
+                                            onClick={() => handleDeleteMessageForAll(message.id)}
+                                            className="p-1 text-primary-100 hover:bg-primary-700 rounded transition-colors"
+                                            title="Supprimer pour tous"
+                                          >
+                                            <FiTrash2 className="w-3 h-3" />
+                                          </button>
+                                        </div>
+                                      )}
+                                    </>
+                                  )}
                                 </div>
                                 {reactions.length > 0 && (
                                   <div className="flex flex-wrap gap-1 mt-1">

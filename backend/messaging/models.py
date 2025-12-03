@@ -61,6 +61,11 @@ class Participant(models.Model):
     is_active = models.BooleanField(default=True, db_index=True)
     last_read_at = models.DateTimeField(null=True, blank=True)
     unread_count = models.IntegerField(default=0)
+    # User-specific conversation settings
+    is_pinned = models.BooleanField(default=False, db_index=True, help_text='User has pinned this conversation')
+    is_archived = models.BooleanField(default=False, db_index=True, help_text='User has archived this conversation')
+    is_favorite = models.BooleanField(default=False, db_index=True, help_text='User has marked this conversation as favorite')
+    mute_notifications = models.BooleanField(default=False, help_text='User has muted notifications for this conversation')
     
     class Meta:
         db_table = 'messaging_participant'
@@ -69,6 +74,9 @@ class Participant(models.Model):
             models.Index(fields=['conversation']),
             models.Index(fields=['user']),
             models.Index(fields=['is_active']),
+            models.Index(fields=['is_pinned']),
+            models.Index(fields=['is_archived']),
+            models.Index(fields=['is_favorite']),
         ]
     
     def __str__(self):
@@ -87,6 +95,7 @@ class Message(models.Model):
     created_at = models.DateTimeField(default=timezone.now, db_index=True)
     edited_at = models.DateTimeField(null=True, blank=True)
     deleted_at = models.DateTimeField(null=True, blank=True)
+    is_deleted_for_all = models.BooleanField(default=False, help_text='Message deleted for all participants')
     
     class Meta:
         db_table = 'messaging_message'

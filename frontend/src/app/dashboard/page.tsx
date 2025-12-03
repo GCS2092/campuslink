@@ -15,6 +15,8 @@ import { getUniversityName } from '@/utils/typeHelpers'
 import toast from 'react-hot-toast'
 import MiniCalendar from '@/components/MiniCalendar'
 import HamburgerMenu from '@/components/HamburgerMenu'
+// Pull-to-refresh désactivé temporairement (problème de compatibilité avec Next.js)
+// import ReactPullToRefresh from 'react-pull-to-refresh'
 
 export default function DashboardPage() {
   const { user, loading, logout } = useAuth()
@@ -232,6 +234,16 @@ export default function DashboardPage() {
 
   if (!user) {
     return null
+  }
+
+  const handleRefresh = async () => {
+    // Recharger toutes les données
+    await Promise.all([
+      loadFeed(),
+      loadRecommendedEvents(),
+      loadStats(),
+    ])
+    toast.success('Actualisé !')
   }
 
   return (

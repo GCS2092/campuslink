@@ -21,9 +21,25 @@ class ConversationViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         """Return conversations where user is a participant."""
         try:
+            # Get user's participant records to access is_archived
+            user_participants = Participant.objects.filter(
+                user=self.request.user,
+                is_active=True
+            )
+            
+            # Filter by archived status if requested
+            archived = self.request.query_params.get('archived')
+            if archived is not None:
+                archived_bool = archived.lower() == 'true'
+                user_participants = user_participants.filter(is_archived=archived_bool)
+            else:
+                # By default, exclude archived conversations
+                user_participants = user_participants.filter(is_archived=False)
+            
+            conversation_ids = user_participants.values_list('conversation_id', flat=True)
+            
             queryset = Conversation.objects.filter(
-                participants__user=self.request.user,
-                participants__is_active=True
+                id__in=conversation_ids
             ).distinct().select_related('created_by', 'group').prefetch_related(
                 'participants',
                 'participants__user',
@@ -34,6 +50,9 @@ class ConversationViewSet(viewsets.ModelViewSet):
             conversation_type = self.request.query_params.get('type')
             if conversation_type in ['private', 'group']:
                 queryset = queryset.filter(conversation_type=conversation_type)
+            
+            # Order by last_message_at (pinned sorting will be done in serializer/frontend)
+            queryset = queryset.order_by('-last_message_at', '-created_at')
             
             return queryset
         except Exception as e:
@@ -243,6 +262,82 @@ class ConversationViewSet(viewsets.ModelViewSet):
         participant.save()
         
         return Response({'message': 'Conversation marked as read.'}, status=status.HTTP_200_OK)
+    
+    @action(detail=True, methods=['post'])
+    def pin(self, request, pk=None):
+        """Pin or unpin a conversation."""
+        conversation = self.get_object()
+        try:
+            participant = Participant.objects.get(
+                conversation=conversation,
+                user=request.user,
+                is_active=True
+            )
+            participant.is_pinned = not participant.is_pinned
+            participant.save(update_fields=['is_pinned'])
+            return Response({
+                'message': 'Conversation épinglée.' if participant.is_pinned else 'Conversation désépinglée.',
+                'is_pinned': participant.is_pinned
+            }, status=status.HTTP_200_OK)
+        except Participant.DoesNotExist:
+            return Response({'error': 'Vous n\'êtes pas participant de cette conversation.'}, status=status.HTTP_404_NOT_FOUND)
+    
+    @action(detail=True, methods=['post'])
+    def archive(self, request, pk=None):
+        """Archive or unarchive a conversation."""
+        conversation = self.get_object()
+        try:
+            participant = Participant.objects.get(
+                conversation=conversation,
+                user=request.user,
+                is_active=True
+            )
+            participant.is_archived = not participant.is_archived
+            participant.save(update_fields=['is_archived'])
+            return Response({
+                'message': 'Conversation archivée.' if participant.is_archived else 'Conversation désarchivée.',
+                'is_archived': participant.is_archived
+            }, status=status.HTTP_200_OK)
+        except Participant.DoesNotExist:
+            return Response({'error': 'Vous n\'êtes pas participant de cette conversation.'}, status=status.HTTP_404_NOT_FOUND)
+    
+    @action(detail=True, methods=['post'])
+    def favorite(self, request, pk=None):
+        """Mark or unmark a conversation as favorite."""
+        conversation = self.get_object()
+        try:
+            participant = Participant.objects.get(
+                conversation=conversation,
+                user=request.user,
+                is_active=True
+            )
+            participant.is_favorite = not participant.is_favorite
+            participant.save(update_fields=['is_favorite'])
+            return Response({
+                'message': 'Conversation ajoutée aux favoris.' if participant.is_favorite else 'Conversation retirée des favoris.',
+                'is_favorite': participant.is_favorite
+            }, status=status.HTTP_200_OK)
+        except Participant.DoesNotExist:
+            return Response({'error': 'Vous n\'êtes pas participant de cette conversation.'}, status=status.HTTP_404_NOT_FOUND)
+    
+    @action(detail=True, methods=['post'])
+    def mute(self, request, pk=None):
+        """Mute or unmute notifications for a conversation."""
+        conversation = self.get_object()
+        try:
+            participant = Participant.objects.get(
+                conversation=conversation,
+                user=request.user,
+                is_active=True
+            )
+            participant.mute_notifications = not participant.mute_notifications
+            participant.save(update_fields=['mute_notifications'])
+            return Response({
+                'message': 'Notifications désactivées.' if participant.mute_notifications else 'Notifications activées.',
+                'mute_notifications': participant.mute_notifications
+            }, status=status.HTTP_200_OK)
+        except Participant.DoesNotExist:
+            return Response({'error': 'Vous n\'êtes pas participant de cette conversation.'}, status=status.HTTP_404_NOT_FOUND)
 
 
 class MessageViewSet(viewsets.ModelViewSet):
@@ -267,7 +362,8 @@ class MessageViewSet(viewsets.ModelViewSet):
             
             return Message.objects.filter(
                 conversation_id=conversation_id,
-                deleted_at__isnull=True
+                deleted_at__isnull=True,
+                is_deleted_for_all=False
             ).select_related('sender').order_by('-created_at')
         
         return Message.objects.none()
@@ -455,6 +551,58 @@ class MessageViewSet(viewsets.ModelViewSet):
                 },
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
+    
+    def update(self, request, *args, **kwargs):
+        """Update (edit) a message."""
+        message = self.get_object()
+        
+        # Only sender can edit
+        if message.sender != request.user:
+            return Response(
+                {'error': 'Vous ne pouvez modifier que vos propres messages.'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+        
+        # Cannot edit if deleted
+        if message.deleted_at or message.is_deleted_for_all:
+            return Response(
+                {'error': 'Impossible de modifier un message supprimé.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Update content
+        new_content = request.data.get('content')
+        if not new_content:
+            return Response(
+                {'error': 'Le contenu est requis.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        message.content = new_content
+        message.edited_at = timezone.now()
+        message.save(update_fields=['content', 'edited_at'])
+        
+        serializer = self.get_serializer(message)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+    
+    @action(detail=True, methods=['post'], permission_classes=[IsAuthenticated])
+    def delete_for_all(self, request, pk=None):
+        """Delete a message for all participants."""
+        message = self.get_object()
+        
+        # Only sender can delete for all
+        if message.sender != request.user:
+            return Response(
+                {'error': 'Vous ne pouvez supprimer que vos propres messages.'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+        
+        # Mark as deleted for all
+        message.is_deleted_for_all = True
+        message.deleted_at = timezone.now()
+        message.save(update_fields=['is_deleted_for_all', 'deleted_at'])
+        
+        return Response({'message': 'Message supprimé pour tous.'}, status=status.HTTP_200_OK)
     
     @action(detail=True, methods=['post'], permission_classes=[IsAuthenticated])
     def add_reaction(self, request, pk=None):
