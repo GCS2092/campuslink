@@ -3,7 +3,7 @@
 import { useAuth } from '@/context/AuthContext'
 import { useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
-import { FiCalendar, FiMapPin, FiClock, FiUsers, FiSearch, FiTrash2, FiEye, FiEyeOff, FiX, FiCheck, FiArrowRight } from 'react-icons/fi'
+import { FiCalendar, FiMapPin, FiClock, FiUsers, FiSearch, FiTrash2, FiEye, FiEyeOff, FiX, FiCheck, FiArrowRight, FiSettings } from 'react-icons/fi'
 import { eventService, type Event } from '@/services/eventService'
 import toast from 'react-hot-toast'
 import Link from 'next/link'
@@ -21,6 +21,8 @@ export default function EventsPage() {
   const [joiningEventId, setJoiningEventId] = useState<string | null>(null)
   const [advancedFilters, setAdvancedFilters] = useState<FilterOptions>({})
   const [categories, setCategories] = useState<Array<{ id: string; name: string }>>([])
+  const [showClearHistoryModal, setShowClearHistoryModal] = useState(false)
+  const [isClearingHistory, setIsClearingHistory] = useState(false)
   const isAdmin = user?.role === 'admin' || user?.role === 'class_leader'
 
   useEffect(() => {
@@ -197,6 +199,26 @@ export default function EventsPage() {
     }
   }
 
+  const handleClearHistory = async (clearAll: boolean = false) => {
+    if (!confirm(`Êtes-vous sûr de vouloir supprimer ${clearAll ? 'tout votre historique d\'événements (participations, favoris, likes)' : 'votre historique de participations'} ? Cette action est irréversible.`)) {
+      return
+    }
+    
+    setIsClearingHistory(true)
+    try {
+      const result = await eventService.clearEventHistory(clearAll)
+      toast.success(result.message || 'Historique supprimé avec succès')
+      setShowClearHistoryModal(false)
+      await loadEvents()
+    } catch (error: any) {
+      console.error('Error clearing history:', error)
+      const errorMessage = error?.response?.data?.error || error?.response?.data?.message || 'Erreur lors de la suppression de l\'historique'
+      toast.error(typeof errorMessage === 'string' ? errorMessage : 'Erreur lors de la suppression de l\'historique')
+    } finally {
+      setIsClearingHistory(false)
+    }
+  }
+
   if (!mounted || loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary-50 to-secondary-50">
@@ -237,16 +259,28 @@ export default function EventsPage() {
                   : 'Découvrez les événements près de chez vous'}
               </p>
             </div>
-            {!isAdmin && user?.is_verified && (
-              <Link
-                href="/events/create"
-                className="px-5 py-3 bg-white text-primary-600 rounded-xl hover:bg-white/90 transition-all duration-300 font-semibold flex items-center gap-2 shadow-lg hover:shadow-xl hover:-translate-y-1"
-              >
-                <FiCalendar className="w-5 h-5" />
-                <span className="hidden sm:inline">Créer un événement</span>
-                <span className="sm:hidden">Créer</span>
-              </Link>
-            )}
+            <div className="flex flex-col sm:flex-row gap-3">
+              {!isAdmin && user?.is_verified && (
+                <Link
+                  href="/events/create"
+                  className="px-4 sm:px-5 py-2.5 sm:py-3 bg-white text-primary-600 rounded-xl hover:bg-white/90 transition-all duration-300 font-semibold flex items-center justify-center gap-2 shadow-lg hover:shadow-xl hover:-translate-y-1"
+                >
+                  <FiCalendar className="w-4 h-4 sm:w-5 sm:h-5" />
+                  <span className="hidden sm:inline">Créer un événement</span>
+                  <span className="sm:hidden">Créer</span>
+                </Link>
+              )}
+              {!isAdmin && (
+                <button
+                  onClick={() => setShowClearHistoryModal(true)}
+                  className="px-4 sm:px-5 py-2.5 sm:py-3 bg-white/20 hover:bg-white/30 backdrop-blur-sm text-white rounded-xl transition-all duration-300 font-semibold flex items-center justify-center gap-2 border border-white/30 hover:border-white/50"
+                  title="Supprimer l'historique"
+                >
+                  <FiSettings className="w-4 h-4 sm:w-5 sm:h-5" />
+                  <span className="hidden sm:inline">Historique</span>
+                </button>
+              )}
+            </div>
           </div>
         </div>
 
@@ -441,6 +475,62 @@ export default function EventsPage() {
               </div>
             ))}
           </div>
+        )}
+
+        {/* Clear History Modal */}
+        {showClearHistoryModal && (
+          <>
+            <div
+              className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50"
+              onClick={() => setShowClearHistoryModal(false)}
+            />
+            <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+              <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6 sm:p-8">
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="w-12 h-12 bg-red-100 rounded-xl flex items-center justify-center">
+                    <FiTrash2 className="w-6 h-6 text-red-600" />
+                  </div>
+                  <h2 className="text-xl font-bold text-gray-900">Supprimer l'historique</h2>
+                </div>
+                <p className="text-gray-600 mb-6">
+                  Que souhaitez-vous supprimer ?
+                </p>
+                <div className="space-y-3 mb-6">
+                  <button
+                    onClick={() => handleClearHistory(false)}
+                    disabled={isClearingHistory}
+                    className="w-full px-4 py-3 bg-red-50 hover:bg-red-100 text-red-700 rounded-xl transition-all duration-200 font-medium flex items-center justify-center gap-2 border border-red-200"
+                  >
+                    <FiTrash2 className="w-5 h-5" />
+                    Supprimer uniquement les participations
+                  </button>
+                  <button
+                    onClick={() => handleClearHistory(true)}
+                    disabled={isClearingHistory}
+                    className="w-full px-4 py-3 bg-red-600 hover:bg-red-700 text-white rounded-xl transition-all duration-200 font-medium flex items-center justify-center gap-2"
+                  >
+                    <FiTrash2 className="w-5 h-5" />
+                    Supprimer tout (participations, favoris, likes)
+                  </button>
+                </div>
+                <div className="flex gap-3">
+                  <button
+                    onClick={() => setShowClearHistoryModal(false)}
+                    disabled={isClearingHistory}
+                    className="flex-1 px-4 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl transition-all duration-200 font-medium"
+                  >
+                    Annuler
+                  </button>
+                </div>
+                {isClearingHistory && (
+                  <div className="mt-4 flex items-center justify-center gap-2 text-sm text-gray-600">
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary-600"></div>
+                    <span>Suppression en cours...</span>
+                  </div>
+                )}
+              </div>
+            </div>
+          </>
         )}
       </div>
     </div>

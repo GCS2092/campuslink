@@ -965,6 +965,46 @@ class CalendarViewSet(viewsets.ViewSet):
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
     
+    @action(detail=False, methods=['delete'], permission_classes=[IsAuthenticated])
+    def clear_history(self, request):
+        """Clear user's event participation history."""
+        user = request.user
+        
+        try:
+            # Delete all participations
+            participations = Participation.objects.filter(user=user)
+            count = participations.count()
+            
+            # Update event participants_count before deleting
+            for participation in participations:
+                event = participation.event
+                event.participants_count = max(0, event.participants_count - 1)
+                event.save(update_fields=['participants_count'])
+            
+            # Delete all participations
+            participations.delete()
+            
+            # Also clear favorites and likes if requested
+            clear_all = request.query_params.get('clear_all', 'false').lower() == 'true'
+            if clear_all:
+                EventFavorite.objects.filter(user=user).delete()
+                EventLike.objects.filter(user=user).delete()
+            
+            invalidate_feed_cache()
+            
+            return Response({
+                'message': f'Historique supprimé avec succès ({count} participation(s) supprimée(s)).',
+                'deleted_count': count
+            }, status=status.HTTP_200_OK)
+        except Exception as e:
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.error(f"Error clearing event history: {str(e)}", exc_info=True)
+            return Response(
+                {'error': 'Erreur lors de la suppression de l\'historique.'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+    
     
     @action(detail=True, methods=['get', 'post'], permission_classes=[AllowAny])
     def share(self, request, pk=None):

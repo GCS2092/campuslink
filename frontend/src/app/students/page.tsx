@@ -181,7 +181,7 @@ export default function StudentsPage() {
       return (
         <button
           onClick={() => handleFriendAction(student.id, 'send')}
-          className="flex items-center gap-2 px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition text-sm"
+          className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-primary-600 text-white rounded-xl hover:bg-primary-700 transition-all duration-200 text-sm font-semibold shadow-md hover:shadow-lg hover:-translate-y-0.5"
         >
           <FiUserPlus className="w-4 h-4" />
           Ajouter
@@ -193,7 +193,7 @@ export default function StudentsPage() {
       return (
         <button
           disabled
-          className="flex items-center gap-2 px-4 py-2 bg-green-100 text-green-700 rounded-lg cursor-not-allowed text-sm"
+          className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-green-100 text-green-700 rounded-xl cursor-not-allowed text-sm font-semibold"
         >
           <FiCheck className="w-4 h-4" />
           Ami
@@ -205,7 +205,7 @@ export default function StudentsPage() {
       return (
         <button
           disabled
-          className="flex items-center gap-2 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg cursor-not-allowed text-sm"
+          className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-gray-100 text-gray-700 rounded-xl cursor-not-allowed text-sm font-semibold"
         >
           <FiCheck className="w-4 h-4" />
           En attente
@@ -215,17 +215,17 @@ export default function StudentsPage() {
     
     if (status.status === 'request_received') {
       return (
-        <div className="flex gap-2">
+        <div className="w-full flex gap-2">
           <button
             onClick={() => handleFriendAction(student.id, 'accept')}
-            className="flex items-center gap-2 px-3 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition text-sm"
+            className="flex-1 flex items-center justify-center gap-2 px-3 py-2.5 bg-green-600 text-white rounded-xl hover:bg-green-700 transition-all duration-200 text-sm font-semibold shadow-md hover:shadow-lg"
           >
             <FiCheck className="w-4 h-4" />
             Accepter
           </button>
           <button
             onClick={() => handleFriendAction(student.id, 'reject')}
-            className="flex items-center gap-2 px-3 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition text-sm"
+            className="px-3 py-2.5 bg-red-600 text-white rounded-xl hover:bg-red-700 transition-all duration-200 shadow-md hover:shadow-lg"
           >
             <FiX className="w-4 h-4" />
           </button>
@@ -395,17 +395,17 @@ export default function StudentsPage() {
           </div>
         ) : (
           <>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-5 lg:gap-6">
               {students.map((student) => (
                 <div
                   key={student.id}
-                  className="group bg-gradient-to-br from-white to-gray-50 dark:from-gray-800 dark:to-gray-900 rounded-xl shadow-lg overflow-hidden hover:shadow-2xl transition-all duration-300 border border-gray-200 dark:border-gray-700 hover:border-primary-400 dark:hover:border-primary-600 hover:-translate-y-1"
+                  className="group bg-white rounded-xl shadow-lg overflow-hidden hover:shadow-2xl transition-all duration-300 border border-gray-200 hover:border-primary-300 hover:-translate-y-1"
                 >
                   <Link href={`/users/${student.id}`} className="block">
-                    <div className="p-4 sm:p-6 cursor-pointer">
-                      {/* Avatar */}
-                      <div className="flex items-center gap-3 sm:gap-4 mb-4">
-                        <div className="w-12 h-12 sm:w-16 sm:h-16 bg-primary-100 dark:bg-primary-900/30 rounded-full flex items-center justify-center flex-shrink-0">
+                    <div className="p-4 sm:p-5 cursor-pointer">
+                      {/* Avatar - Enhanced */}
+                      <div className="flex flex-col items-center text-center mb-4">
+                        <div className="relative w-16 h-16 sm:w-20 sm:h-20 bg-gradient-to-br from-primary-500 to-secondary-500 rounded-full flex items-center justify-center flex-shrink-0 mb-3 border-4 border-white shadow-xl group-hover:scale-110 transition-transform duration-300">
                           {student.profile?.profile_picture ? (
                             <img
                               src={student.profile.profile_picture}
@@ -415,40 +415,42 @@ export default function StudentsPage() {
                               className="w-full h-full rounded-full object-cover"
                             />
                           ) : (
-                            <FiUser className="w-6 h-6 sm:w-8 sm:h-8 text-primary-600 dark:text-primary-400" />
+                            <FiUser className="w-8 h-8 sm:w-10 sm:h-10 text-white" />
                           )}
                         </div>
-                        <div className="flex-1 min-w-0">
-                          <h3 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-white truncate hover:text-primary-600 dark:hover:text-primary-400 transition">
+                        <div className="w-full">
+                          <h3 className="text-base sm:text-lg font-bold text-gray-900 truncate group-hover:text-primary-600 transition-colors">
                             {student.first_name && student.last_name
                               ? `${student.first_name} ${student.last_name}`
                               : student.username}
                           </h3>
-                          <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400 truncate">@{student.username}</p>
+                          <p className="text-xs sm:text-sm text-gray-500 truncate mt-1">@{student.username}</p>
                         </div>
                       </div>
 
-                      {/* University */}
+                      {/* University - Enhanced */}
                       {student.profile?.university && (
-                        <div className="flex items-center gap-2 mb-3 text-xs sm:text-sm text-gray-600 dark:text-gray-400">
-                          <FiMapPin className="w-3 h-3 sm:w-4 sm:h-4 flex-shrink-0" />
-                          <span className="truncate">
+                        <div className="flex items-center justify-center gap-2 mb-3 p-2 bg-gray-50 rounded-lg">
+                          <FiMapPin className="w-4 h-4 text-primary-600 flex-shrink-0" />
+                          <span className="text-xs sm:text-sm text-gray-700 font-medium truncate text-center">
                             {getUniversityName(student.profile.university)}
                           </span>
                         </div>
                       )}
 
-                      {/* Field of Study */}
+                      {/* Field of Study - Enhanced */}
                       {student.profile?.field_of_study && (
-                        <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 mb-4 truncate">
-                          {student.profile.field_of_study}
-                        </p>
+                        <div className="text-center mb-4">
+                          <p className="text-xs sm:text-sm text-gray-600 bg-primary-50 rounded-lg px-3 py-1.5 inline-block">
+                            {student.profile.field_of_study}
+                          </p>
+                        </div>
                       )}
                     </div>
                   </Link>
                   
-                  {/* Friend Button - Outside Link to prevent navigation */}
-                  <div className="px-4 sm:px-6 pb-4 sm:pb-6 flex justify-center" onClick={(e) => e.stopPropagation()}>
+                  {/* Friend Button - Enhanced */}
+                  <div className="px-4 sm:px-5 pb-4 sm:pb-5 flex justify-center" onClick={(e) => e.stopPropagation()}>
                     {getFriendButton(student)}
                   </div>
                 </div>

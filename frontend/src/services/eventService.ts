@@ -187,5 +187,13 @@ export const eventService = {
     const response = await api.delete(`/events/filter-preferences/${id}/`)
     return response.data
   },
+
+  // Clear event history
+  clearEventHistory: async (clearAll: boolean = false) => {
+    const response = await api.delete('/events/calendar/clear_history/', {
+      params: { clear_all: clearAll }
+    })
+    return response.data
+  },
 }
 
