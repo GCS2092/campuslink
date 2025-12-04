@@ -5,12 +5,14 @@ from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
+from rest_framework.parsers import MultiPartParser, FormParser
 from django.db.models import Q, Count
 from django.utils import timezone
 from .models import Conversation, Participant, Message
 from .serializers import ConversationSerializer, MessageSerializer, ParticipantSerializer
 from users.models import User
 from users.permissions import IsActiveAndVerified, IsActiveAndVerifiedOrReadOnly
+import os
 
 
 class ConversationViewSet(viewsets.ModelViewSet):
@@ -348,6 +350,7 @@ class MessageViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         """Return messages for conversations where user is a participant."""
         conversation_id = self.request.query_params.get('conversation')
+        search_query = self.request.query_params.get('search', '').strip()
         
         if conversation_id:
             # Check if user is participant
@@ -360,13 +363,25 @@ class MessageViewSet(viewsets.ModelViewSet):
             if not is_participant:
                 return Message.objects.none()
             
-            return Message.objects.filter(
+            queryset = Message.objects.filter(
                 conversation_id=conversation_id,
                 deleted_at__isnull=True,
                 is_deleted_for_all=False
-            ).select_related('sender').order_by('-created_at')
+            ).select_related('sender')
+            
+            # Add search filter if provided
+            if search_query:
+                queryset = queryset.filter(content__icontains=search_query)
+            
+            return queryset.order_by('-created_at')
         
         return Message.objects.none()
+    
+    def get_parsers(self):
+        """Allow file uploads."""
+        if self.action in ['upload_attachment']:
+            return [MultiPartParser, FormParser]
+        return super().get_parsers()
     
     def perform_create(self, serializer):
         """Create message and check participant."""
@@ -403,6 +418,76 @@ class MessageViewSet(viewsets.ModelViewSet):
                 related_object_id=conversation.id,
                 use_async=True
             )
+    
+    @action(detail=False, methods=['post'], permission_classes=[IsAuthenticated], parser_classes=[MultiPartParser, FormParser])
+    def upload_attachment(self, request):
+        """Upload a file attachment for a message."""
+        file = request.FILES.get('file')
+        if not file:
+            return Response({'error': 'Aucun fichier fourni.'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        # Validate file size (max 10MB)
+        max_size = 10 * 1024 * 1024  # 10MB
+        if file.size > max_size:
+            return Response({'error': 'Le fichier est trop volumineux (max 10MB).'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        # Validate file type
+        allowed_types = ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document']
+        if file.content_type not in allowed_types:
+            return Response({'error': 'Type de fichier non autorisé.'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        try:
+            # Try to upload to Cloudinary if available
+            try:
+                import cloudinary
+                import cloudinary.uploader
+                
+                # Upload to Cloudinary
+                folder = 'campuslink/message_attachments'
+                upload_result = cloudinary.uploader.upload(
+                    file,
+                    folder=folder,
+                    resource_type='auto'  # Auto-detect image, video, or raw
+                )
+                
+                attachment_url = upload_result.get('secure_url') or upload_result.get('url')
+                file_size = upload_result.get('bytes', file.size)
+                
+                return Response({
+                    'url': attachment_url,
+                    'name': file.name,
+                    'size': file_size,
+                    'content_type': file.content_type
+                }, status=status.HTTP_200_OK)
+                
+            except (ImportError, Exception) as e:
+                # Fallback: save to media folder if Cloudinary is not available
+                from django.core.files.storage import default_storage
+                from django.conf import settings
+                
+                # Create directory if it doesn't exist
+                upload_path = f'message_attachments/{file.name}'
+                file_path = default_storage.save(upload_path, file)
+                
+                # Get the URL
+                if hasattr(settings, 'MEDIA_URL'):
+                    base_url = request.build_absolute_uri('/')[:-1]  # Remove trailing slash
+                    attachment_url = f"{base_url}{settings.MEDIA_URL}{file_path}"
+                else:
+                    attachment_url = request.build_absolute_uri(default_storage.url(file_path))
+                
+                return Response({
+                    'url': attachment_url,
+                    'name': file.name,
+                    'size': file.size,
+                    'content_type': file.content_type
+                }, status=status.HTTP_200_OK)
+                
+        except Exception as e:
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.error(f"Error uploading attachment: {str(e)}", exc_info=True)
+            return Response({'error': f'Erreur lors de l\'upload: {str(e)}'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
     
     @action(detail=False, methods=['post'], permission_classes=[IsAuthenticated])
     def broadcast(self, request):

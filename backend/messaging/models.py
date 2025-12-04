@@ -90,6 +90,9 @@ class Message(models.Model):
     sender = models.ForeignKey(User, on_delete=models.CASCADE, related_name='messages_sent', db_index=True)
     content = models.TextField()
     message_type = models.CharField(max_length=20, default='text')  # text, image, file, system
+    attachment_url = models.URLField(max_length=500, blank=True, null=True, help_text='URL of attached file/image')
+    attachment_name = models.CharField(max_length=255, blank=True, null=True, help_text='Original filename')
+    attachment_size = models.IntegerField(blank=True, null=True, help_text='File size in bytes')
     is_read = models.BooleanField(default=False, db_index=True)
     read_by = models.ManyToManyField(User, related_name='messages_read', blank=True)
     created_at = models.DateTimeField(default=timezone.now, db_index=True)

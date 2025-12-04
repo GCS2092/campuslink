@@ -4,7 +4,7 @@ import { useAuth } from '@/context/AuthContext'
 import { useRouter } from 'next/navigation'
 import { useEffect, useState, useRef, useCallback } from 'react'
 import { useHotkeys } from 'react-hotkeys-hook'
-import { FiMessageSquare, FiSend, FiSearch, FiRadio, FiX, FiUsers, FiGlobe, FiUser, FiHash, FiPlus, FiSmile, FiLogOut, FiBookmark, FiArchive, FiStar, FiBell, FiBellOff, FiEdit2, FiTrash2, FiMoreVertical } from 'react-icons/fi'
+import { FiMessageSquare, FiSend, FiSearch, FiRadio, FiX, FiUsers, FiGlobe, FiUser, FiHash, FiPlus, FiSmile, FiLogOut, FiBookmark, FiArchive, FiStar, FiBell, FiBellOff, FiEdit2, FiTrash2, FiMoreVertical, FiPaperclip, FiImage, FiFile } from 'react-icons/fi'
 import { messagingService, Conversation, Message } from '@/services/messagingService'
 import { userService } from '@/services/userService'
 import { groupService, Group } from '@/services/groupService'
@@ -33,10 +33,14 @@ export default function MessagesPage() {
   })
   const [isSendingBroadcast, setIsSendingBroadcast] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
+  const [messageSearchQuery, setMessageSearchQuery] = useState('')
   const [messages, setMessages] = useState<any[]>([])
   const [isLoadingMessages, setIsLoadingMessages] = useState(false)
   const [messageInput, setMessageInput] = useState('')
   const [isSendingMessage, setIsSendingMessage] = useState(false)
+  const [selectedFile, setSelectedFile] = useState<File | null>(null)
+  const [isUploadingFile, setIsUploadingFile] = useState(false)
+  const fileInputRef = useRef<HTMLInputElement>(null)
   const [showNewConversationModal, setShowNewConversationModal] = useState(false)
   const [friends, setFriends] = useState<any[]>([])
   const [isLoadingFriends, setIsLoadingFriends] = useState(false)
@@ -190,14 +194,15 @@ export default function MessagesPage() {
     onReactionRemoved: handleReactionRemoved,
   })
 
-  // Charger les messages quand une conversation est sélectionnée
+  // Charger les messages quand une conversation est sélectionnée (sans recherche)
   useEffect(() => {
-    if (selectedConversation) {
+    if (selectedConversation && !messageSearchQuery) {
       loadMessages(selectedConversation.id)
-    } else {
+    } else if (!selectedConversation) {
       setMessages([])
+      setMessageSearchQuery('') // Réinitialiser la recherche quand on change de conversation
     }
-  }, [selectedConversation])
+  }, [selectedConversation?.id]) // Seulement quand l'ID change, pas quand la recherche change
 
   // Scroll automatique vers le bas quand de nouveaux messages arrivent
   useEffect(() => {
@@ -476,10 +481,10 @@ export default function MessagesPage() {
     return 'Aucun message'
   }
 
-  const loadMessages = async (conversationId: string) => {
+  const loadMessages = useCallback(async (conversationId: string, search?: string) => {
     setIsLoadingMessages(true)
     try {
-      const data = await messagingService.getMessages(conversationId)
+      const data = await messagingService.getMessages(conversationId, search)
       const messagesList = Array.isArray(data) ? data : data?.results || []
       // Filtrer les messages supprimés pour tous (mais les garder pour afficher "Ce message a été supprimé")
       // Inverser pour afficher du plus ancien au plus récent
@@ -491,10 +496,72 @@ export default function MessagesPage() {
     } finally {
       setIsLoadingMessages(false)
     }
+  }, [])
+
+  // Recherche dans les messages avec debounce
+  useEffect(() => {
+    if (selectedConversation) {
+      const timeoutId = setTimeout(() => {
+        loadMessages(selectedConversation.id, messageSearchQuery || undefined)
+      }, 300) // Debounce de 300ms
+      return () => clearTimeout(timeoutId)
+    }
+  }, [messageSearchQuery, selectedConversation, loadMessages])
+
+  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    // Validate file size (10MB max)
+    const maxSize = 10 * 1024 * 1024
+    if (file.size > maxSize) {
+      toast.error('Le fichier est trop volumineux (max 10MB)')
+      return
+    }
+
+    setSelectedFile(file)
+    setIsUploadingFile(true)
+
+    try {
+      const uploadResult = await messagingService.uploadAttachment(file)
+      // File uploaded, now send message with attachment
+      if (selectedConversation) {
+        const isImage = file.type.startsWith('image/')
+        const messageType = isImage ? 'image' : 'file'
+        await messagingService.sendMessage(
+          selectedConversation.id,
+          messageInput.trim() || (isImage ? '📷 Image' : '📎 Fichier'),
+          uploadResult.url,
+          uploadResult.name,
+          uploadResult.size,
+          messageType
+        )
+        setMessageInput('')
+        setSelectedFile(null)
+        await loadMessages(selectedConversation.id)
+        await loadConversations()
+        toast.success('Fichier envoyé avec succès')
+      }
+    } catch (error: any) {
+      console.error('Error uploading file:', error)
+      toast.error(error?.response?.data?.error || 'Erreur lors de l\'upload du fichier')
+      setSelectedFile(null)
+    } finally {
+      setIsUploadingFile(false)
+      if (fileInputRef.current) {
+        fileInputRef.current.value = ''
+      }
+    }
   }
 
   const handleSendMessage = async () => {
-    if (!selectedConversation || !messageInput.trim() || isSendingMessage) return
+    if (!selectedConversation || (!messageInput.trim() && !selectedFile) || isSendingMessage) return
+
+    // If there's a file, handle it separately
+    if (selectedFile && fileInputRef.current) {
+      fileInputRef.current.click()
+      return
+    }
 
     setIsSendingMessage(true)
     try {
@@ -1113,13 +1180,13 @@ export default function MessagesPage() {
               {selectedConversation ? (
                 <>
                   <div className="p-4 border-b border-gray-200 dark:border-gray-700">
-                    <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-3 mb-3">
                       {selectedConversation.conversation_type === 'group' && (
                         <div className="w-10 h-10 bg-purple-100 dark:bg-purple-900/30 rounded-full flex items-center justify-center">
                           <FiHash className="w-5 h-5 text-purple-600 dark:text-purple-400" />
                         </div>
                       )}
-                      <div>
+                      <div className="flex-1">
                         <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
                           {getDisplayName(selectedConversation)}
                         </h2>
@@ -1130,6 +1197,25 @@ export default function MessagesPage() {
                         )}
                       </div>
                     </div>
+                    {/* Search bar for messages */}
+                    <div className="relative">
+                      <FiSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+                      <input
+                        type="text"
+                        value={messageSearchQuery}
+                        onChange={(e) => setMessageSearchQuery(e.target.value)}
+                        placeholder="Rechercher dans les messages..."
+                        className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                      />
+                      {messageSearchQuery && (
+                        <button
+                          onClick={() => setMessageSearchQuery('')}
+                          className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+                        >
+                          <FiX className="w-4 h-4" />
+                        </button>
+                      )}
+                    </div>
                   </div>
                   <div className="flex-1 overflow-y-auto p-4 space-y-4">
                     {isLoadingMessages ? (
@@ -1139,8 +1225,17 @@ export default function MessagesPage() {
                     ) : messages.length === 0 ? (
                       <div className="text-center text-gray-500 dark:text-gray-400 py-8">
                         <FiMessageSquare className="w-12 h-12 mx-auto mb-2 text-gray-400 dark:text-gray-500" />
-                        <p>Aucun message</p>
-                        <p className="text-sm mt-2">Soyez le premier à envoyer un message !</p>
+                        {messageSearchQuery ? (
+                          <>
+                            <p>Aucun message trouvé</p>
+                            <p className="text-sm mt-2">Essayez avec d'autres mots-clés</p>
+                          </>
+                        ) : (
+                          <>
+                            <p>Aucun message</p>
+                            <p className="text-sm mt-2">Soyez le premier à envoyer un message !</p>
+                          </>
+                        )}
                       </div>
                     ) : (
                       <>
@@ -1206,7 +1301,43 @@ export default function MessagesPage() {
                                       {message.is_deleted_for_all ? (
                                         <p className="text-sm italic opacity-70">Ce message a été supprimé</p>
                                       ) : (
-                                        <p className="text-sm whitespace-pre-wrap break-words">{message.content}</p>
+                                        <>
+                                          <p className="text-sm whitespace-pre-wrap break-words">{message.content}</p>
+                                          {/* Attachment display */}
+                                          {message.attachment_url && (
+                                            <div className="mt-2">
+                                              {message.message_type === 'image' ? (
+                                                <div className="rounded-lg overflow-hidden max-w-xs">
+                                                  <img
+                                                    src={message.attachment_url}
+                                                    alt={message.attachment_name || 'Image'}
+                                                    className="max-w-full h-auto cursor-pointer hover:opacity-90 transition"
+                                                    onClick={() => window.open(message.attachment_url, '_blank')}
+                                                  />
+                                                </div>
+                                              ) : (
+                                                <a
+                                                  href={message.attachment_url}
+                                                  target="_blank"
+                                                  rel="noopener noreferrer"
+                                                  className="flex items-center gap-2 p-2 bg-gray-100 dark:bg-gray-800 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-700 transition"
+                                                >
+                                                  <FiFile className="w-5 h-5 text-primary-600" />
+                                                  <div className="flex-1 min-w-0">
+                                                    <p className="text-sm font-medium text-gray-900 dark:text-white truncate">
+                                                      {message.attachment_name || 'Fichier joint'}
+                                                    </p>
+                                                    {message.attachment_size && (
+                                                      <p className="text-xs text-gray-500">
+                                                        {(message.attachment_size / 1024).toFixed(1)} KB
+                                                      </p>
+                                                    )}
+                                                  </div>
+                                                </a>
+                                              )}
+                                            </div>
+                                          )}
+                                        </>
                                       )}
                                       {message.edited_at && (
                                         <p className="text-xs opacity-70 mt-1">(modifié)</p>
@@ -1324,7 +1455,51 @@ export default function MessagesPage() {
                     )}
                   </div>
                   <div className="p-4 border-t border-gray-200 dark:border-gray-700">
+                    {/* Selected file preview */}
+                    {selectedFile && (
+                      <div className="mb-2 p-2 bg-gray-100 dark:bg-gray-700 rounded-lg flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          {selectedFile.type.startsWith('image/') ? (
+                            <FiImage className="w-4 h-4 text-primary-600" />
+                          ) : (
+                            <FiFile className="w-4 h-4 text-primary-600" />
+                          )}
+                          <span className="text-sm text-gray-700 dark:text-gray-300 truncate max-w-[200px]">
+                            {selectedFile.name}
+                          </span>
+                          <span className="text-xs text-gray-500">
+                            ({(selectedFile.size / 1024).toFixed(1)} KB)
+                          </span>
+                        </div>
+                        <button
+                          onClick={() => setSelectedFile(null)}
+                          className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+                        >
+                          <FiX className="w-4 h-4" />
+                        </button>
+                      </div>
+                    )}
                     <div className="flex gap-2">
+                      {/* Hidden file input */}
+                      <input
+                        ref={fileInputRef}
+                        type="file"
+                        onChange={handleFileSelect}
+                        accept="image/*,.pdf,.doc,.docx"
+                        className="hidden"
+                      />
+                      <button
+                        onClick={() => fileInputRef.current?.click()}
+                        disabled={isSendingMessage || isUploadingFile}
+                        className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition disabled:opacity-50 disabled:cursor-not-allowed"
+                        title="Joindre un fichier"
+                      >
+                        {isUploadingFile ? (
+                          <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-primary-600"></div>
+                        ) : (
+                          <FiPaperclip className="w-5 h-5 text-gray-600 dark:text-gray-400" />
+                        )}
+                      </button>
                       <input
                         type="text"
                         placeholder="Tapez un message..."
@@ -1336,12 +1511,12 @@ export default function MessagesPage() {
                             handleSendMessage()
                           }
                         }}
-                        disabled={isSendingMessage}
+                        disabled={isSendingMessage || isUploadingFile}
                         className="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white disabled:opacity-50"
                       />
                       <button
                         onClick={handleSendMessage}
-                        disabled={isSendingMessage || !messageInput.trim()}
+                        disabled={isSendingMessage || isUploadingFile || (!messageInput.trim() && !selectedFile)}
                         className="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition disabled:opacity-50 disabled:cursor-not-allowed"
                       >
                         <FiSend className="w-5 h-5" />

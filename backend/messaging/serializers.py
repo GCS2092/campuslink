@@ -27,6 +27,7 @@ class MessageSerializer(serializers.ModelSerializer):
         model = Message
         fields = [
             'id', 'conversation', 'sender', 'content', 'message_type',
+            'attachment_url', 'attachment_name', 'attachment_size',
             'is_read', 'read_by', 'reactions', 'is_read_by_me', 'created_at', 'edited_at',
             'is_deleted_for_all', 'deleted_at'
         ]

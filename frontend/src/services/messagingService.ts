@@ -55,6 +55,9 @@ export interface Message {
   }
   content: string
   message_type: string
+  attachment_url?: string
+  attachment_name?: string
+  attachment_size?: number
   is_read: boolean
   created_at: string
   edited_at?: string
@@ -100,18 +103,34 @@ export const messagingService = {
     return response.data
   },
 
-  getMessages: async (conversationId: string) => {
-    const response = await api.get('/messaging/messages/', {
-      params: { conversation: conversationId },
+  getMessages: async (conversationId: string, search?: string) => {
+    const params: any = { conversation: conversationId }
+    if (search && search.trim()) {
+      params.search = search.trim()
+    }
+    const response = await api.get('/messaging/messages/', { params })
+    return response.data
+  },
+
+  sendMessage: async (conversationId: string, content: string, attachmentUrl?: string, attachmentName?: string, attachmentSize?: number, messageType: 'text' | 'image' | 'file' = 'text') => {
+    const response = await api.post('/messaging/messages/', {
+      conversation: conversationId,
+      content,
+      message_type: messageType,
+      attachment_url: attachmentUrl,
+      attachment_name: attachmentName,
+      attachment_size: attachmentSize,
     })
     return response.data
   },
 
-  sendMessage: async (conversationId: string, content: string) => {
-    const response = await api.post('/messaging/messages/', {
-      conversation: conversationId,
-      content,
-      message_type: 'text',
+  uploadAttachment: async (file: File) => {
+    const formData = new FormData()
+    formData.append('file', file)
+    const response = await api.post('/messaging/messages/upload_attachment/', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
     })
     return response.data
   },

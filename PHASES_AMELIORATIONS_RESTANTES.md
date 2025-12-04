@@ -35,7 +35,7 @@
 
 ---
 
-## 🔄 PHASE 3 - EN COURS / À FAIRE
+## ✅ PHASE 3 - TERMINÉE
 
 ### Événements
 - ✅ **TERMINÉ** : Suppression de l'historique d'événements (backend + frontend)
@@ -52,68 +52,87 @@
 
 ---
 
-## 📦 PHASE 4 - À PLANIFIER (Dépendances npm/pip)
+## ✅ PHASE 4 - TERMINÉE (Dépendances npm/pip)
 
 ### Messages - Fonctionnalités Avancées
-- 📎 **Pièces jointes** : 
-  - Dépendances : `react-dropzone` ou `react-file-upload`
-  - Backend : Cloudinary déjà configuré
+- ✅ **Pièces jointes** : 
+  - Backend : Champs `attachment_url`, `attachment_name`, `attachment_size` ajoutés au modèle Message
+  - Backend : Endpoint `/api/messaging/messages/upload_attachment/` pour upload vers Cloudinary
+  - Frontend : Bouton d'upload, prévisualisation, affichage des images et fichiers
   - Complexité : Moyenne
   - Priorité : Moyenne
+  - **STATUT : TERMINÉ**
 
-- ✏️ **Édition de messages** :
-  - Backend : Ajouter champ `edited_at` au modèle Message
-  - Frontend : Interface d'édition
+- ✅ **Édition de messages** :
+  - Backend : Champ `edited_at` déjà présent au modèle Message
+  - Frontend : Interface d'édition avec boutons edit/delete
   - Complexité : Facile
   - Priorité : Haute
+  - **STATUT : TERMINÉ**
 
-- 🗑️ **Suppression pour tous** :
-  - Backend : Ajouter champ `is_deleted_for_all` au modèle Message
-  - Frontend : Option de suppression
+- ✅ **Suppression pour tous** :
+  - Backend : Champ `is_deleted_for_all` ajouté au modèle Message
+  - Frontend : Option de suppression avec modal de confirmation
   - Complexité : Facile
   - Priorité : Moyenne
+  - **STATUT : TERMINÉ**
 
-- 📌 **Épingler des conversations** :
-  - Backend : Ajouter champ `is_pinned` au modèle Conversation
-  - Frontend : Bouton épingle
+- ✅ **Épingler des conversations** :
+  - Backend : Champ `is_pinned` ajouté au modèle Participant
+  - Frontend : Bouton épingle dans le menu contextuel
   - Complexité : Facile
   - Priorité : Moyenne
+  - **STATUT : TERMINÉ**
 
-- 🗄️ **Archiver des conversations** :
-  - Backend : Ajouter champ `is_archived` au modèle Conversation
-  - Frontend : Section archives
+- ✅ **Archiver des conversations** :
+  - Backend : Champ `is_archived` ajouté au modèle Participant
+  - Frontend : Section archives avec onglet dédié
   - Complexité : Facile
   - Priorité : Moyenne
+  - **STATUT : TERMINÉ**
 
-- 🔕 **Notifications silencieuses** :
-  - Backend : Ajouter champ `mute_notifications` au modèle Conversation
-  - Frontend : Toggle notifications
+- ✅ **Notifications silencieuses** :
+  - Backend : Champ `mute_notifications` ajouté au modèle Participant
+  - Frontend : Toggle notifications dans le menu contextuel
   - Complexité : Facile
   - Priorité : Basse
+  - **STATUT : TERMINÉ**
 
-- ⭐ **Marquer comme favori** :
-  - Backend : Ajouter champ `is_favorite` au modèle Conversation
-  - Frontend : Bouton favori
+- ✅ **Marquer comme favori** :
+  - Backend : Champ `is_favorite` ajouté au modèle Participant
+  - Frontend : Bouton favori dans le menu contextuel
   - Complexité : Facile
   - Priorité : Basse
+  - **STATUT : TERMINÉ**
+
+- ✅ **Recherche dans les messages** :
+  - Backend : Filtre `search` avec `ILIKE` sur le contenu
+  - Frontend : Barre de recherche avec debounce dans l'en-tête de conversation
+  - Complexité : Facile
+  - Priorité : Basse
+  - **STATUT : TERMINÉ**
 
 ### Dashboard - Widgets Avancés
-- 📅 **Calendrier mini amélioré** :
-  - Dépendances : `react-calendar` ou créer composant custom
+- ✅ **Calendrier mini amélioré** :
+  - Dépendances : Composant custom créé (`MiniCalendar`)
+  - Frontend : Affichage des événements avec indicateurs visuels
   - Complexité : Moyenne
   - Priorité : Moyenne
+  - **STATUT : TERMINÉ** (déjà fait dans Phase 2)
 
-- 🔄 **Pull-to-refresh** :
+- ⚠️ **Pull-to-refresh** :
   - Dépendances : `react-pull-to-refresh` (déjà installé)
   - Complexité : Facile
   - Priorité : Basse
+  - **STATUT : TEMPORAIREMENT DÉSACTIVÉ** (problème de compatibilité Next.js 14)
 
 ### Recherche Avancée
-- 🔍 **Recherche dans les messages** :
-  - Backend : Recherche full-text PostgreSQL (`pg_trgm`) ou Elasticsearch
-  - Alternative simple : Recherche basique avec `ILIKE`
-  - Complexité : Moyenne à Élevée
+- ✅ **Recherche dans les messages** :
+  - Backend : Recherche basique avec `ILIKE` implémentée
+  - Frontend : Barre de recherche avec debounce
+  - Complexité : Facile
   - Priorité : Basse
+  - **STATUT : TERMINÉ**
 
 ---
 
@@ -204,20 +223,25 @@
 
 ## 🚀 PROCHAINES ÉTAPES RECOMMANDÉES
 
-1. **Implémenter Phase 4 - Priorité Haute** :
-   - Édition de messages
-   - Épingler des conversations
-   - Archiver des conversations
+1. ✅ **Phase 4 - TERMINÉE** :
+   - ✅ Édition de messages
+   - ✅ Suppression pour tous
+   - ✅ Épingler des conversations
+   - ✅ Archiver des conversations
+   - ✅ Notifications silencieuses
+   - ✅ Marquer comme favori
+   - ✅ Pièces jointes (images et fichiers)
+   - ✅ Recherche dans les messages
 
-2. **Tester et optimiser** les améliorations Phase 3 (événements, étudiants, profil)
+2. **Tester et optimiser** toutes les améliorations implémentées
 
-3. **Planifier Phase 4 - Priorité Moyenne** selon les retours utilisateurs
+3. **Évaluer Phase 5** selon les besoins réels et budget (services externes)
 
-4. **Évaluer Phase 5** selon les besoins réels et budget
+4. **Évaluer Phase 6** pour fonctionnalités avancées (architecture complexe)
 
 ---
 
-*Document mis à jour après implémentation des améliorations Phase 3*
+*Document mis à jour après implémentation complète des Phases 1, 2, 3 et 4*
 
 
 
