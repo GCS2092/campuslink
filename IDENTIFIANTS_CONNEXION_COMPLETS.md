@@ -49,7 +49,7 @@ Cette commande affichera tous les comptes actifs avec leurs identifiants.
 ## 🔐 COMPTE ADMIN UNIVERSITÉ
 
 ### Selon INFORMATIONS_CONNEXION.md :
-- **Email**: `stem@esmt.sn`
+- **Email**: `@esmt.sn`
 - **Username**: `stem`
 - **Mot de passe**: `Password@123` (probablement)
 - **Rôle**: `university_admin`

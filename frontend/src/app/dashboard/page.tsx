@@ -699,13 +699,13 @@ export default function DashboardPage() {
                                </p>
                              </div>
                              {itemType === 'event' && item.event_data && (
-                               <div className="mt-3 pt-3 border-t border-gray-200">
+                               <div className="mt-3 sm:mt-4 pt-3 sm:pt-4 border-t border-gray-200">
                                  <Link
                                    href={`/events/${itemId}`}
-                                   className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition text-xs"
+                                   className="inline-flex items-center justify-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-1.5 sm:py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition text-xs sm:text-sm font-medium w-full sm:w-auto"
                                  >
-                                   <FiCalendar className="w-3.5 h-3.5" />
-                                   <span>Voir l'événement</span>
+                                   <FiCalendar className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                                   <span className="whitespace-nowrap">Voir l'événement</span>
                                  </Link>
                                </div>
                              )}

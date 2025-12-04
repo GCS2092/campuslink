@@ -14,6 +14,8 @@ interface User {
   is_verified: boolean
   verification_status: string
   is_active?: boolean
+  is_staff?: boolean
+  is_superuser?: boolean
   profile?: any
 }
 

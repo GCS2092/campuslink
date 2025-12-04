@@ -13,6 +13,8 @@ export interface User {
   verification_status: string
   date_joined: string
   last_login?: string
+  is_staff?: boolean
+  is_superuser?: boolean
   profile?: any
 }
 

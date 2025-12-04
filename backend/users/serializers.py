@@ -412,8 +412,8 @@ class UserSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
         fields = ['id', 'email', 'username', 'first_name', 'last_name', 'role', 'phone_number', 
-                  'phone_verified', 'is_verified', 'is_active', 'verification_status', 'date_joined', 'last_login', 'profile']
-        read_only_fields = ['id', 'date_joined', 'last_login']
+                  'phone_verified', 'is_verified', 'is_active', 'is_staff', 'is_superuser', 'verification_status', 'date_joined', 'last_login', 'profile']
+        read_only_fields = ['id', 'date_joined', 'last_login', 'is_staff', 'is_superuser']
     
     def get_profile(self, obj):
         """Get profile data without user field to avoid circular reference."""

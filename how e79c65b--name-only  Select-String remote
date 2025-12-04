@@ -1,0 +1,28 @@
+[33mcommit e79c65b7ddffb4b8da275954493d014b0c68b1a4[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mmain[m[33m)[m
+Author: GCS2092 <slovengama05@gmail.com>
+Date:   Thu Dec 4 10:04:10 2025 +0000
+
+    Fix: Corrections multiples - synchronisation messages, participation événements, actualités, gestion erreurs
+    
+    - Messages: Rechargement automatique après envoi WebSocket (800ms delay)
+    - Messages: Rechargement conversations pour mettre à jour dernier message
+    - Messages: Correction ordre déclaration ws avec ref pour éviter erreurs référence
+    - Événements: Correction logique participation - utiliser end_date au lieu de start_date
+    - Événements: Permettre rejoindre événement en cours (même si start_date passée)
+    - Actualités: Tri par created_at pour afficher événements récents en premier
+    - Groupes: Détection création réussie malgré erreur (status 200/201)
+    - Événements: Détection création/suppression réussie malgré erreur
+    - Déconnexion: Correction redirection vers page d'accueil au lieu de /login
+    - API: Protection intercepteur pour éviter redirections pendant déconnexion
+
+"-remote origin main \357\201\274 Select-Object -First 1"
+GUIDE_DEPLOIEMENT_MIGRATION.md
+RESUME_AMELIORATIONS_CLASSEES.md
+backend/events/views.py
+backend/feed/views.py
+frontend/src/app/events/create/page.tsx
+frontend/src/app/events/page.tsx
+frontend/src/app/groups/page.tsx
+frontend/src/app/messages/page.tsx
+frontend/src/components/CampusLinkHeader.tsx
+frontend/src/services/api.ts
