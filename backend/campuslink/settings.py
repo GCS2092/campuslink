@@ -387,20 +387,40 @@ else:
     CORS_ALLOW_CREDENTIALS = True
     CSRF_TRUSTED_ORIGINS = CORS_ALLOWED_ORIGINS
 
-# Redis Configuration
-REDIS_URL = env('REDIS_URL', default='redis://localhost:6379/0')
-USE_REDIS_CACHE = env.bool('USE_REDIS_CACHE', default=not DEBUG)  # Use Redis in production, local memory in dev
+# Redis Configuration (optional - for future use with Upstash Redis)
+REDIS_URL = env('REDIS_URL', default=None)
+USE_REDIS_CACHE = env.bool('USE_REDIS_CACHE', default=False)
 
 # Cache Configuration
-if USE_REDIS_CACHE:
+# Priority: Redis (if configured) > Database Cache > LocMemCache
+if USE_REDIS_CACHE and REDIS_URL:
+    # Use Redis if explicitly configured (e.g., Upstash Redis)
     CACHES = {
         'default': {
             'BACKEND': 'django.core.cache.backends.redis.RedisCache',
             'LOCATION': REDIS_URL,
+            'OPTIONS': {
+                'CLIENT_CLASS': 'django_redis.client.DefaultClient',
+                'SOCKET_CONNECT_TIMEOUT': 5,
+                'SOCKET_TIMEOUT': 5,
+            }
+        }
+    }
+elif not DEBUG:
+    # Production: Use Database Cache (persistent, uses PostgreSQL)
+    CACHES = {
+        'default': {
+            'BACKEND': 'django.core.cache.backends.db.DatabaseCache',
+            'LOCATION': 'cache_table',
+            'OPTIONS': {
+                'MAX_ENTRIES': 10000,
+                'CULL_FREQUENCY': 3,  # Remove 1/3 of entries when MAX_ENTRIES reached
+            },
+            'TIMEOUT': 300,  # Default timeout: 5 minutes
         }
     }
 else:
-    # Use local memory cache for development (no Redis required)
+    # Development: Use local memory cache (fast, no setup required)
     CACHES = {
         'default': {
             'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',

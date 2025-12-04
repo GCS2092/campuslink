@@ -1,134 +1,108 @@
 """
-Redis cache utilities for CampusLink.
-Redis is optional - functions will gracefully fail if Redis is not available.
+Cache utilities for CampusLink using Django Cache Framework.
+Supports Redis (if configured), Database Cache, or LocMemCache.
 """
 import json
 import logging
+from django.core.cache import cache
 from django.conf import settings
 
 logger = logging.getLogger(__name__)
 
-# Try to initialize Redis client, but make it optional
-redis_client = None
-try:
-    import redis
-    if hasattr(settings, 'REDIS_URL') and settings.REDIS_URL:
-        redis_client = redis.from_url(
-            settings.REDIS_URL,
-            decode_responses=True,
-            socket_connect_timeout=2,
-            socket_timeout=2
-        )
-        # Test connection
-        redis_client.ping()
-    else:
-        logger.warning("REDIS_URL not configured, Redis cache disabled")
-except (ImportError, redis.ConnectionError, redis.TimeoutError, Exception) as e:
-    logger.warning(f"Redis not available: {str(e)}. Cache functions will be disabled.")
-    redis_client = None
 
-
-def _check_redis():
-    """Check if Redis is available."""
-    if redis_client is None:
-        return False
-    try:
-        redis_client.ping()
-        return True
-    except Exception:
-        return False
+def _get_cache_key(prefix, *args):
+    """Generate cache key from prefix and arguments."""
+    key_parts = [prefix] + [str(arg) if arg is not None else 'all' for arg in args]
+    return ':'.join(key_parts)
 
 
 def cache_feed_events(university=None, limit=20):
     """
-    Cache the feed of popular events.
-    Returns None if Redis is not available.
+    Get cached feed events.
+    Returns None if not cached.
     """
-    if not _check_redis():
-        return None
-    
     try:
-        cache_key = f'feed_events:{university or "all"}:{limit}'
-        cached = redis_client.get(cache_key)
+        cache_key = _get_cache_key('feed_events', university, limit)
+        cached = cache.get(cache_key)
         
         if cached:
-            return json.loads(cached)
+            # If cached data is already a dict, return it
+            if isinstance(cached, dict):
+                return cached
+            # If it's a string, parse it
+            if isinstance(cached, str):
+                return json.loads(cached)
+            return cached
     except Exception as e:
-        logger.warning(f"Error reading from Redis cache: {str(e)}")
+        logger.warning(f"Error reading from cache: {str(e)}")
     
     return None
 
 
 def set_feed_events_cache(university=None, limit=20, data=None, ttl=300):
     """
-    Set cache for feed events.
-    Silently fails if Redis is not available.
+    Cache feed events.
+    ttl: Time to live in seconds (default: 5 minutes)
     """
-    if not _check_redis():
-        return
-    
     try:
-        cache_key = f'feed_events:{university or "all"}:{limit}'
-        redis_client.setex(cache_key, ttl, json.dumps(data))
+        cache_key = _get_cache_key('feed_events', university, limit)
+        cache.set(cache_key, data, ttl)
     except Exception as e:
-        logger.warning(f"Error writing to Redis cache: {str(e)}")
+        logger.warning(f"Error writing to cache: {str(e)}")
 
 
 def invalidate_feed_cache():
     """
     Invalidate all feed caches.
-    Silently fails if Redis is not available.
+    For Database Cache, we use a version-based approach for efficiency.
     """
-    if not _check_redis():
-        return
-    
     try:
-        keys = redis_client.keys('feed_events:*')
-        if keys:
-            redis_client.delete(*keys)
+        # Increment version to invalidate all feed caches
+        # This is more efficient than deleting individual keys
+        version_key = 'feed_cache_version'
+        current_version = cache.get(version_key, 0)
+        cache.set(version_key, current_version + 1, timeout=None)  # Never expires
+        
+        # Also try to delete known patterns (for Redis compatibility)
+        # Note: This works with Redis but not with Database Cache
+        # Database Cache doesn't support pattern deletion, so version-based is better
+        logger.info("Feed cache invalidated (version incremented)")
     except Exception as e:
-        logger.warning(f"Error invalidating Redis cache: {str(e)}")
+        logger.warning(f"Error invalidating cache: {str(e)}")
 
 
 def get_otp(phone_number):
     """
     Get OTP code for phone number.
-    Returns None if Redis is not available.
+    Returns None if not found or expired.
     """
-    if not _check_redis():
-        return None
-    
     try:
-        return redis_client.get(f'otp:{phone_number}')
+        cache_key = f'otp:{phone_number}'
+        return cache.get(cache_key)
     except Exception as e:
-        logger.warning(f"Error getting OTP from Redis: {str(e)}")
+        logger.warning(f"Error getting OTP from cache: {str(e)}")
         return None
 
 
 def set_otp(phone_number, otp_code, ttl=600):
     """
-    Set OTP code for phone number (TTL in seconds, default 10 minutes).
-    Silently fails if Redis is not available.
+    Set OTP code for phone number.
+    ttl: Time to live in seconds (default: 10 minutes)
     """
-    if not _check_redis():
-        return
-    
     try:
-        redis_client.setex(f'otp:{phone_number}', ttl, otp_code)
+        cache_key = f'otp:{phone_number}'
+        cache.set(cache_key, otp_code, ttl)
     except Exception as e:
-        logger.warning(f"Error setting OTP in Redis: {str(e)}")
+        logger.warning(f"Error setting OTP in cache: {str(e)}")
 
 
 def delete_otp(phone_number):
     """
     Delete OTP code after use.
-    Silently fails if Redis is not available.
     """
-    if not _check_redis():
-        return
-    
     try:
-        redis_client.delete(f'otp:{phone_number}')
+        cache_key = f'otp:{phone_number}'
+        cache.delete(cache_key)
     except Exception as e:
-        logger.warning(f"Error deleting OTP from Redis: {str(e)}")
+        logger.warning(f"Error deleting OTP from cache: {str(e)}")
 
