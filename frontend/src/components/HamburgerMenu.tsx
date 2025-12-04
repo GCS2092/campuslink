@@ -11,7 +11,7 @@ export default function HamburgerMenu() {
   const menuRef = useRef<HTMLDivElement>(null)
 
   const menuItems = [
-    { icon: FiBell, label: 'Pour vous', path: '/notifications', color: 'purple' },
+    { icon: FiBell, label: 'Pour vous', path: '/pour-vous', color: 'purple' },
     { icon: FiCalendar, label: 'Calendrier', path: '/calendar', color: 'indigo' },
     { icon: FiSearch, label: 'Recherche', path: '/search', color: 'teal' },
     { icon: FiUsers, label: 'Activité Amis', path: '/friends-activity', color: 'pink' },

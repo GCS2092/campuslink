@@ -4,7 +4,7 @@ import { useAuth } from '@/context/AuthContext'
 import { useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
 import { useHotkeys } from 'react-hotkeys-hook'
-import { FiLogOut, FiBell, FiCalendar, FiUsers, FiImage, FiMapPin, FiClock, FiEdit2, FiGlobe, FiLock, FiBarChart2, FiZap, FiArrowRight, FiSearch, FiSettings, FiShare2 } from 'react-icons/fi'
+import { FiLogOut, FiBell, FiCalendar, FiUsers, FiImage, FiMapPin, FiClock, FiEdit2, FiGlobe, FiLock, FiBarChart2, FiArrowRight, FiSearch, FiSettings, FiShare2 } from 'react-icons/fi'
 import { feedService, type FeedItem } from '@/services/feedService'
 import { eventService, type Event } from '@/services/eventService'
 import { userService } from '@/services/userService'
@@ -24,11 +24,8 @@ export default function DashboardPage() {
   const [mounted, setMounted] = useState(false)
   const [feedItems, setFeedItems] = useState<FeedItem[]>([])
   const [isLoadingFeed, setIsLoadingFeed] = useState(false)
-  const [recommendedEvents, setRecommendedEvents] = useState<Event[]>([])
-  const [isLoadingRecommended, setIsLoadingRecommended] = useState(false)
   const [stats, setStats] = useState({ friends: 0, events: 0, groups: 0 })
   const [isLoadingStats, setIsLoadingStats] = useState(false)
-  const [eventFilter, setEventFilter] = useState<'all' | 'today' | 'week' | 'month'>('all')
   const isResponsible = user?.role === 'class_leader' || user?.role === 'admin'
 
   // Citations du jour
@@ -81,7 +78,6 @@ export default function DashboardPage() {
   useEffect(() => {
     if (user) {
       loadFeed()
-      loadRecommendedEvents()
       loadStats()
     }
   }, [user])
@@ -130,17 +126,6 @@ export default function DashboardPage() {
     }
   }
 
-  const loadRecommendedEvents = async () => {
-    setIsLoadingRecommended(true)
-    try {
-      const events = await eventService.getRecommendedEvents(6)
-      setRecommendedEvents(Array.isArray(events) ? events : [])
-    } catch (error: any) {
-      console.error('Error loading recommended events:', error)
-    } finally {
-      setIsLoadingRecommended(false)
-    }
-  }
 
   const loadFeed = async () => {
     setIsLoadingFeed(true)
