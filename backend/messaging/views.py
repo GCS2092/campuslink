@@ -347,6 +347,19 @@ class MessageViewSet(viewsets.ModelViewSet):
     serializer_class = MessageSerializer
     permission_classes = [IsAuthenticated, IsActiveAndVerifiedOrReadOnly]
     
+    def list(self, request, *args, **kwargs):
+        """List messages with improved error handling."""
+        try:
+            return super().list(request, *args, **kwargs)
+        except Exception as e:
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.error(f"Error in MessageViewSet.list: {str(e)}", exc_info=True)
+            return Response(
+                {'error': 'Erreur lors du chargement des messages.'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+    
     def get_queryset(self):
         """Return messages for conversations where user is a participant."""
         try:
