@@ -1038,10 +1038,15 @@ export default function MessagesPage() {
                     return (
                       <div
                         key={conv.id}
-                        onClick={() => setSelectedConversation(conv)}
-                        className={`p-4 border-b border-gray-100 dark:border-gray-700 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-all duration-200 ${
+                        onClick={(e) => {
+                          e.preventDefault()
+                          e.stopPropagation()
+                          setSelectedConversation(conv)
+                        }}
+                        className={`p-4 border-b border-gray-100 dark:border-gray-700 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-all duration-200 relative z-10 ${
                           isSelected ? 'bg-primary-50 dark:bg-primary-900/20 border-l-4 border-l-primary-600' : ''
                         }`}
+                        style={{ pointerEvents: 'auto' }}
                       >
                         <div className="flex items-center gap-3">
                           <div

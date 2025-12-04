@@ -18,9 +18,9 @@ class MessageReactionSerializer(serializers.ModelSerializer):
 
 class MessageSerializer(serializers.ModelSerializer):
     """Serializer for Message model."""
-    sender = UserSerializer(read_only=True)
-    read_by = UserSerializer(many=True, read_only=True)
-    reactions = MessageReactionSerializer(many=True, read_only=True)
+    sender = serializers.SerializerMethodField()
+    read_by = serializers.SerializerMethodField()
+    reactions = serializers.SerializerMethodField()
     is_read_by_me = serializers.SerializerMethodField()
     
     class Meta:
@@ -33,12 +33,56 @@ class MessageSerializer(serializers.ModelSerializer):
         ]
         read_only_fields = ['id', 'sender', 'is_read', 'read_by', 'reactions', 'created_at', 'edited_at', 'deleted_at']
     
+    def get_sender(self, obj):
+        """Get sender with error handling."""
+        try:
+            if obj.sender:
+                return UserSerializer(obj.sender, context=self.context).data
+            return None
+        except Exception as e:
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.error(f"Error serializing sender for message {obj.id}: {str(e)}")
+            return {'id': str(obj.sender.id) if obj.sender else None, 'username': obj.sender.username if obj.sender else 'Unknown'}
+    
+    def get_read_by(self, obj):
+        """Get read_by users with error handling."""
+        try:
+            if hasattr(obj, 'read_by'):
+                read_by_users = obj.read_by.all()[:10]  # Limit to 10 to avoid performance issues
+                return [UserSerializer(user, context=self.context).data for user in read_by_users]
+            return []
+        except Exception as e:
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.error(f"Error serializing read_by for message {obj.id}: {str(e)}")
+            return []
+    
+    def get_reactions(self, obj):
+        """Get reactions with error handling."""
+        try:
+            if hasattr(obj, 'reactions'):
+                reactions = obj.reactions.all()
+                return [MessageReactionSerializer(reaction, context=self.context).data for reaction in reactions]
+            return []
+        except Exception as e:
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.error(f"Error serializing reactions for message {obj.id}: {str(e)}")
+            return []
+    
     def get_is_read_by_me(self, obj):
         """Check if message is read by current user."""
-        request = self.context.get('request')
-        if request and request.user.is_authenticated:
-            return obj.read_by.filter(id=request.user.id).exists()
-        return False
+        try:
+            request = self.context.get('request')
+            if request and request.user.is_authenticated:
+                return obj.read_by.filter(id=request.user.id).exists()
+            return False
+        except Exception as e:
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.error(f"Error checking is_read_by_me for message {obj.id}: {str(e)}")
+            return False
 
 
 class ParticipantSerializer(serializers.ModelSerializer):
