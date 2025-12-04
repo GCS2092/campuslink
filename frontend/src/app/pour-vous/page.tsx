@@ -247,10 +247,10 @@ export default function PourVousPage() {
                       </div>
                     )}
 
-                    {event.university && (
+                    {event.organizer?.profile?.university && (
                       <div className="flex items-center gap-2 text-xs sm:text-sm text-gray-600">
                         <FiMapPin className="w-4 h-4 flex-shrink-0" />
-                        <span className="truncate">{getUniversityName(event.university)}</span>
+                        <span className="truncate">{getUniversityName(event.organizer.profile.university)}</span>
                       </div>
                     )}
                   </div>
