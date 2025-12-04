@@ -368,13 +368,21 @@ class MessageViewSet(viewsets.ModelViewSet):
                     conversation_id=conversation_id,
                     deleted_at__isnull=True,
                     is_deleted_for_all=False
-                ).select_related('sender')
+                ).select_related('sender').prefetch_related(
+                    'read_by',
+                    'reactions',
+                    'reactions__user'
+                )
                 
                 # Add search filter if provided
                 if search_query:
                     queryset = queryset.filter(content__icontains=search_query)
                 
-                return queryset.order_by('-created_at')
+                # Limit to last 100 messages to avoid performance issues
+                # Frontend can implement pagination if needed
+                queryset = queryset.order_by('-created_at')[:100]
+                
+                return queryset
             
             return Message.objects.none()
         except Exception as e:

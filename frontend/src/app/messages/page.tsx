@@ -1383,23 +1383,23 @@ export default function MessagesPage() {
                                       </div>
                                       {/* Message actions for own messages */}
                                       {isOwnMessage && !message.is_deleted_for_all && (
-                                        <div className="flex items-center gap-2 mt-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                        <div className="flex items-center gap-2 mt-2">
                                           <button
                                             onClick={() => {
                                               setEditingMessageId(message.id)
                                               setEditingMessageContent(message.content)
                                             }}
-                                            className="p-1 text-primary-100 hover:bg-primary-700 rounded transition-colors"
+                                            className="p-1.5 text-primary-100 hover:bg-primary-700 rounded transition-colors opacity-80 hover:opacity-100"
                                             title="Modifier"
                                           >
-                                            <FiEdit2 className="w-3 h-3" />
+                                            <FiEdit2 className="w-3.5 h-3.5" />
                                           </button>
                                           <button
                                             onClick={() => handleDeleteMessageForAll(message.id)}
-                                            className="p-1 text-primary-100 hover:bg-primary-700 rounded transition-colors"
+                                            className="p-1.5 text-red-300 hover:bg-red-600 rounded transition-colors opacity-80 hover:opacity-100"
                                             title="Supprimer pour tous"
                                           >
-                                            <FiTrash2 className="w-3 h-3" />
+                                            <FiTrash2 className="w-3.5 h-3.5" />
                                           </button>
                                         </div>
                                       )}

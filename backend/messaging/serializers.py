@@ -58,15 +58,21 @@ class MessageSerializer(serializers.ModelSerializer):
         """Get read_by users with error handling."""
         try:
             if hasattr(obj, 'read_by'):
-                read_by_users = obj.read_by.all()[:10]  # Limit to 10 to avoid performance issues
+                # Use prefetched data if available, otherwise query
+                if hasattr(obj, '_prefetched_objects_cache') and 'read_by' in obj._prefetched_objects_cache:
+                    read_by_users = obj._prefetched_objects_cache['read_by'][:10]
+                else:
+                    read_by_users = list(obj.read_by.all()[:10])  # Limit to 10 to avoid performance issues
+                
                 result = []
                 for user in read_by_users:
                     try:
-                        result.append(UserBasicSerializer(user, context=self.context).data)
+                        if user:  # Check if user exists
+                            result.append(UserBasicSerializer(user, context=self.context).data)
                     except Exception as e:
                         import logging
                         logger = logging.getLogger(__name__)
-                        logger.warning(f"Error serializing read_by user {user.id if hasattr(user, 'id') else 'unknown'}: {str(e)}")
+                        logger.warning(f"Error serializing read_by user {user.id if user and hasattr(user, 'id') else 'unknown'}: {str(e)}")
                         # Skip this user but continue with others
                         continue
                 return result
@@ -81,15 +87,21 @@ class MessageSerializer(serializers.ModelSerializer):
         """Get reactions with error handling."""
         try:
             if hasattr(obj, 'reactions'):
-                reactions = obj.reactions.all()
+                # Use prefetched data if available, otherwise query
+                if hasattr(obj, '_prefetched_objects_cache') and 'reactions' in obj._prefetched_objects_cache:
+                    reactions = obj._prefetched_objects_cache['reactions']
+                else:
+                    reactions = list(obj.reactions.all())
+                
                 result = []
                 for reaction in reactions:
                     try:
-                        result.append(MessageReactionSerializer(reaction, context=self.context).data)
+                        if reaction:  # Check if reaction exists
+                            result.append(MessageReactionSerializer(reaction, context=self.context).data)
                     except Exception as e:
                         import logging
                         logger = logging.getLogger(__name__)
-                        logger.warning(f"Error serializing reaction {reaction.id if hasattr(reaction, 'id') else 'unknown'}: {str(e)}")
+                        logger.warning(f"Error serializing reaction {reaction.id if reaction and hasattr(reaction, 'id') else 'unknown'}: {str(e)}")
                         # Skip this reaction but continue with others
                         continue
                 return result
