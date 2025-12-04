@@ -821,71 +821,6 @@ class EventViewSet(viewsets.ModelViewSet):
             # Return empty list instead of error to prevent frontend issues
             return Response([], status=status.HTTP_200_OK)
     
-    @action(detail=True, methods=['post'], permission_classes=[IsAuthenticated, IsAdminOrClassLeader])
-    def moderate(self, request, pk=None):
-        """Moderate event (admin only): delete or change status."""
-        event = self.get_object()
-        action = request.data.get('action')  # 'delete', 'publish', 'cancel', 'draft'
-        
-        if action == 'delete':
-            event.delete()
-            invalidate_feed_cache()
-            return Response({'message': 'Événement supprimé avec succès.'}, status=status.HTTP_200_OK)
-        elif action in ['publish', 'cancel', 'draft']:
-            event.status = action if action != 'publish' else 'published'
-            event.save(update_fields=['status'])
-            invalidate_feed_cache()
-            return Response({
-                'message': f'Statut de l\'événement modifié en "{event.status}".',
-                'status': event.status
-            }, status=status.HTTP_200_OK)
-        else:
-            return Response({'error': 'Action invalide. Utilisez: delete, publish, cancel, ou draft.'}, 
-                          status=status.HTTP_400_BAD_REQUEST)
-
-
-class CalendarViewSet(viewsets.ViewSet):
-    """ViewSet for user calendar."""
-    permission_classes = [IsAuthenticated]
-    
-    @action(detail=False, methods=['get'])
-    def events(self, request):
-        """Get user's calendar events."""
-        start_date = request.query_params.get('start_date')
-        end_date = request.query_params.get('end_date')
-        
-        events_data = get_user_calendar_events(
-            request.user.id,
-            start_date=start_date,
-            end_date=end_date
-        )
-        
-        # Serialize events
-        serializer = EventSerializer([e['event'] for e in events_data], many=True)
-        result = serializer.data
-        
-        # Add metadata
-        for i, event_data in enumerate(events_data):
-            result[i]['calendar_type'] = event_data['type']
-            if event_data['type'] == 'participation':
-                result[i]['participated_at'] = event_data['participated_at'].isoformat()
-            else:
-                result[i]['favorited_at'] = event_data['favorited_at'].isoformat()
-        
-        return Response(result, status=status.HTTP_200_OK)
-    
-    @action(detail=False, methods=['get'])
-    def export(self, request):
-        """Export user calendar as iCal file."""
-        include_favorites = request.query_params.get('include_favorites', 'true').lower() == 'true'
-        
-        cal = generate_user_calendar(request.user.id, include_favorites=include_favorites)
-        
-        from django.http import HttpResponse
-        response = HttpResponse(cal.to_ical(), content_type='text/calendar')
-        response['Content-Disposition'] = f'attachment; filename="campuslink_calendar_{request.user.username}.ics"'
-        return response
-    
     @action(detail=False, methods=['get'], permission_classes=[IsAuthenticated])
     def my_events(self, request):
         """Get user's events (organized, participating, favorites)."""
@@ -978,6 +913,71 @@ class CalendarViewSet(viewsets.ViewSet):
                 {'error': 'Erreur lors de la récupération de vos événements.'},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
+
+    @action(detail=True, methods=['post'], permission_classes=[IsAuthenticated, IsAdminOrClassLeader])
+    def moderate(self, request, pk=None):
+        """Moderate event (admin only): delete or change status."""
+        event = self.get_object()
+        action = request.data.get('action')  # 'delete', 'publish', 'cancel', 'draft'
+        
+        if action == 'delete':
+            event.delete()
+            invalidate_feed_cache()
+            return Response({'message': 'Événement supprimé avec succès.'}, status=status.HTTP_200_OK)
+        elif action in ['publish', 'cancel', 'draft']:
+            event.status = action if action != 'publish' else 'published'
+            event.save(update_fields=['status'])
+            invalidate_feed_cache()
+            return Response({
+                'message': f'Statut de l\'événement modifié en "{event.status}".',
+                'status': event.status
+            }, status=status.HTTP_200_OK)
+        else:
+            return Response({'error': 'Action invalide. Utilisez: delete, publish, cancel, ou draft.'}, 
+                          status=status.HTTP_400_BAD_REQUEST)
+
+
+class CalendarViewSet(viewsets.ViewSet):
+    """ViewSet for user calendar."""
+    permission_classes = [IsAuthenticated]
+    
+    @action(detail=False, methods=['get'])
+    def events(self, request):
+        """Get user's calendar events."""
+        start_date = request.query_params.get('start_date')
+        end_date = request.query_params.get('end_date')
+        
+        events_data = get_user_calendar_events(
+            request.user.id,
+            start_date=start_date,
+            end_date=end_date
+        )
+        
+        # Serialize events
+        serializer = EventSerializer([e['event'] for e in events_data], many=True)
+        result = serializer.data
+        
+        # Add metadata
+        for i, event_data in enumerate(events_data):
+            result[i]['calendar_type'] = event_data['type']
+            if event_data['type'] == 'participation':
+                result[i]['participated_at'] = event_data['participated_at'].isoformat()
+            else:
+                result[i]['favorited_at'] = event_data['favorited_at'].isoformat()
+        
+        return Response(result, status=status.HTTP_200_OK)
+    
+    @action(detail=False, methods=['get'])
+    def export(self, request):
+        """Export user calendar as iCal file."""
+        include_favorites = request.query_params.get('include_favorites', 'true').lower() == 'true'
+        
+        cal = generate_user_calendar(request.user.id, include_favorites=include_favorites)
+        
+        from django.http import HttpResponse
+        response = HttpResponse(cal.to_ical(), content_type='text/calendar')
+        response['Content-Disposition'] = f'attachment; filename="campuslink_calendar_{request.user.username}.ics"'
+        return response
     
     @action(detail=False, methods=['delete'], permission_classes=[IsAuthenticated])
     def clear_history(self, request):

@@ -349,33 +349,39 @@ class MessageViewSet(viewsets.ModelViewSet):
     
     def get_queryset(self):
         """Return messages for conversations where user is a participant."""
-        conversation_id = self.request.query_params.get('conversation')
-        search_query = self.request.query_params.get('search', '').strip()
-        
-        if conversation_id:
-            # Check if user is participant
-            is_participant = Participant.objects.filter(
-                conversation_id=conversation_id,
-                user=self.request.user,
-                is_active=True
-            ).exists()
+        try:
+            conversation_id = self.request.query_params.get('conversation')
+            search_query = self.request.query_params.get('search', '').strip()
             
-            if not is_participant:
-                return Message.objects.none()
+            if conversation_id:
+                # Check if user is participant
+                is_participant = Participant.objects.filter(
+                    conversation_id=conversation_id,
+                    user=self.request.user,
+                    is_active=True
+                ).exists()
+                
+                if not is_participant:
+                    return Message.objects.none()
+                
+                queryset = Message.objects.filter(
+                    conversation_id=conversation_id,
+                    deleted_at__isnull=True,
+                    is_deleted_for_all=False
+                ).select_related('sender')
+                
+                # Add search filter if provided
+                if search_query:
+                    queryset = queryset.filter(content__icontains=search_query)
+                
+                return queryset.order_by('-created_at')
             
-            queryset = Message.objects.filter(
-                conversation_id=conversation_id,
-                deleted_at__isnull=True,
-                is_deleted_for_all=False
-            ).select_related('sender')
-            
-            # Add search filter if provided
-            if search_query:
-                queryset = queryset.filter(content__icontains=search_query)
-            
-            return queryset.order_by('-created_at')
-        
-        return Message.objects.none()
+            return Message.objects.none()
+        except Exception as e:
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.error(f"Error in get_queryset for messages: {str(e)}", exc_info=True)
+            return Message.objects.none()
     
     def get_parsers(self):
         """Allow file uploads."""
