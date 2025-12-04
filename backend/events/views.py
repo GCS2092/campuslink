@@ -411,8 +411,22 @@ class EventViewSet(viewsets.ModelViewSet):
     @action(detail=True, methods=['post'], permission_classes=[IsAuthenticated])
     def participate(self, request, pk=None):
         """Participate in event."""
-        event = self.get_object()
-        user = request.user
+        try:
+            event = self.get_object()
+            user = request.user
+        except Event.DoesNotExist:
+            return Response(
+                {'error': 'Événement non trouvé.'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+        except Exception as e:
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.error(f"Error in participate action: {str(e)}", exc_info=True)
+            return Response(
+                {'error': 'Erreur lors de la récupération de l\'événement.'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
         
         # Validations
         # 1. Check if event is published
