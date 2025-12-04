@@ -406,18 +406,29 @@ class MessageViewSet(viewsets.ModelViewSet):
                 if search_query:
                     queryset = queryset.filter(content__icontains=search_query)
                 
-                # Apply select_related and prefetch_related BEFORE slicing
-                # Django doesn't allow select_related/prefetch_related after slicing
+                # Apply select_related and prefetch_related
                 queryset = queryset.select_related('sender').prefetch_related(
                     'read_by',
                     'reactions',
                     'reactions__user'
                 )
                 
-                # Order and limit AFTER select_related/prefetch_related
-                queryset = queryset.order_by('-created_at')[:100]
+                # Order and limit - use list slicing to avoid QuerySet issues
+                queryset = queryset.order_by('-created_at')
                 
-                return queryset
+                # Convert to list and back to queryset to avoid slicing issues
+                # This ensures we can still use prefetch_related data
+                message_ids = list(queryset.values_list('id', flat=True)[:100])
+                
+                if message_ids:
+                    # Return queryset with prefetch for the limited IDs
+                    return Message.objects.filter(id__in=message_ids).select_related('sender').prefetch_related(
+                        'read_by',
+                        'reactions',
+                        'reactions__user'
+                    ).order_by('-created_at')
+                else:
+                    return Message.objects.none()
             
             return Message.objects.none()
         except Exception as e:
