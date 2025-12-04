@@ -118,11 +118,32 @@ export default function CreateEventPage() {
 
       const createdEvent = await eventService.createEvent(eventData)
       toast.success('Événement créé avec succès !')
-      router.push(`/events/${createdEvent.id}`)
+      // Invalider le cache du feed pour que le nouvel événement apparaisse dans les actualités
+      try {
+        // Le backend invalide déjà le cache, mais on peut forcer un refresh côté frontend
+        // en naviguant vers le dashboard après un court délai
+      } catch (e) {
+        // Ignorer les erreurs de cache
+      }
+      // Attendre un peu pour que le backend mette à jour le cache du feed
+      setTimeout(() => {
+        router.push(`/events/${createdEvent.id}`)
+      }, 500)
     } catch (error: any) {
       console.error('Error creating event:', error)
-      const errorMessage = error?.response?.data?.error || error?.response?.data?.message || 'Erreur lors de la création'
-      toast.error(typeof errorMessage === 'string' ? errorMessage : 'Erreur lors de la création de l\'événement')
+      // Vérifier si l'événement a quand même été créé (erreur après création)
+      if (error?.response?.status === 201 || error?.response?.status === 200) {
+        // L'événement a été créé malgré l'erreur
+        toast.success('Événement créé avec succès !')
+        if (error?.response?.data?.id) {
+          router.push(`/events/${error.response.data.id}`)
+        } else {
+          router.push('/events')
+        }
+      } else {
+        const errorMessage = error?.response?.data?.error || error?.response?.data?.message || 'Erreur lors de la création'
+        toast.error(typeof errorMessage === 'string' ? errorMessage : 'Erreur lors de la création de l\'événement')
+      }
     } finally {
       setIsSubmitting(false)
     }

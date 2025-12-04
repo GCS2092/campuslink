@@ -106,7 +106,8 @@ api.interceptors.response.use(
           // Refresh failed for other reasons, logout user
           localStorage.removeItem('access_token')
           localStorage.removeItem('refresh_token')
-          if (window.location.pathname !== '/login') {
+          // Ne pas rediriger vers /login si on est déjà sur la page d'accueil ou en train de se déconnecter
+          if (window.location.pathname !== '/login' && window.location.pathname !== '/') {
             window.location.href = '/login'
           }
           return Promise.reject(refreshError)
@@ -119,11 +120,16 @@ api.interceptors.response.use(
       const errorMessage = error.response?.data?.detail || error.response?.data?.message || ''
       if (errorMessage.includes('activé') || errorMessage.includes('vérifié') || errorMessage.includes('active') || errorMessage.includes('verified')) {
         // Account needs activation, redirect to pending-approval
-        if (typeof window !== 'undefined' && window.location.pathname !== '/pending-approval') {
+        if (typeof window !== 'undefined' && window.location.pathname !== '/pending-approval' && window.location.pathname !== '/') {
           localStorage.removeItem('access_token')
           localStorage.removeItem('refresh_token')
           window.location.href = '/pending-approval'
         }
+      }
+      // Si on est sur la page d'accueil et qu'on a une erreur 401, ne pas rediriger vers /login
+      // (cela peut arriver pendant la déconnexion)
+      if (typeof window !== 'undefined' && window.location.pathname === '/') {
+        return Promise.reject(error)
       }
     }
 

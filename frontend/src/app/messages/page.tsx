@@ -87,18 +87,27 @@ export default function MessagesPage() {
     }
   }, [mounted, user, conversations])
 
-  // WebSocket handlers
+  // WebSocket handlers (définis avant useWebSocket pour éviter les erreurs de référence)
+  const wsRef = useRef<any>(null)
+  
   const handleWebSocketMessage = useCallback((message: any) => {
+    // Ajouter le message à la liste
     setMessages((prev) => {
       // Check if message already exists
       if (prev.find((m) => m.id === message.id)) {
         return prev
       }
-      return [...prev, message]
+      // Ajouter le message et trier par date
+      const updated = [...prev, message]
+      return updated.sort((a, b) => {
+        const dateA = new Date(a.created_at).getTime()
+        const dateB = new Date(b.created_at).getTime()
+        return dateA - dateB
+      })
     })
     // Mark as read if it's not our message
-    if (message.sender_id !== user?.id && ws.markMessageRead) {
-      ws.markMessageRead(message.id)
+    if (message.sender_id !== user?.id && wsRef.current?.markMessageRead) {
+      wsRef.current.markMessageRead(message.id)
     }
   }, [user])
 
@@ -573,6 +582,13 @@ export default function MessagesPage() {
         if (ws.sendTyping) {
           ws.sendTyping(false)
         }
+        // Recharger les messages après un court délai pour voir le nouveau message
+        // Le WebSocket peut prendre un peu de temps pour synchroniser
+        setTimeout(async () => {
+          if (selectedConversation) {
+            await loadMessages(selectedConversation.id)
+          }
+        }, 500)
       } else {
         // Fallback to REST API
         await messagingService.sendMessage(selectedConversation.id, messageInput.trim())

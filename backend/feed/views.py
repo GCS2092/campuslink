@@ -166,17 +166,17 @@ class FeedItemViewSet(viewsets.ModelViewSet):
             )
         
         if events_filter:
-            personalized_events = events_queryset.filter(events_filter).distinct().order_by('-start_date')[:20]
+            personalized_events = events_queryset.filter(events_filter).distinct().order_by('-created_at', '-start_date')[:20]
         else:
             # Fallback to university events or public events
             if user_university:
                 personalized_events = events_queryset.filter(
                     Q(university=user_university) |
                     Q(university__isnull=True, organizer__profile__university=user_university)
-                ).order_by('-start_date')[:20]
+                ).order_by('-created_at', '-start_date')[:20]
             else:
-                # Fallback to all published events
-                personalized_events = events_queryset.order_by('-start_date')[:20]
+                # Fallback to all published events - inclure tous les événements publiés récents
+                personalized_events = events_queryset.order_by('-created_at', '-start_date')[:20]
         
         # Get personalized feed items
         feed_items_queryset = FeedItem.objects.filter(

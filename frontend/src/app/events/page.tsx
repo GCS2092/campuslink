@@ -135,23 +135,30 @@ export default function EventsPage() {
       await loadEvents()
     } catch (error: any) {
       console.error('Error moderating event:', error)
-      // Handle error object from custom exception handler
-      let errorMessage = 'Erreur lors de la modération de l\'événement'
-      if (error?.response?.data) {
-        const errorData = error.response.data
-        if (errorData.error && typeof errorData.error === 'object') {
-          errorMessage = errorData.error.message || errorData.error.details?.message || errorMessage
-        } else if (typeof errorData === 'string') {
-          errorMessage = errorData
-        } else if (errorData.message) {
-          errorMessage = errorData.message
-        } else if (errorData.error && typeof errorData.error === 'string') {
-          errorMessage = errorData.error
+      // Vérifier si l'action a quand même été effectuée (erreur après succès)
+      if (error?.response?.status === 200 || error?.response?.status === 204) {
+        // L'action a été effectuée malgré l'erreur
+        toast.success(`Événement ${action === 'delete' ? 'supprimé' : 'modifié'} avec succès`)
+        await loadEvents()
+      } else {
+        // Handle error object from custom exception handler
+        let errorMessage = 'Erreur lors de la modération de l\'événement'
+        if (error?.response?.data) {
+          const errorData = error.response.data
+          if (errorData.error && typeof errorData.error === 'object') {
+            errorMessage = errorData.error.message || errorData.error.details?.message || errorMessage
+          } else if (typeof errorData === 'string') {
+            errorMessage = errorData
+          } else if (errorData.message) {
+            errorMessage = errorData.message
+          } else if (errorData.error && typeof errorData.error === 'string') {
+            errorMessage = errorData.error
+          }
+        } else if (error?.message) {
+          errorMessage = error.message
         }
-      } else if (error?.message) {
-        errorMessage = error.message
+        toast.error(typeof errorMessage === 'string' ? errorMessage : 'Erreur lors de la modération de l\'événement')
       }
-      toast.error(typeof errorMessage === 'string' ? errorMessage : 'Erreur lors de la modération de l\'événement')
     }
   }
 

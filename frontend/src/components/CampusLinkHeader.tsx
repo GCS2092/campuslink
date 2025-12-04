@@ -26,8 +26,8 @@ export default function CampusLinkHeader({
   const router = useRouter()
 
   const handleLogout = () => {
+    // logout() gère déjà la redirection vers / avec window.location.href
     logout()
-    router.push('/')
   }
 
   const handleBack = () => {

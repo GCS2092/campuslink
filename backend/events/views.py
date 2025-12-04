@@ -429,10 +429,24 @@ class EventViewSet(viewsets.ModelViewSet):
             )
         
         # 3. Check if event has not passed
+        # Utiliser end_date si disponible, sinon start_date
+        # On peut rejoindre un événement tant qu'il n'est pas terminé (end_date < now)
         from django.utils import timezone
-        if event.start_date and event.start_date < timezone.now():
+        now = timezone.now()
+        
+        # Si l'événement a une date de fin, vérifier qu'elle n'est pas passée
+        if event.end_date and event.end_date < now:
             return Response(
-                {'error': 'Cet événement a déjà commencé ou est terminé.'},
+                {'error': 'Cet événement est terminé.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Si l'événement n'a pas de date de fin mais a une date de début passée
+        # On peut toujours rejoindre (événement en cours)
+        # Seulement si l'événement n'a ni date de début ni date de fin, c'est un problème
+        if not event.start_date and not event.end_date:
+            return Response(
+                {'error': 'Cet événement n\'a pas de date valide.'},
                 status=status.HTTP_400_BAD_REQUEST
             )
         

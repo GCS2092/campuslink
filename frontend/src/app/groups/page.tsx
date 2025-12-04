@@ -193,7 +193,7 @@ export default function GroupsPage() {
 
     setIsSubmitting(true)
     try {
-      await groupService.createGroup(formData)
+      const createdGroup = await groupService.createGroup(formData)
       setShowCreateModal(false)
       setFormData({
         name: '',
@@ -206,8 +206,23 @@ export default function GroupsPage() {
       toast.success('Groupe créé avec succès!')
     } catch (error: any) {
       console.error('Error creating group:', error)
-      const errorMessage = error.response?.data?.error || error.response?.data?.message || 'Erreur lors de la création du groupe'
-      toast.error(typeof errorMessage === 'string' ? errorMessage : 'Erreur lors de la création du groupe')
+      // Vérifier si le groupe a quand même été créé (erreur après création)
+      if (error?.response?.status === 201 || error?.response?.status === 200) {
+        // Le groupe a été créé malgré l'erreur
+        toast.success('Groupe créé avec succès!')
+        setShowCreateModal(false)
+        setFormData({
+          name: '',
+          description: '',
+          university: '',
+          category: '',
+          is_public: true,
+        })
+        await loadGroups()
+      } else {
+        const errorMessage = error.response?.data?.error || error.response?.data?.message || error?.message || 'Erreur lors de la création du groupe'
+        toast.error(typeof errorMessage === 'string' ? errorMessage : 'Erreur lors de la création du groupe')
+      }
     } finally {
       setIsSubmitting(false)
     }
