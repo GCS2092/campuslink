@@ -82,12 +82,22 @@ class MessageSerializer(serializers.ModelSerializer):
         try:
             if hasattr(obj, 'reactions'):
                 reactions = obj.reactions.all()
-                return [MessageReactionSerializer(reaction, context=self.context).data for reaction in reactions]
+                result = []
+                for reaction in reactions:
+                    try:
+                        result.append(MessageReactionSerializer(reaction, context=self.context).data)
+                    except Exception as e:
+                        import logging
+                        logger = logging.getLogger(__name__)
+                        logger.warning(f"Error serializing reaction {reaction.id if hasattr(reaction, 'id') else 'unknown'}: {str(e)}")
+                        # Skip this reaction but continue with others
+                        continue
+                return result
             return []
         except Exception as e:
             import logging
             logger = logging.getLogger(__name__)
-            logger.error(f"Error serializing reactions for message {obj.id}: {str(e)}")
+            logger.error(f"Error serializing reactions for message {obj.id}: {str(e)}", exc_info=True)
             return []
     
     def get_is_read_by_me(self, obj):
