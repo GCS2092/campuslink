@@ -380,9 +380,10 @@ class MessageViewSet(viewsets.ModelViewSet):
                 
                 # Limit to last 100 messages to avoid performance issues
                 # Frontend can implement pagination if needed
-                queryset = queryset.order_by('-created_at')[:100]
+                # Convert to list to avoid lazy evaluation issues
+                messages_list = list(queryset.order_by('-created_at')[:100])
                 
-                return queryset
+                return Message.objects.filter(id__in=[msg.id for msg in messages_list]).order_by('-created_at')
             
             return Message.objects.none()
         except Exception as e:

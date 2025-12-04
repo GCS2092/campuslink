@@ -4,8 +4,9 @@ import { useAuth } from '@/context/AuthContext'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { useEffect, useState, useCallback } from 'react'
-import { FiUserPlus, FiCheck, FiX, FiUsers, FiMapPin, FiUser, FiLogOut, FiArrowLeft, FiZap } from 'react-icons/fi'
+import { FiUserPlus, FiCheck, FiX, FiUsers, FiMapPin, FiUser, FiLogOut, FiArrowLeft, FiZap, FiMessageSquare } from 'react-icons/fi'
 import { userService, type User, type FriendshipStatus, type FriendSuggestion } from '@/services/userService'
+import { messagingService } from '@/services/messagingService'
 import FilterBar from '@/components/FilterBar'
 import toast from 'react-hot-toast'
 import { getUniversityName } from '@/utils/typeHelpers'
@@ -191,13 +192,32 @@ export default function StudentsPage() {
     
     if (status.status === 'friends') {
       return (
-        <button
-          disabled
-          className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-green-100 text-green-700 rounded-xl cursor-not-allowed text-sm font-semibold"
-        >
-          <FiCheck className="w-4 h-4" />
-          Ami
-        </button>
+        <div className="w-full flex gap-2">
+          <button
+            onClick={async () => {
+              try {
+                const conversation = await messagingService.createPrivateConversation(student.id)
+                router.push(`/messages`)
+                toast.success('Conversation ouverte')
+              } catch (error: any) {
+                console.error('Error creating conversation:', error)
+                toast.error(error?.response?.data?.error || 'Erreur lors de la création de la conversation')
+              }
+            }}
+            className="flex-1 flex items-center justify-center gap-2 px-3 py-2.5 bg-primary-600 text-white rounded-xl hover:bg-primary-700 transition-all duration-200 text-sm font-semibold shadow-md hover:shadow-lg"
+            title="Envoyer un message"
+          >
+            <FiMessageSquare className="w-4 h-4" />
+            <span className="hidden sm:inline">Message</span>
+          </button>
+          <button
+            disabled
+            className="px-3 py-2.5 bg-green-100 text-green-700 rounded-xl cursor-not-allowed text-sm font-semibold flex items-center justify-center"
+            title="Ami"
+          >
+            <FiCheck className="w-4 h-4" />
+          </button>
+        </div>
       )
     }
     

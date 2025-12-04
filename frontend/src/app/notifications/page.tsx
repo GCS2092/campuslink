@@ -196,17 +196,17 @@ export default function NotificationsPage() {
               <div
                 key={notification.id}
                 onClick={() => handleNotificationClick(notification)}
-                className={`bg-white rounded-xl shadow-md p-4 sm:p-6 cursor-pointer hover:shadow-xl transition-all duration-300 border border-gray-100 hover:border-primary-300 hover:-translate-y-1 ${
+                className={`bg-white rounded-xl shadow-md p-3 sm:p-4 md:p-6 cursor-pointer hover:shadow-xl transition-all duration-300 border border-gray-100 hover:border-primary-300 hover:-translate-y-1 ${
                   !notification.is_read ? 'border-l-4 border-primary-600' : ''
                 }`}
               >
-                <div className="flex items-start gap-4">
-                  <div className="text-3xl flex-shrink-0">
+                <div className="flex items-start gap-3 sm:gap-4">
+                  <div className="text-2xl sm:text-3xl flex-shrink-0">
                     {getNotificationIcon(notification.notification_type)}
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-start justify-between gap-2 mb-2">
-                      <h3 className={`text-base sm:text-lg font-semibold ${!notification.is_read ? 'text-gray-900' : 'text-gray-700'}`}>
+                      <h3 className={`text-sm sm:text-base md:text-lg font-semibold break-words ${!notification.is_read ? 'text-gray-900' : 'text-gray-700'}`}>
                         {notification.title}
                       </h3>
                       {!notification.is_read && (
@@ -215,17 +215,17 @@ export default function NotificationsPage() {
                             e.stopPropagation()
                             handleMarkAsRead(notification.id)
                           }}
-                          className="p-2 text-gray-400 hover:text-primary-600 transition flex-shrink-0"
+                          className="p-1.5 sm:p-2 text-gray-400 hover:text-primary-600 transition flex-shrink-0"
                           title="Marquer comme lu"
                         >
-                          <FiCheck className="w-4 h-4" />
+                          <FiCheck className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                         </button>
                       )}
                     </div>
-                    <p className="text-sm text-gray-600 mb-3 whitespace-pre-wrap">
+                    <p className="text-xs sm:text-sm text-gray-600 mb-2 sm:mb-3 whitespace-pre-wrap break-words">
                       {notification.message}
                     </p>
-                    <p className="text-xs text-gray-400">
+                    <p className="text-[10px] sm:text-xs text-gray-400">
                       {new Date(notification.created_at).toLocaleDateString('fr-FR', {
                         day: 'numeric',
                         month: 'long',
