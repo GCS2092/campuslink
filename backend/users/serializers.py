@@ -3,9 +3,69 @@ Serializers for User app.
 """
 from rest_framework import serializers
 from django.contrib.auth.password_validation import validate_password
+from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 from .models import User, Profile, Friendship, Follow, University, Campus, Department
 from django.db import models
 from core.utils import is_university_email, is_valid_phone, format_phone, get_university_from_email
+
+
+class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
+    """
+    Custom token serializer that accepts 'email' instead of 'username'.
+    This allows login with email while maintaining JWT compatibility.
+    """
+    email = serializers.EmailField(required=True)
+    password = serializers.CharField(required=True, write_only=True)
+    
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Remove username field since we're using email
+        self.fields.pop('username', None)
+    
+    @classmethod
+    def get_token(cls, user):
+        """
+        Generate token for user.
+        """
+        from rest_framework_simplejwt.tokens import RefreshToken
+        return RefreshToken.for_user(user)
+    
+    def validate(self, attrs):
+        """
+        Validate email and password, then return the user and tokens.
+        """
+        email = attrs.get('email')
+        password = attrs.get('password')
+        
+        if not email or not password:
+            raise serializers.ValidationError('Email and password are required.')
+        
+        # Get user by email
+        try:
+            user = User.objects.get(email=email)
+        except User.DoesNotExist:
+            raise serializers.ValidationError('No active account found with the given credentials.')
+        
+        # Check password
+        if not user.check_password(password):
+            raise serializers.ValidationError('No active account found with the given credentials.')
+        
+        # Check if user is banned
+        if user.is_banned:
+            raise serializers.ValidationError('Your account has been banned.')
+        
+        # Generate tokens using the parent class method
+        refresh = self.get_token(user)
+        
+        # Return token data
+        return {
+            'refresh': str(refresh),
+            'access': str(refresh.access_token),
+            'user_id': str(user.id),
+            'email': user.email,
+            'username': user.username,
+            'role': user.role,
+        }
 
 
 class UniversitySettingsSerializer(serializers.ModelSerializer):

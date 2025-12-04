@@ -18,7 +18,7 @@ from .serializers import (
     UserRegistrationSerializer, UserSerializer, ProfileSerializer,
     FriendshipSerializer, FollowSerializer, UserBasicSerializer,
     UniversitySerializer, UniversityBasicSerializer, CampusSerializer, CampusBasicSerializer,
-    DepartmentSerializer, DepartmentBasicSerializer
+    DepartmentSerializer, DepartmentBasicSerializer, CustomTokenObtainPairSerializer
 )
 from .permissions import IsVerified, IsActiveAndVerified, IsAdminOrClassLeader, IsAdmin, IsUniversityAdmin
 from .throttling import RegisterThrottle, OTPThrottle, LoginThrottle
@@ -30,7 +30,11 @@ logger = logging.getLogger('users')
 
 
 class CustomTokenObtainPairView(TokenObtainPairView):
-    """Custom token obtain view with throttling and account lockout."""
+    """
+    Custom token obtain view with throttling, account lockout, and email-based login.
+    Uses CustomTokenObtainPairSerializer to accept 'email' instead of 'username'.
+    """
+    serializer_class = CustomTokenObtainPairSerializer
     throttle_classes = [LoginThrottle]
     
     def post(self, request, *args, **kwargs):
@@ -115,14 +119,18 @@ class CustomTokenObtainPairView(TokenObtainPairView):
                                 status=status.HTTP_200_OK
                             )
                     
-                    # Compte activé, procéder normalement
+                    # Compte activé, procéder normalement avec le serializer personnalisé
                     try:
-                        response = super().post(request, *args, **kwargs)
+                        # Utiliser le serializer personnalisé qui accepte email
+                        serializer = self.get_serializer(data=request.data)
+                        serializer.is_valid(raise_exception=True)
+                        
                         # Succès - effacer les tentatives
                         if email:
                             clear_login_attempts(email)
                             logger.info(f"Successful login for {email}")
-                        return response
+                        
+                        return Response(serializer.validated_data, status=status.HTTP_200_OK)
                     except Exception as e:
                         # Si l'authentification échoue pour une autre raison
                         if email:
@@ -146,17 +154,18 @@ class CustomTokenObtainPairView(TokenObtainPairView):
                     status=status.HTTP_401_UNAUTHORIZED
                 )
         
-        # Si pas d'email/password, laisser le comportement par défaut
+        # Si pas d'email/password, utiliser le serializer par défaut
         try:
-            response = super().post(request, *args, **kwargs)
+            serializer = self.get_serializer(data=request.data)
+            serializer.is_valid(raise_exception=True)
             if email:
                 clear_login_attempts(email)
                 logger.info(f"Successful login for {email}")
-            return response
+            return Response(serializer.validated_data, status=status.HTTP_200_OK)
         except Exception as e:
             if email:
                 record_failed_login_attempt(email)
-                logger.warning(f"Failed login for {email}: {str(e)}")
+            logger.warning(f"Failed login for {email}: {str(e)}")
             raise
 
 
