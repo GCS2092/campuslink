@@ -78,7 +78,8 @@ class GroupViewSet(viewsets.ModelViewSet):
         # Prevent admins from creating groups directly
         if (self.request.user.is_staff or 
             self.request.user.is_superuser or 
-            self.request.user.role == 'admin'):
+            self.request.user.role == 'admin' or
+            self.request.user.role == 'university_admin'):
             from rest_framework.exceptions import PermissionDenied
             raise PermissionDenied('Les administrateurs ne peuvent pas créer de groupes directement. Les étudiants et responsables de classe gèrent les groupes.')
         

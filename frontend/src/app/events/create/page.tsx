@@ -67,6 +67,13 @@ export default function CreateEventPage() {
       return
     }
 
+    // Empêcher les admins de créer des événements
+    if (user?.role === 'admin' || user?.role === 'university_admin' || user?.is_staff) {
+      toast.error('Les administrateurs ne peuvent pas créer d\'événements directement')
+      router.push('/events')
+      return
+    }
+
     // Validation
     if (!formData.title.trim()) {
       toast.error('Le titre est requis')

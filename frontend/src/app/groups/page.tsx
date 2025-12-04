@@ -191,6 +191,19 @@ export default function GroupsPage() {
     e.preventDefault()
     if (!user) return
 
+    // Vérifier que l'utilisateur est vérifié
+    if (!user.is_verified) {
+      toast.error('Vous devez être vérifié pour créer un groupe')
+      return
+    }
+
+    // Empêcher les admins de créer des groupes
+    if (user.role === 'admin' || user.role === 'university_admin' || user.is_staff) {
+      toast.error('Les administrateurs ne peuvent pas créer de groupes directement')
+      setShowCreateModal(false)
+      return
+    }
+
     setIsSubmitting(true)
     try {
       const createdGroup = await groupService.createGroup(formData)
