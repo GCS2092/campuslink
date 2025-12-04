@@ -350,13 +350,28 @@ class MessageViewSet(viewsets.ModelViewSet):
     def list(self, request, *args, **kwargs):
         """List messages with improved error handling."""
         try:
-            return super().list(request, *args, **kwargs)
+            # Ensure conversation_id is provided
+            conversation_id = request.query_params.get('conversation')
+            if not conversation_id:
+                return Response(
+                    {'error': 'conversation parameter is required.'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            
+            # Get queryset
+            queryset = self.filter_queryset(self.get_queryset())
+            
+            # Serialize with context
+            serializer = self.get_serializer(queryset, many=True, context={'request': request})
+            return Response(serializer.data)
         except Exception as e:
             import logging
+            import traceback
             logger = logging.getLogger(__name__)
             logger.error(f"Error in MessageViewSet.list: {str(e)}", exc_info=True)
+            logger.error(f"Traceback: {traceback.format_exc()}")
             return Response(
-                {'error': 'Erreur lors du chargement des messages.'},
+                {'error': f'Erreur lors du chargement des messages: {str(e)}'},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
     
