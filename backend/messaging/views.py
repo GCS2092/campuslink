@@ -378,16 +378,16 @@ class MessageViewSet(viewsets.ModelViewSet):
                 if search_query:
                     queryset = queryset.filter(content__icontains=search_query)
                 
-                # Order and limit first, then optimize queries
-                # This ensures we only prefetch data for the messages we actually return
-                queryset = queryset.order_by('-created_at')[:100]
-                
-                # Now apply select_related and prefetch_related
+                # Apply select_related and prefetch_related BEFORE slicing
+                # Django doesn't allow select_related/prefetch_related after slicing
                 queryset = queryset.select_related('sender').prefetch_related(
                     'read_by',
                     'reactions',
                     'reactions__user'
                 )
+                
+                # Order and limit AFTER select_related/prefetch_related
+                queryset = queryset.order_by('-created_at')[:100]
                 
                 return queryset
             
