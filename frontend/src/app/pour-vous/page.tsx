@@ -201,15 +201,6 @@ export default function PourVousPage() {
                       alt={event.title}
                       className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700"
                     />
-                    <div className="absolute top-2 right-2">
-                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                        event.visibility === 'public'
-                          ? 'bg-emerald-500/90 text-white'
-                          : 'bg-blue-500/90 text-white'
-                      }`}>
-                        {event.visibility === 'public' ? 'Publique' : 'Privée'}
-                      </span>
-                    </div>
                   </div>
                 )}
 
