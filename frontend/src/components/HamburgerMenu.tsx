@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react'
 import { useRouter, usePathname } from 'next/navigation'
-import { FiMenu, FiX, FiCalendar, FiSearch, FiUsers } from 'react-icons/fi'
+import { FiMenu, FiX, FiCalendar, FiSearch, FiUsers, FiBell } from 'react-icons/fi'
 
 export default function HamburgerMenu() {
   const [isOpen, setIsOpen] = useState(false)
@@ -11,6 +11,7 @@ export default function HamburgerMenu() {
   const menuRef = useRef<HTMLDivElement>(null)
 
   const menuItems = [
+    { icon: FiBell, label: 'Pour vous', path: '/notifications', color: 'purple' },
     { icon: FiCalendar, label: 'Calendrier', path: '/calendar', color: 'indigo' },
     { icon: FiSearch, label: 'Recherche', path: '/search', color: 'teal' },
     { icon: FiUsers, label: 'Activité Amis', path: '/friends-activity', color: 'pink' },
@@ -79,7 +80,7 @@ export default function HamburgerMenu() {
             </div>
             
             {/* Menu Items */}
-            <div className="p-2">
+            <div className="p-2 space-y-1">
               {menuItems.map((item, index) => {
                 const Icon = item.icon
                 const isActive = pathname === item.path || pathname?.startsWith(item.path + '/')
@@ -89,6 +90,8 @@ export default function HamburgerMenu() {
                   if (!active) return 'hover:bg-gray-50 text-gray-700'
                   
                   switch (color) {
+                    case 'purple':
+                      return 'bg-purple-50 text-purple-600 hover:bg-purple-100'
                     case 'indigo':
                       return 'bg-indigo-50 text-indigo-600 hover:bg-indigo-100'
                     case 'teal':
@@ -104,6 +107,8 @@ export default function HamburgerMenu() {
                   if (!active) return 'text-gray-600'
                   
                   switch (color) {
+                    case 'purple':
+                      return 'text-purple-600'
                     case 'indigo':
                       return 'text-indigo-600'
                     case 'teal':
@@ -119,6 +124,8 @@ export default function HamburgerMenu() {
                   if (!active) return 'text-gray-900'
                   
                   switch (color) {
+                    case 'purple':
+                      return 'text-purple-700'
                     case 'indigo':
                       return 'text-indigo-700'
                     case 'teal':
