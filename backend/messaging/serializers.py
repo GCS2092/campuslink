@@ -3,7 +3,7 @@ Serializers for messaging app.
 """
 from rest_framework import serializers
 from .models import Conversation, Participant, Message, MessageReaction
-from users.serializers import UserSerializer
+from users.serializers import UserSerializer, UserBasicSerializer
 
 
 class MessageReactionSerializer(serializers.ModelSerializer):
@@ -37,25 +37,44 @@ class MessageSerializer(serializers.ModelSerializer):
         """Get sender with error handling."""
         try:
             if obj.sender:
-                return UserSerializer(obj.sender, context=self.context).data
+                # Use UserBasicSerializer for better performance and error handling
+                return UserBasicSerializer(obj.sender, context=self.context).data
             return None
         except Exception as e:
             import logging
             logger = logging.getLogger(__name__)
-            logger.error(f"Error serializing sender for message {obj.id}: {str(e)}")
-            return {'id': str(obj.sender.id) if obj.sender else None, 'username': obj.sender.username if obj.sender else 'Unknown'}
+            logger.error(f"Error serializing sender for message {obj.id}: {str(e)}", exc_info=True)
+            # Return minimal data if serialization fails
+            try:
+                return {
+                    'id': str(obj.sender.id) if obj.sender and hasattr(obj.sender, 'id') else None,
+                    'username': obj.sender.username if obj.sender and hasattr(obj.sender, 'username') else 'Unknown',
+                    'email': getattr(obj.sender, 'email', ''),
+                }
+            except:
+                return {'id': None, 'username': 'Unknown', 'email': ''}
     
     def get_read_by(self, obj):
         """Get read_by users with error handling."""
         try:
             if hasattr(obj, 'read_by'):
                 read_by_users = obj.read_by.all()[:10]  # Limit to 10 to avoid performance issues
-                return [UserSerializer(user, context=self.context).data for user in read_by_users]
+                result = []
+                for user in read_by_users:
+                    try:
+                        result.append(UserBasicSerializer(user, context=self.context).data)
+                    except Exception as e:
+                        import logging
+                        logger = logging.getLogger(__name__)
+                        logger.warning(f"Error serializing read_by user {user.id if hasattr(user, 'id') else 'unknown'}: {str(e)}")
+                        # Skip this user but continue with others
+                        continue
+                return result
             return []
         except Exception as e:
             import logging
             logger = logging.getLogger(__name__)
-            logger.error(f"Error serializing read_by for message {obj.id}: {str(e)}")
+            logger.error(f"Error serializing read_by for message {obj.id}: {str(e)}", exc_info=True)
             return []
     
     def get_reactions(self, obj):

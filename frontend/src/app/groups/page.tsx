@@ -377,15 +377,29 @@ export default function GroupsPage() {
                   </div>
                   <div className="flex gap-2 w-full sm:w-auto">
                     <button
-                      onClick={() => handleAcceptInvitation(invitation.group?.id)}
-                      className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition text-sm sm:text-base w-full sm:w-auto justify-center"
+                      onClick={() => {
+                        if (invitation.group?.id) {
+                          handleAcceptInvitation(invitation.group.id)
+                        } else {
+                          toast.error('ID du groupe manquant')
+                        }
+                      }}
+                      disabled={!invitation.group?.id}
+                      className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition text-sm sm:text-base w-full sm:w-auto justify-center disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       <FiCheck className="w-4 h-4" />
                       Accepter
                     </button>
                     <button
-                      onClick={() => handleRejectInvitation(invitation.group?.id)}
-                      className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition text-sm sm:text-base w-full sm:w-auto justify-center"
+                      onClick={() => {
+                        if (invitation.group?.id) {
+                          handleRejectInvitation(invitation.group.id)
+                        } else {
+                          toast.error('ID du groupe manquant')
+                        }
+                      }}
+                      disabled={!invitation.group?.id}
+                      className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition text-sm sm:text-base w-full sm:w-auto justify-center disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       <FiX className="w-4 h-4" />
                       Rejeter

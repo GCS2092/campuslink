@@ -77,11 +77,17 @@ export const groupService = {
   },
 
   acceptInvitation: async (groupId: string) => {
+    if (!groupId) {
+      throw new Error('ID du groupe manquant')
+    }
     const response = await api.post(`/groups/${groupId}/accept_invitation/`)
     return response.data
   },
 
   rejectInvitation: async (groupId: string) => {
+    if (!groupId) {
+      throw new Error('ID du groupe manquant')
+    }
     const response = await api.post(`/groups/${groupId}/reject_invitation/`)
     return response.data
   },
