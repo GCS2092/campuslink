@@ -114,6 +114,7 @@ def create_users():
                         'first_name': user_data.get('first_name', ''),
                         'last_name': user_data.get('last_name', ''),
                         'is_active': True,
+                        'is_verified': True,  # IMPORTANT: Vérifier automatiquement les utilisateurs créés
                         'is_staff': user_data.get('is_staff', False),
                         'is_superuser': user_data.get('is_superuser', False),
                     }
@@ -130,8 +131,9 @@ def create_users():
                 if user.email != email:
                     user.email = email
                 
-                # Activer l'utilisateur
+                # S'assurer que l'utilisateur est actif et vérifié
                 user.is_active = True
+                user.is_verified = True  # IMPORTANT: Toujours vérifier les utilisateurs créés par ce script
                 user.save()
                 
                 if created:
@@ -164,8 +166,10 @@ def create_users():
     
     for user in all_users:
         role = getattr(user, 'role', 'N/A')
+        verified_status = "✅" if user.is_verified else "❌"
+        active_status = "✅" if user.is_active else "❌"
         print(f"- {user.username} ({user.email})")
-        print(f"  Rôle: {role} | Actif: {user.is_active} | Staff: {user.is_staff}")
+        print(f"  Rôle: {role} | Actif: {active_status} | Vérifié: {verified_status} | Staff: {user.is_staff}")
     
     print()
     print("=" * 60)
