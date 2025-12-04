@@ -189,10 +189,15 @@ export default function PourVousPage() {
                 className="group bg-white rounded-xl shadow-md overflow-hidden hover:shadow-xl transition-all duration-300 border border-gray-200 hover:border-primary-300 hover:-translate-y-1"
               >
                 {/* Event Image */}
-                {event.image && (
+                {(event.image_url || event.image) && (
                   <div className="relative h-48 sm:h-56 overflow-hidden">
                     <img
-                      src={event.image.startsWith('http') ? event.image : `${process.env.NEXT_PUBLIC_API_URL?.replace('/api', '')}${event.image}`}
+                      src={
+                        event.image_url || 
+                        (typeof event.image === 'string' 
+                          ? (event.image.startsWith('http') ? event.image : `${process.env.NEXT_PUBLIC_API_URL?.replace('/api', '')}${event.image}`)
+                          : (event.image && typeof event.image === 'object' && 'url' in event.image ? event.image.url : ''))
+                      }
                       alt={event.title}
                       className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700"
                     />
