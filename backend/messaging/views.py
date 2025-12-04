@@ -350,6 +350,10 @@ class MessageViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         """Return messages for conversations where user is a participant."""
         try:
+            # Check if user is authenticated
+            if not self.request.user or not self.request.user.is_authenticated:
+                return Message.objects.none()
+            
             conversation_id = self.request.query_params.get('conversation')
             search_query = self.request.query_params.get('search', '').strip()
             

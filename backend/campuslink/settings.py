@@ -375,17 +375,26 @@ if DEBUG:
     CORS_PREFLIGHT_MAX_AGE = 86400  # 24 hours
 else:
     # In production, use specific origins
-    CORS_ALLOW_ALL_ORIGINS = False
-    CORS_ALLOWED_ORIGINS = env.list(
-        'CORS_ALLOWED_ORIGINS',
-        default=[
-            'http://localhost:3000', 
-            'http://127.0.0.1:3000',
-            'http://192.168.1.118:3000'
-        ]
-    )
+    # Note: Wildcards don't work in CORS_ALLOWED_ORIGINS, so we need to list all Vercel URLs
+    # or use CORS_ALLOW_ALL_ORIGINS = True (less secure but works for Vercel preview deployments)
+    CORS_ALLOW_ALL_ORIGINS = env.bool('CORS_ALLOW_ALL_ORIGINS', default=False)
+    if not CORS_ALLOW_ALL_ORIGINS:
+        CORS_ALLOWED_ORIGINS = env.list(
+            'CORS_ALLOWED_ORIGINS',
+            default=[
+                'http://localhost:3000', 
+                'http://127.0.0.1:3000',
+                'http://192.168.1.118:3000',
+                # Vercel production URLs - add your specific Vercel URLs here
+                'https://campuslink-sigma.vercel.app',
+                'https://campuslink-git-main-gcs2092s-projects.vercel.app',
+            ]
+        )
+    else:
+        # If CORS_ALLOW_ALL_ORIGINS is True, CORS_ALLOWED_ORIGINS is ignored
+        CORS_ALLOWED_ORIGINS = []
     CORS_ALLOW_CREDENTIALS = True
-    CSRF_TRUSTED_ORIGINS = CORS_ALLOWED_ORIGINS
+    CSRF_TRUSTED_ORIGINS = CORS_ALLOWED_ORIGINS if not CORS_ALLOW_ALL_ORIGINS else ['*']
 
 # Redis Configuration (optional - for future use with Upstash Redis)
 REDIS_URL = env('REDIS_URL', default=None)

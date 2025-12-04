@@ -38,6 +38,13 @@ export function useWebSocket({
   const connect = useCallback(() => {
     if (!conversationId || !user) return
 
+    // Get token from localStorage
+    const token = typeof window !== 'undefined' ? localStorage.getItem('access_token') : null
+    if (!token) {
+      console.error('No access token available for WebSocket connection')
+      return
+    }
+
     // Get WebSocket URL from API base URL
     // WebSocket routes are at root level, not under /api
     let apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
@@ -51,7 +58,8 @@ export function useWebSocket({
     
     const wsProtocol = apiUrl.startsWith('https') ? 'wss' : 'ws'
     const wsHost = apiUrl.replace(/^https?:\/\//, '')
-    const wsUrl = `${wsProtocol}://${wsHost}/ws/chat/${conversationId}/`
+    // Add token as query parameter for JWT authentication
+    const wsUrl = `${wsProtocol}://${wsHost}/ws/chat/${conversationId}/?token=${encodeURIComponent(token)}`
 
     try {
       const ws = new WebSocket(wsUrl)
