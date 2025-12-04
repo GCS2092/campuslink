@@ -602,55 +602,55 @@ export default function DashboardPage() {
                        return (
                          <article
                            key={itemId}
-                           className="bg-white rounded-xl shadow-md overflow-hidden hover:shadow-xl transition-all duration-300 border border-gray-100 hover:-translate-y-1"
+                           className="bg-white rounded-xl shadow-md overflow-hidden hover:shadow-xl transition-all duration-300 border border-gray-100 hover:-translate-y-1 mx-2 sm:mx-0"
                          >
-                           {/* Feed Item Header with Gradient - Improved */}
-                           <div className="bg-gradient-to-r from-primary-50 via-primary-50/80 to-secondary-50 p-4 sm:p-5 border-b border-gray-200">
-                             <div className="flex items-start gap-3">
+                           {/* Feed Item Header with Gradient - Improved & Responsive */}
+                           <div className="bg-gradient-to-r from-primary-50 via-primary-50/80 to-secondary-50 p-3 sm:p-4 md:p-5 border-b border-gray-200">
+                             <div className="flex items-start gap-2 sm:gap-3">
                                {/* Author Avatar & Icon */}
                                <div className="relative flex-shrink-0">
-                                 <div className="w-10 h-10 sm:w-12 sm:h-12 bg-gradient-to-br from-primary-500 to-secondary-500 rounded-lg flex items-center justify-center shadow-sm">
+                                 <div className="w-9 h-9 sm:w-10 sm:h-10 md:w-12 md:h-12 bg-gradient-to-br from-primary-500 to-secondary-500 rounded-lg flex items-center justify-center shadow-sm">
                                    {itemType === 'event' ? (
-                                     <FiCalendar className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
+                                     <FiCalendar className="w-4 h-4 sm:w-5 sm:h-5 md:w-6 md:h-6 text-white" />
                                    ) : itemType === 'group' ? (
-                                     <FiUsers className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
+                                     <FiUsers className="w-4 h-4 sm:w-5 sm:h-5 md:w-6 md:h-6 text-white" />
                                    ) : itemType === 'announcement' ? (
-                                     <FiImage className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
+                                     <FiImage className="w-4 h-4 sm:w-5 sm:h-5 md:w-6 md:h-6 text-white" />
                                    ) : (
-                                     <FiImage className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
+                                     <FiImage className="w-4 h-4 sm:w-5 sm:h-5 md:w-6 md:h-6 text-white" />
                                    )}
                                  </div>
                                  {itemAuthor && (
-                                   <div className="absolute -bottom-0.5 -right-0.5 w-4 h-4 sm:w-5 sm:h-5 bg-white rounded-full border-2 border-white flex items-center justify-center">
-                                     <div className="w-2.5 h-2.5 sm:w-3 sm:h-3 bg-primary-600 rounded-full"></div>
+                                   <div className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 sm:w-4 sm:h-4 md:w-5 md:h-5 bg-white rounded-full border-2 border-white flex items-center justify-center">
+                                     <div className="w-2 h-2 sm:w-2.5 sm:h-2.5 md:w-3 md:h-3 bg-primary-600 rounded-full"></div>
                                    </div>
                                  )}
                                </div>
                                
                                {/* Title and Meta */}
                                <div className="flex-1 min-w-0">
-                                 <h4 className="text-sm sm:text-base font-bold text-gray-900 mb-1.5 leading-tight">
+                                 <h4 className="text-xs sm:text-sm md:text-base font-bold text-gray-900 mb-1 sm:mb-1.5 leading-tight line-clamp-2">
                                    {itemTitle}
                                  </h4>
-                                 <div className="flex flex-wrap items-center gap-1.5 sm:gap-2 text-[10px] sm:text-xs">
+                                 <div className="flex flex-wrap items-center gap-1 sm:gap-1.5 md:gap-2 text-[9px] sm:text-[10px] md:text-xs">
                                    {itemAuthor && (
-                                     <span className="text-gray-600 font-medium">
+                                     <span className="text-gray-600 font-medium truncate max-w-[120px] sm:max-w-none">
                                        Par {itemAuthor.first_name || itemAuthor.username || 'Auteur'}
                                      </span>
                                    )}
                                    {itemUniversity && (
                                      <>
-                                       <span className="text-gray-400">•</span>
-                                       <div className="flex items-center gap-0.5 text-gray-600">
-                                         <FiMapPin className="w-3 h-3" />
-                                         <span>{getUniversityName(itemUniversity)}</span>
+                                       <span className="text-gray-400 hidden sm:inline">•</span>
+                                       <div className="flex items-center gap-0.5 text-gray-600 truncate max-w-[100px] sm:max-w-none">
+                                         <FiMapPin className="w-2.5 h-2.5 sm:w-3 sm:h-3 flex-shrink-0" />
+                                         <span className="truncate">{getUniversityName(itemUniversity)}</span>
                                        </div>
                                      </>
                                    )}
-                                   <span className="text-gray-400">•</span>
+                                   <span className="text-gray-400 hidden sm:inline">•</span>
                                    <div className="flex items-center gap-0.5 text-gray-600">
-                                     <FiClock className="w-3 h-3" />
-                                     <time dateTime={itemCreatedAt}>
+                                     <FiClock className="w-2.5 h-2.5 sm:w-3 sm:h-3 flex-shrink-0" />
+                                     <time dateTime={itemCreatedAt} className="whitespace-nowrap">
                                        {new Date(itemCreatedAt).toLocaleDateString('fr-FR', {
                                          day: 'numeric',
                                          month: 'short',
@@ -660,20 +660,20 @@ export default function DashboardPage() {
                                        })}
                                      </time>
                                    </div>
-                                   <span className={`ml-auto px-2 py-0.5 rounded-full text-[10px] font-medium flex items-center gap-1 shadow-sm ${
+                                   <span className={`ml-auto px-1.5 sm:px-2 py-0.5 rounded-full text-[9px] sm:text-[10px] font-medium flex items-center gap-0.5 sm:gap-1 shadow-sm ${
                                      itemVisibility === 'public' 
                                        ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' 
                                        : 'bg-blue-50 text-blue-700 border border-blue-200'
                                    }`}>
                                      {itemVisibility === 'public' ? (
                                        <>
-                                         <FiGlobe className="w-2.5 h-2.5" />
-                                         Publique
+                                         <FiGlobe className="w-2 h-2 sm:w-2.5 sm:h-2.5" />
+                                         <span className="hidden sm:inline">Publique</span>
                                        </>
                                      ) : (
                                        <>
-                                         <FiLock className="w-2.5 h-2.5" />
-                                         Privée
+                                         <FiLock className="w-2 h-2 sm:w-2.5 sm:h-2.5" />
+                                         <span className="hidden sm:inline">Privée</span>
                                        </>
                                      )}
                                    </span>
@@ -682,19 +682,19 @@ export default function DashboardPage() {
                              </div>
                            </div>
 
-                           {/* Feed Item Content - Improved */}
-                           <div className="p-4 sm:p-5">
+                           {/* Feed Item Content - Improved & Responsive */}
+                           <div className="p-3 sm:p-4 md:p-5">
                              {itemImage && (
-                               <div className="rounded-xl overflow-hidden mb-4 shadow-lg">
+                               <div className="rounded-xl overflow-hidden mb-3 sm:mb-4 shadow-lg">
                                  <img
                                    src={itemImage.startsWith('http') ? itemImage : `${process.env.NEXT_PUBLIC_API_URL?.replace('/api', '')}${itemImage}`}
                                    alt={itemTitle}
-                                   className="w-full h-48 sm:h-64 object-cover hover:scale-110 transition-transform duration-700"
+                                   className="w-full h-40 sm:h-48 md:h-64 object-cover hover:scale-110 transition-transform duration-700"
                                  />
                                </div>
                              )}
                              <div className="prose prose-xs sm:prose-sm max-w-none">
-                               <p className="text-xs sm:text-sm text-gray-700 leading-relaxed whitespace-pre-wrap">
+                               <p className="text-xs sm:text-sm text-gray-700 leading-relaxed whitespace-pre-wrap line-clamp-3 sm:line-clamp-none">
                                  {itemContent}
                                </p>
                              </div>
@@ -702,7 +702,7 @@ export default function DashboardPage() {
                                <div className="mt-3 sm:mt-4 pt-3 sm:pt-4 border-t border-gray-200">
                                  <Link
                                    href={`/events/${itemId}`}
-                                   className="inline-flex items-center justify-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-1.5 sm:py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition text-xs sm:text-sm font-medium w-full sm:w-auto"
+                                   className="inline-flex items-center justify-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 sm:py-2.5 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition text-xs sm:text-sm font-medium w-full sm:w-auto shadow-sm hover:shadow-md"
                                  >
                                    <FiCalendar className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                                    <span className="whitespace-nowrap">Voir l'événement</span>
@@ -711,10 +711,10 @@ export default function DashboardPage() {
                              )}
                            </div>
                            
-                           {/* Footer with Type Badge and Share - Improved */}
-                           <div className="px-4 sm:px-5 py-3 bg-gradient-to-r from-gray-50 to-gray-100/50 border-t border-gray-200">
-                             <div className="flex items-center justify-between">
-                               <span className="text-xs sm:text-sm font-bold text-gray-600 uppercase tracking-wide">
+                           {/* Footer with Type Badge and Share - Improved & Responsive */}
+                           <div className="px-3 sm:px-4 md:px-5 py-2.5 sm:py-3 bg-gradient-to-r from-gray-50 to-gray-100/50 border-t border-gray-200">
+                             <div className="flex items-center justify-between gap-2">
+                               <span className="text-[10px] sm:text-xs md:text-sm font-bold text-gray-600 uppercase tracking-wide truncate">
                                  {itemType === 'event' ? '📅 Événement' : 
                                   itemType === 'group' ? '👥 Groupe' : 
                                   itemType === 'announcement' ? '📢 Annonce' : 
@@ -722,10 +722,10 @@ export default function DashboardPage() {
                                </span>
                                <button
                                  onClick={() => handleShareFeedItem(item)}
-                                 className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs text-gray-600 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-colors"
+                                 className="flex items-center gap-1 sm:gap-1.5 px-2 sm:px-2.5 py-1 sm:py-1.5 text-xs text-gray-600 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-colors flex-shrink-0"
                                  title="Partager"
                                >
-                                 <FiShare2 className="w-3.5 h-3.5" />
+                                 <FiShare2 className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                                  <span className="hidden sm:inline">Partager</span>
                                </button>
                              </div>
