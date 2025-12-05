@@ -480,7 +480,7 @@ class MessageViewSet(viewsets.ModelViewSet):
                     message=f'{self.request.user.username}: {message.content[:100]}{"..." if len(message.content) > 100 else ""}',
                     related_object_type='conversation',
                     related_object_id=conversation.id,
-                    use_async=True
+                    use_async=False  # Désactiver async car Celery n'est pas configuré sur Render
                 )
         except Exception as e:
             # Log the error but don't fail the message creation
