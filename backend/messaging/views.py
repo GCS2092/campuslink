@@ -439,7 +439,9 @@ class MessageViewSet(viewsets.ModelViewSet):
     
     def get_parsers(self):
         """Allow file uploads."""
-        if self.action in ['upload_attachment']:
+        # Check if action exists before accessing it (action may not be set yet during initialization)
+        action = getattr(self, 'action', None)
+        if action in ['upload_attachment']:
             return [MultiPartParser, FormParser]
         return super().get_parsers()
     
