@@ -463,23 +463,31 @@ class MessageViewSet(viewsets.ModelViewSet):
         message = serializer.save(sender=self.request.user)
         
         # Create notification for other participants (except sender)
-        from notifications.utils import create_bulk_notifications
-        
-        other_participants = Participant.objects.filter(
-            conversation=conversation,
-            is_active=True
-        ).exclude(user=self.request.user).values_list('user', flat=True)
-        
-        if other_participants:
-            create_bulk_notifications(
-                recipients=list(other_participants),
-                notification_type='message',
-                title=f'Nouveau message de {self.request.user.username}',
-                message=f'{self.request.user.username}: {message.content[:100]}{"..." if len(message.content) > 100 else ""}',
-                related_object_type='conversation',
-                related_object_id=conversation.id,
-                use_async=True
-            )
+        # Wrap in try-except to prevent notification errors from blocking message creation
+        try:
+            from notifications.utils import create_bulk_notifications
+            
+            other_participants = Participant.objects.filter(
+                conversation=conversation,
+                is_active=True
+            ).exclude(user=self.request.user).values_list('user', flat=True)
+            
+            if other_participants:
+                create_bulk_notifications(
+                    recipients=list(other_participants),
+                    notification_type='message',
+                    title=f'Nouveau message de {self.request.user.username}',
+                    message=f'{self.request.user.username}: {message.content[:100]}{"..." if len(message.content) > 100 else ""}',
+                    related_object_type='conversation',
+                    related_object_id=conversation.id,
+                    use_async=True
+                )
+        except Exception as e:
+            # Log the error but don't fail the message creation
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.error(f"Error creating notifications for message {message.id}: {str(e)}", exc_info=True)
+            # Message is already created, so we continue
     
     @action(detail=False, methods=['post'], permission_classes=[IsAuthenticated], parser_classes=[MultiPartParser, FormParser])
     def upload_attachment(self, request):
