@@ -14,6 +14,9 @@ lib/
 lib64/
 # But allow frontend/src/lib/ for Firebase and other frontend libraries
 !frontend/src/lib/
+# But allow Flutter lib/ directory
+!lib/
+!lib/**/*
 parts/
 sdist/
 var/
