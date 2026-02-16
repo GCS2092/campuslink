@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import '../../services/admin_service.dart';
 import '../../utils/app_colors.dart';
+import '../../utils/confirm_dialog.dart';
+import '../../utils/toast_service.dart';
 import '../user_detail_screen.dart';
 
 /// Écran de gestion des responsables de classe pour les administrateurs globaux
@@ -20,6 +22,13 @@ class _AdminClassLeadersScreenState extends State<AdminClassLeadersScreen> {
   void initState() {
     super.initState();
     _loadClassLeaders();
+  }
+
+  String _leaderDisplayName(Map<String, dynamic> l) {
+    final fn = l['first_name'] ?? '';
+    final ln = l['last_name'] ?? '';
+    final full = '$fn $ln'.trim();
+    return full.isEmpty ? (l['username'] ?? l['email'] ?? 'ce responsable') : full;
   }
 
   Future<void> _loadClassLeaders() async {
@@ -44,38 +53,41 @@ class _AdminClassLeadersScreenState extends State<AdminClassLeadersScreen> {
       final result = await _adminService.assignClassLeader(userId);
       if (mounted) {
         if (result['success'] == true) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Responsable assigné'), backgroundColor: AppColors.success),
-          );
+          ToastService.showSuccess('Responsable assigné');
           _loadClassLeaders();
         } else {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(result['error'] ?? 'Erreur'), backgroundColor: AppColors.error),
-          );
+          ToastService.showError(result['error'] ?? 'Erreur');
         }
       }
     } catch (e) {
       debugPrint('Error assigning class leader: $e');
+      if (mounted) ToastService.showError('Erreur');
     }
   }
 
-  Future<void> _handleRevokeClassLeader(String userId) async {
+  Future<void> _handleRevokeClassLeader(String userId, String displayName) async {
+    final confirmed = await showConfirmDialog(
+      context,
+      title: 'Révoquer le responsable',
+      message: 'Êtes-vous sûr de vouloir révoquer $displayName du rôle de responsable de classe ?',
+      confirmText: 'Révoquer',
+      cancelText: 'Annuler',
+      isDanger: true,
+    );
+    if (!confirmed || !mounted) return;
     try {
       final result = await _adminService.revokeClassLeader(userId);
       if (mounted) {
         if (result['success'] == true) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Responsable révoqué'), backgroundColor: AppColors.success),
-          );
+          ToastService.showSuccess('Responsable révoqué');
           _loadClassLeaders();
         } else {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(result['error'] ?? 'Erreur'), backgroundColor: AppColors.error),
-          );
+          ToastService.showError(result['error'] ?? 'Erreur');
         }
       }
     } catch (e) {
       debugPrint('Error revoking class leader: $e');
+      if (mounted) ToastService.showError('Erreur');
     }
   }
 
@@ -111,7 +123,7 @@ class _AdminClassLeadersScreenState extends State<AdminClassLeadersScreen> {
                         leader: leader,
                         isClassLeader: isClassLeader,
                         onAssign: isClassLeader ? null : () => _handleAssignClassLeader(leader['id'].toString()),
-                        onRevoke: isClassLeader ? () => _handleRevokeClassLeader(leader['id'].toString()) : null,
+                        onRevoke: isClassLeader ? () => _handleRevokeClassLeader(leader['id'].toString(), _leaderDisplayName(leader)) : null,
                         onView: () {
                           Navigator.push(
                             context,

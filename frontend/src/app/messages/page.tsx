@@ -2,9 +2,10 @@
 
 import { useAuth } from '@/context/AuthContext'
 import { useRouter } from 'next/navigation'
+import Link from 'next/link'
 import { useEffect, useState, useRef, useCallback } from 'react'
 import { useHotkeys } from 'react-hotkeys-hook'
-import { FiMessageSquare, FiSend, FiSearch, FiRadio, FiX, FiUsers, FiGlobe, FiUser, FiHash, FiPlus, FiSmile, FiLogOut, FiBookmark, FiArchive, FiStar, FiBell, FiBellOff, FiEdit2, FiTrash2, FiMoreVertical, FiPaperclip, FiImage, FiFile } from 'react-icons/fi'
+import { FiMessageSquare, FiSend, FiSearch, FiRadio, FiX, FiUsers, FiGlobe, FiUser, FiHash, FiPlus, FiSmile, FiBookmark, FiArchive, FiStar, FiBell, FiBellOff, FiEdit2, FiTrash2, FiMoreVertical, FiPaperclip, FiImage, FiFile, FiArrowLeft } from 'react-icons/fi'
 import { messagingService, Conversation, Message } from '@/services/messagingService'
 import { userService } from '@/services/userService'
 import { groupService, Group } from '@/services/groupService'
@@ -799,6 +800,12 @@ export default function MessagesPage() {
 
   const isResponsible = user?.role === 'class_leader' || user?.role === 'admin'
 
+  const getBackHref = (): string => {
+    if (user?.role === 'admin') return '/admin/dashboard'
+    if (user?.role === 'university_admin') return '/university-admin/dashboard'
+    return '/dashboard'
+  }
+
   if (!mounted || loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary-50 to-secondary-50 dark:from-gray-900 dark:to-gray-800">
@@ -826,15 +833,34 @@ export default function MessagesPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-primary-50 to-secondary-50 dark:from-gray-900 dark:to-gray-800 page-with-bottom-nav">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      {/* Header avec retour selon le rôle */}
+      <header className="sticky top-0 z-30 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 shadow-sm">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3">
+          <div className="flex items-center gap-3">
+            <Link
+              href={getBackHref()}
+              className="flex items-center justify-center w-10 h-10 rounded-xl bg-primary-50 dark:bg-primary-900/20 text-primary-600 dark:text-primary-400 hover:bg-primary-100 dark:hover:bg-primary-900/30 transition-colors"
+              title="Retour"
+            >
+              <FiArrowLeft className="w-5 h-5" />
+            </Link>
+            <div className="flex-1 min-w-0">
+              <h1 className="text-lg sm:text-xl font-bold text-gray-900 dark:text-white truncate">Messages</h1>
+              <p className="text-xs text-gray-500 dark:text-gray-400">Conversations et discussions</p>
+            </div>
+          </div>
+        </div>
+      </header>
+
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6">
         <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl overflow-hidden border border-gray-100 dark:border-gray-700">
-          <div className="flex flex-col lg:flex-row h-[600px]">
+          <div className="flex flex-col lg:flex-row h-[calc(100vh-12rem)] min-h-[500px]">
             {/* Conversations List */}
-            <div className="w-full lg:w-1/3 border-r border-gray-200 dark:border-gray-700 flex flex-col">
-              <div className="p-4 sm:p-5 border-b border-gray-200 dark:border-gray-700 bg-gradient-to-r from-primary-50 to-secondary-50 dark:from-gray-800 dark:to-gray-800">
+            <div className="w-full lg:w-1/3 border-r border-gray-200 dark:border-gray-700 flex flex-col min-h-0">
+              <div className="p-4 sm:p-5 border-b border-gray-200 dark:border-gray-700 bg-gradient-to-r from-primary-50/80 to-secondary-50/80 dark:from-gray-800 dark:to-gray-800 flex-shrink-0">
                 <div className="flex items-center justify-between mb-4">
                   <div className="flex items-center gap-3">
-                    <h2 className="text-lg sm:text-xl font-bold text-gray-900 dark:text-white">Conversations</h2>
+                    <h2 className="text-base sm:text-lg font-bold text-gray-900 dark:text-white">Conversations</h2>
                   </div>
                   <div className="flex gap-2">
                     {activeTab === 'private' && (
@@ -1197,11 +1223,19 @@ export default function MessagesPage() {
             </div>
 
             {/* Chat Area */}
-            <div className="flex-1 flex flex-col">
+            <div className="flex-1 flex flex-col min-h-0">
               {selectedConversation ? (
                 <>
-                  <div className="p-4 border-b border-gray-200 dark:border-gray-700">
+                  <div className="p-4 border-b border-gray-200 dark:border-gray-700 flex-shrink-0">
                     <div className="flex items-center gap-3 mb-3">
+                      <button
+                        type="button"
+                        onClick={() => setSelectedConversation(null)}
+                        className="lg:hidden flex items-center justify-center w-9 h-9 rounded-lg bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
+                        title="Retour à la liste"
+                      >
+                        <FiArrowLeft className="w-5 h-5" />
+                      </button>
                       {selectedConversation.conversation_type === 'group' && (
                         <div className="w-10 h-10 bg-purple-100 dark:bg-purple-900/30 rounded-full flex items-center justify-center">
                           <FiHash className="w-5 h-5 text-purple-600 dark:text-purple-400" />

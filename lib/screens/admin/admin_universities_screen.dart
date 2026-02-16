@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import '../../services/admin_service.dart';
 import '../../utils/app_colors.dart';
+import '../../utils/confirm_dialog.dart';
+import '../../utils/toast_service.dart';
 
 /// Écran de gestion des universités pour les administrateurs globaux
 class AdminUniversitiesScreen extends StatefulWidget {
@@ -25,63 +27,109 @@ class _AdminUniversitiesScreenState extends State<AdminUniversitiesScreen> {
     setState(() => _isLoading = true);
     try {
       final universities = await _adminService.getUniversities();
-      setState(() {
-        _universities = universities;
-        _isLoading = false;
-      });
+      if (mounted) {
+        setState(() {
+          _universities = universities;
+          _isLoading = false;
+        });
+      }
     } catch (e) {
       debugPrint('Error loading universities: $e');
-      setState(() {
-        _universities = [];
-        _isLoading = false;
-      });
+      if (mounted) {
+        setState(() {
+          _universities = [];
+          _isLoading = false;
+        });
+      }
+    }
+  }
+
+  /// Génère un slug à partir du nom
+  String _slugFromName(String name) {
+    return name
+        .toLowerCase()
+        .trim()
+        .replaceAll(RegExp(r'\s+'), '-')
+        .replaceAll(RegExp(r'[^a-z0-9\-]'), '');
+  }
+
+  Future<void> _showCreateDialog() async {
+    final result = await showDialog<Map<String, dynamic>>(
+      context: context,
+      builder: (context) => _UniversityFormDialog(
+        title: 'Ajouter une université',
+        submitLabel: 'Créer',
+        initialData: null,
+      ),
+    );
+    if (result == null || !mounted) return;
+    result['slug'] = _slugFromName(result['name']?.toString() ?? '');
+    try {
+      final apiResult = await _adminService.createUniversity(result);
+      if (mounted) {
+        if (apiResult['success'] == true) {
+          ToastService.showSuccess('Université créée');
+          _loadUniversities();
+        } else {
+          ToastService.showError(apiResult['error'] ?? 'Erreur');
+        }
+      }
+    } catch (e) {
+      debugPrint('Error creating university: $e');
+      if (mounted) ToastService.showError('Erreur lors de la création');
+    }
+  }
+
+  Future<void> _showEditDialog(Map<String, dynamic> university) async {
+    final result = await showDialog<Map<String, dynamic>>(
+      context: context,
+      builder: (context) => _UniversityFormDialog(
+        title: 'Modifier l\'université',
+        submitLabel: 'Enregistrer',
+        initialData: university,
+      ),
+    );
+    if (result == null || !mounted) return;
+    final id = university['id'].toString();
+    try {
+      final apiResult = await _adminService.updateUniversity(id, result);
+      if (mounted) {
+        if (apiResult['success'] == true) {
+          ToastService.showSuccess('Université mise à jour');
+          _loadUniversities();
+        } else {
+          ToastService.showError(apiResult['error'] ?? 'Erreur');
+        }
+      }
+    } catch (e) {
+      debugPrint('Error updating university: $e');
+      if (mounted) ToastService.showError('Erreur lors de la modification');
     }
   }
 
   Future<void> _handleDelete(String universityId, String universityName) async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Supprimer l\'université'),
-        content: Text('Êtes-vous sûr de vouloir supprimer "$universityName" ?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Annuler'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(context, true),
-            style: TextButton.styleFrom(foregroundColor: AppColors.error),
-            child: const Text('Supprimer'),
-          ),
-        ],
-      ),
+    final confirmed = await showConfirmDialog(
+      context,
+      title: 'Supprimer l\'université',
+      message: 'Êtes-vous sûr de vouloir supprimer "$universityName" ? Cette action est irréversible.',
+      confirmText: 'Supprimer',
+      cancelText: 'Annuler',
+      isDanger: true,
     );
-
-    if (confirmed == true) {
-      try {
-        final result = await _adminService.deleteUniversity(universityId);
-        if (mounted) {
-          if (result['success'] == true) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('Université supprimée'),
-                backgroundColor: AppColors.success,
-              ),
-            );
-            _loadUniversities();
-          } else {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text(result['error'] ?? 'Erreur'),
-                backgroundColor: AppColors.error,
-              ),
-            );
-          }
+    if (confirmed != true || !mounted) return;
+    try {
+      final result = await _adminService.deleteUniversity(universityId);
+      if (mounted) {
+        if (result['success'] == true) {
+          ToastService.showSuccess('Université supprimée');
+          _loadUniversities();
+        } else {
+          ToastService.showError(result['error'] ?? 'Erreur');
         }
-      } catch (e) {
-        debugPrint('Error deleting university: $e');
       }
+    } catch (e) {
+      debugPrint('Error deleting university: $e');
+      if (mounted) ToastService.showError('Erreur lors de la suppression');
     }
   }
 
@@ -93,12 +141,8 @@ class _AdminUniversitiesScreenState extends State<AdminUniversitiesScreen> {
         actions: [
           IconButton(
             icon: const Icon(Icons.add),
-            onPressed: () {
-              // TODO: Navigation vers création d'université
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Création d\'université à venir')),
-              );
-            },
+            onPressed: _isLoading ? null : _showCreateDialog,
+            tooltip: 'Ajouter une université',
           ),
         ],
       ),
@@ -115,6 +159,16 @@ class _AdminUniversitiesScreenState extends State<AdminUniversitiesScreen> {
                         'Aucune université',
                         style: TextStyle(fontSize: 18, color: AppColors.textSecondary),
                       ),
+                      const SizedBox(height: 24),
+                      FilledButton.icon(
+                        onPressed: _showCreateDialog,
+                        icon: const Icon(Icons.add),
+                        label: const Text('Ajouter une université'),
+                        style: FilledButton.styleFrom(
+                          backgroundColor: AppColors.primary,
+                          foregroundColor: Colors.white,
+                        ),
+                      ),
                     ],
                   ),
                 )
@@ -127,13 +181,11 @@ class _AdminUniversitiesScreenState extends State<AdminUniversitiesScreen> {
                       final university = _universities[index];
                       return _UniversityCard(
                         university: university,
-                        onEdit: () {
-                          // TODO: Navigation vers édition d'université
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(content: Text('Édition d\'université à venir')),
-                          );
-                        },
-                        onDelete: () => _handleDelete(university['id'].toString(), university['name'] ?? 'Université'),
+                        onEdit: () => _showEditDialog(university),
+                        onDelete: () => _handleDelete(
+                          university['id'].toString(),
+                          university['name'] ?? 'Université',
+                        ),
                       );
                     },
                   ),
@@ -156,7 +208,8 @@ class _UniversityCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final name = university['name'] ?? 'Sans nom';
-    final location = university['location'] ?? '';
+    final shortName = university['short_name'] ?? '';
+    final address = university['address'] ?? '';
     final isActive = university['is_active'] ?? true;
 
     return Card(
@@ -182,14 +235,26 @@ class _UniversityCard extends StatelessWidget {
                           color: AppColors.textPrimary,
                         ),
                       ),
-                      if (location.isNotEmpty) ...[
+                      if (shortName.isNotEmpty) ...[
                         const SizedBox(height: 4),
                         Text(
-                          location,
+                          shortName,
                           style: const TextStyle(
                             fontSize: 14,
                             color: AppColors.textSecondary,
                           ),
+                        ),
+                      ],
+                      if (address.isNotEmpty) ...[
+                        const SizedBox(height: 4),
+                        Text(
+                          address,
+                          style: const TextStyle(
+                            fontSize: 13,
+                            color: AppColors.textTertiary,
+                          ),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
                         ),
                       ],
                     ],
@@ -216,17 +281,24 @@ class _UniversityCard extends StatelessWidget {
             Row(
               mainAxisAlignment: MainAxisAlignment.end,
               children: [
-                TextButton.icon(
+                FilledButton.icon(
                   onPressed: onEdit,
                   icon: const Icon(Icons.edit, size: 18),
                   label: const Text('Modifier'),
+                  style: FilledButton.styleFrom(
+                    backgroundColor: AppColors.primary,
+                    foregroundColor: Colors.white,
+                  ),
                 ),
                 const SizedBox(width: 8),
-                TextButton.icon(
+                OutlinedButton.icon(
                   onPressed: onDelete,
-                  icon: const Icon(Icons.delete, size: 18),
+                  icon: const Icon(Icons.delete_outline, size: 18),
                   label: const Text('Supprimer'),
-                  style: TextButton.styleFrom(foregroundColor: AppColors.error),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: AppColors.error,
+                    side: const BorderSide(color: AppColors.error),
+                  ),
                 ),
               ],
             ),
@@ -237,3 +309,167 @@ class _UniversityCard extends StatelessWidget {
   }
 }
 
+class _UniversityFormDialog extends StatefulWidget {
+  final String title;
+  final String submitLabel;
+  final Map<String, dynamic>? initialData;
+
+  const _UniversityFormDialog({
+    required this.title,
+    required this.submitLabel,
+    this.initialData,
+  });
+
+  @override
+  State<_UniversityFormDialog> createState() => _UniversityFormDialogState();
+}
+
+class _UniversityFormDialogState extends State<_UniversityFormDialog> {
+  final _formKey = GlobalKey<FormState>();
+  late TextEditingController _nameController;
+  late TextEditingController _shortNameController;
+  late TextEditingController _descriptionController;
+  late TextEditingController _addressController;
+  late TextEditingController _phoneController;
+  late TextEditingController _websiteController;
+  bool _isActive = true;
+
+  @override
+  void initState() {
+    super.initState();
+    final d = widget.initialData;
+    _nameController = TextEditingController(text: d?['name']?.toString() ?? '');
+    _shortNameController = TextEditingController(text: d?['short_name']?.toString() ?? '');
+    _descriptionController = TextEditingController(text: d?['description']?.toString() ?? '');
+    _addressController = TextEditingController(text: d?['address']?.toString() ?? '');
+    _phoneController = TextEditingController(text: d?['phone']?.toString() ?? '');
+    _websiteController = TextEditingController(text: d?['website']?.toString() ?? '');
+    _isActive = d?['is_active'] ?? true;
+  }
+
+  @override
+  void dispose() {
+    _nameController.dispose();
+    _shortNameController.dispose();
+    _descriptionController.dispose();
+    _addressController.dispose();
+    _phoneController.dispose();
+    _websiteController.dispose();
+    super.dispose();
+  }
+
+  Map<String, dynamic> _getData() {
+    return {
+      'name': _nameController.text.trim(),
+      'short_name': _shortNameController.text.trim(),
+      'description': _descriptionController.text.trim(),
+      'address': _addressController.text.trim(),
+      'phone': _phoneController.text.trim(),
+      'website': _websiteController.text.trim(),
+      'is_active': _isActive,
+    };
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: Text(widget.title),
+      content: SizedBox(
+        width: double.maxFinite,
+        child: Form(
+          key: _formKey,
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextFormField(
+                  controller: _nameController,
+                  decoration: const InputDecoration(
+                    labelText: 'Nom *',
+                    border: OutlineInputBorder(),
+                    hintText: 'Nom officiel de l\'université',
+                  ),
+                  validator: (v) => (v == null || v.trim().isEmpty) ? 'Requis' : null,
+                ),
+                const SizedBox(height: 12),
+                TextFormField(
+                  controller: _shortNameController,
+                  decoration: const InputDecoration(
+                    labelText: 'Nom court',
+                    border: OutlineInputBorder(),
+                    hintText: 'ex: ESMT, UCAD',
+                  ),
+                ),
+                const SizedBox(height: 12),
+                TextFormField(
+                  controller: _descriptionController,
+                  decoration: const InputDecoration(
+                    labelText: 'Description',
+                    border: OutlineInputBorder(),
+                    alignLabelWithHint: true,
+                  ),
+                  maxLines: 2,
+                ),
+                const SizedBox(height: 12),
+                TextFormField(
+                  controller: _addressController,
+                  decoration: const InputDecoration(
+                    labelText: 'Adresse',
+                    border: OutlineInputBorder(),
+                  ),
+                  maxLines: 2,
+                ),
+                const SizedBox(height: 12),
+                TextFormField(
+                  controller: _phoneController,
+                  decoration: const InputDecoration(
+                    labelText: 'Téléphone',
+                    border: OutlineInputBorder(),
+                  ),
+                  keyboardType: TextInputType.phone,
+                ),
+                const SizedBox(height: 12),
+                TextFormField(
+                  controller: _websiteController,
+                  decoration: const InputDecoration(
+                    labelText: 'Site web',
+                    border: OutlineInputBorder(),
+                    hintText: 'https://...',
+                  ),
+                  keyboardType: TextInputType.url,
+                ),
+                const SizedBox(height: 16),
+                Row(
+                  children: [
+                    const Text('Active', style: TextStyle(color: AppColors.textPrimary)),
+                    const SizedBox(width: 12),
+                    Switch(
+                      value: _isActive,
+                      onChanged: (v) => setState(() => _isActive = v),
+                      activeColor: AppColors.primary,
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Annuler'),
+        ),
+        FilledButton(
+          onPressed: () {
+            if (_formKey.currentState?.validate() ?? false) {
+              Navigator.pop(context, _getData());
+            }
+          },
+          style: FilledButton.styleFrom(backgroundColor: AppColors.primary, foregroundColor: Colors.white),
+          child: Text(widget.submitLabel),
+        ),
+      ],
+    );
+  }
+}

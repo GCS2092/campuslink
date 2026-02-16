@@ -4,17 +4,7 @@ import Link from 'next/link'
 import { useAuth } from '@/context/AuthContext'
 import { useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
-import { 
-  FiUsers, 
-  FiCalendar, 
-  FiMessageSquare, 
-  FiBell, 
-  FiShield, 
-  FiSmartphone,
-  FiArrowRight,
-  FiZap,
-  FiHeart
-} from 'react-icons/fi'
+import { FiUsers, FiCalendar, FiMessageSquare, FiBell, FiArrowRight, FiZap, FiHeart } from 'react-icons/fi'
 
 export default function Home() {
   const { user, loading } = useAuth()
@@ -54,30 +44,10 @@ export default function Home() {
   }
 
   const features = [
-    {
-      icon: FiUsers,
-      title: 'Réseau Social',
-      color: 'from-blue-500 to-blue-600',
-      emoji: '👥'
-    },
-    {
-      icon: FiCalendar,
-      title: 'Événements',
-      color: 'from-purple-500 to-purple-600',
-      emoji: '📅'
-    },
-    {
-      icon: FiMessageSquare,
-      title: 'Messages',
-      color: 'from-green-500 to-green-600',
-      emoji: '💬'
-    },
-    {
-      icon: FiBell,
-      title: 'Actualités',
-      color: 'from-orange-500 to-orange-600',
-      emoji: '📢'
-    }
+    { icon: FiUsers, title: 'Réseau Social', color: 'from-blue-500 to-blue-600' },
+    { icon: FiCalendar, title: 'Événements', color: 'from-purple-500 to-purple-600' },
+    { icon: FiMessageSquare, title: 'Messages', color: 'from-green-500 to-green-600' },
+    { icon: FiBell, title: 'Actualités', color: 'from-orange-500 to-orange-600' },
   ]
 
   return (
@@ -92,21 +62,21 @@ export default function Home() {
         </div>
 
         <div className="relative z-10 max-w-5xl mx-auto text-center">
-          {/* Main Title with Animation */}
-          <div className="mb-8">
-            <h1 className="text-6xl sm:text-7xl lg:text-8xl font-extrabold mb-4">
+          {/* Main Title */}
+          <div className="mb-6">
+            <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold mb-3 tracking-tight">
               <span className="block text-gray-900 dark:text-white">Bienvenue sur</span>
-              <span className="block text-transparent bg-clip-text bg-gradient-to-r from-primary-600 via-purple-600 to-secondary-600 animate-gradient">
+              <span className="block text-transparent bg-clip-text bg-gradient-to-r from-primary-600 via-purple-600 to-secondary-600">
                 CampusLink
               </span>
             </h1>
-            <p className="text-2xl sm:text-3xl text-gray-600 dark:text-gray-300 font-light mt-6">
-              Connecte ton campus en un clic ✨
+            <p className="text-lg sm:text-xl text-gray-600 dark:text-gray-400 mt-4">
+              Connecte ton campus en un clic
             </p>
           </div>
 
-          {/* Interactive Features Grid */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 sm:gap-6 mb-12 max-w-3xl mx-auto">
+          {/* Features - compact grid */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4 mb-10 max-w-2xl mx-auto">
             {features.map((feature, index) => {
               const Icon = feature.icon
               const isHovered = hoveredFeature === index
@@ -116,90 +86,84 @@ export default function Home() {
                   onMouseEnter={() => setHoveredFeature(index)}
                   onMouseLeave={() => setHoveredFeature(null)}
                   className={`
-                    group relative bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm rounded-2xl p-6 
-                    cursor-pointer transition-all duration-300 transform
-                    ${isHovered ? 'scale-110 shadow-2xl -translate-y-2' : 'scale-100 shadow-lg hover:shadow-xl'}
-                    border-2 ${isHovered ? 'border-primary-500 dark:border-primary-400' : 'border-transparent dark:border-gray-700'}
+                    group relative bg-white/90 dark:bg-gray-800/90 backdrop-blur-sm rounded-xl p-4
+                    cursor-pointer transition-all duration-200
+                    ${isHovered ? 'shadow-lg -translate-y-0.5 ring-2 ring-primary-400/50 dark:ring-primary-500/50' : 'shadow-md hover:shadow-lg'}
+                    border border-gray-200/80 dark:border-gray-700/80
                   `}
                 >
                   <div className={`
-                    w-16 h-16 mx-auto mb-3 rounded-xl flex items-center justify-center
-                    bg-gradient-to-br ${feature.color} transition-transform duration-300
-                    ${isHovered ? 'scale-125 rotate-6' : 'scale-100'}
+                    w-10 h-10 mx-auto mb-2 rounded-lg flex items-center justify-center
+                    bg-gradient-to-br ${feature.color} transition-transform duration-200
+                    ${isHovered ? 'scale-105' : ''}
                   `}>
-                    <span className="text-3xl">{feature.emoji}</span>
+                    <Icon className="w-5 h-5 text-white" />
                   </div>
-                  <h3 className="text-sm sm:text-base font-bold text-gray-800 dark:text-white">
+                  <h3 className="text-xs sm:text-sm font-semibold text-gray-700 dark:text-gray-200">
                     {feature.title}
                   </h3>
-                  {isHovered && (
-                    <div className="absolute inset-0 bg-gradient-to-br from-primary-500/10 to-secondary-500/10 rounded-2xl animate-pulse"></div>
-                  )}
                 </div>
               )
             })}
           </div>
 
           {/* CTA Buttons */}
-          <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
+          <div className="flex flex-col sm:flex-row gap-3 justify-center items-center">
             <Link
               href="/register"
-              className="group relative px-10 py-5 bg-gradient-to-r from-primary-600 to-secondary-600 text-white rounded-2xl font-bold text-lg shadow-2xl hover:shadow-primary-500/50 transition-all duration-300 transform hover:scale-105 hover:-translate-y-1 overflow-hidden"
+              className="group inline-flex items-center gap-2 px-6 py-3.5 bg-gradient-to-r from-primary-600 to-secondary-600 text-white rounded-xl font-semibold text-base shadow-lg hover:shadow-primary-500/40 transition-all duration-200 hover:opacity-95"
             >
-              <span className="relative z-10 flex items-center gap-2">
-                Commencer maintenant
-                <FiArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
-              </span>
-              <div className="absolute inset-0 bg-gradient-to-r from-secondary-600 to-primary-600 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+              Commencer maintenant
+              <FiArrowRight className="w-4 h-4 group-hover:translate-x-0.5 transition-transform" />
             </Link>
             <Link
               href="/login"
-              className="px-10 py-5 bg-white/90 dark:bg-gray-800/90 backdrop-blur-sm text-primary-600 dark:text-primary-400 border-2 border-primary-600 dark:border-primary-500 rounded-2xl font-bold text-lg shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105 hover:-translate-y-1"
+              className="inline-flex items-center px-6 py-3.5 bg-white dark:bg-gray-800 text-primary-600 dark:text-primary-400 border border-primary-500 dark:border-primary-500 rounded-xl font-semibold text-base shadow-md hover:shadow-lg transition-all duration-200"
             >
               Se connecter
             </Link>
           </div>
 
           {/* Quick Stats */}
-          <div className="mt-16 flex flex-wrap justify-center gap-8 sm:gap-12">
-            <div className="flex items-center gap-2 text-gray-600 dark:text-gray-300">
-              <FiUsers className="w-5 h-5 text-primary-600 dark:text-primary-400" />
-              <span className="font-semibold">Communauté</span>
+          <div className="mt-10 flex flex-wrap justify-center gap-6 sm:gap-8">
+            <div className="flex items-center gap-1.5 text-sm text-gray-500 dark:text-gray-400">
+              <FiUsers className="w-4 h-4 text-primary-500 dark:text-primary-400" />
+              <span className="font-medium">Communauté</span>
             </div>
-            <div className="flex items-center gap-2 text-gray-600 dark:text-gray-300">
-              <FiZap className="w-5 h-5 text-yellow-500 dark:text-yellow-400" />
-              <span className="font-semibold">Temps réel</span>
+            <div className="flex items-center gap-1.5 text-sm text-gray-500 dark:text-gray-400">
+              <FiZap className="w-4 h-4 text-amber-500 dark:text-amber-400" />
+              <span className="font-medium">Temps réel</span>
             </div>
-            <div className="flex items-center gap-2 text-gray-600 dark:text-gray-300">
-              <FiHeart className="w-5 h-5 text-red-500 dark:text-red-400" />
-              <span className="font-semibold">100% Gratuit</span>
+            <div className="flex items-center gap-1.5 text-sm text-gray-500 dark:text-gray-400">
+              <FiHeart className="w-4 h-4 text-rose-500 dark:text-rose-400" />
+              <span className="font-medium">100% Gratuit</span>
             </div>
           </div>
         </div>
 
-        {/* Scroll Indicator */}
-        <div className="absolute bottom-8 left-1/2 transform -translate-x-1/2 animate-bounce">
-          <div className="w-6 h-10 border-2 border-gray-400 dark:border-gray-600 rounded-full flex justify-center">
-            <div className="w-1 h-3 bg-gray-400 dark:bg-gray-600 rounded-full mt-2"></div>
+        {/* Scroll hint */}
+        <div className="absolute bottom-6 left-1/2 -translate-x-1/2 text-gray-400 dark:text-gray-500">
+          <div className="w-5 h-8 border-2 border-current rounded-full flex justify-center pt-1.5">
+            <div className="w-1 h-2 bg-current rounded-full" />
           </div>
         </div>
       </div>
 
-      {/* Simple CTA Section */}
-      <div className="relative py-20 bg-gradient-to-r from-primary-600 via-purple-600 to-secondary-600 dark:from-primary-700 dark:via-purple-700 dark:to-secondary-700">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-          <h2 className="text-4xl sm:text-5xl font-bold text-white mb-6">
-            Prêt à commencer ? 🚀
+      {/* CTA Section */}
+      <div className="relative py-12 sm:py-16 bg-gradient-to-r from-primary-600 via-purple-600 to-secondary-600 dark:from-primary-700 dark:via-purple-700 dark:to-secondary-700">
+        <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+          <h2 className="text-2xl sm:text-3xl font-bold text-white mb-3">
+            Prêt à commencer ?
           </h2>
-          <p className="text-xl text-white/90 dark:text-white/80 mb-8">
+          <p className="text-base text-white/90 dark:text-white/80 mb-6">
             Rejoins la communauté étudiante en quelques secondes
           </p>
           <Link
             href="/register"
-            className="inline-flex items-center gap-2 px-10 py-5 bg-white dark:bg-gray-800 text-primary-600 dark:text-primary-400 rounded-2xl font-bold text-lg shadow-2xl hover:shadow-white/50 dark:hover:shadow-gray-800/50 transition-all duration-300 transform hover:scale-105"
+            className="inline-flex items-center gap-2 px-6 py-3 bg-white dark:bg-gray-800 text-primary-600 dark:text-primary-400 rounded-xl font-semibold text-sm shadow-lg hover:opacity-95 transition-opacity"
           >
             Créer mon compte
-            <FiArrowRight className="w-5 h-5" />
+            <FiArrowRight className="w-4 h-4" />
           </Link>
         </div>
       </div>

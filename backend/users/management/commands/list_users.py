@@ -40,11 +40,11 @@ class Command(BaseCommand):
 
         # Compter les utilisateurs
         total = queryset.count()
-        self.stdout.write(self.style.SUCCESS(f'📊 Nombre total d\'utilisateurs: {total}'))
+        self.stdout.write(self.style.SUCCESS(f'Nombre total d\'utilisateurs: {total}'))
         self.stdout.write('')
 
         if total == 0:
-            self.stdout.write(self.style.WARNING('⚠️  Aucun utilisateur trouvé dans la base de données'))
+            self.stdout.write(self.style.WARNING('Aucun utilisateur trouve dans la base de donnees'))
             return
 
         # Statistiques générales
@@ -53,16 +53,16 @@ class Command(BaseCommand):
         staff_users = queryset.filter(is_staff=True).count()
         superusers = queryset.filter(is_superuser=True).count()
 
-        self.stdout.write(self.style.SUCCESS('📈 STATISTIQUES:'))
-        self.stdout.write(f'   ✅ Utilisateurs actifs: {active_users}')
-        self.stdout.write(f'   ❌ Utilisateurs inactifs: {inactive_users}')
-        self.stdout.write(f'   👔 Staff: {staff_users}')
-        self.stdout.write(f'   🔑 Superusers: {superusers}')
+        self.stdout.write(self.style.SUCCESS('STATISTIQUES:'))
+        self.stdout.write(f'   Utilisateurs actifs: {active_users}')
+        self.stdout.write(f'   Utilisateurs inactifs: {inactive_users}')
+        self.stdout.write(f'   Staff: {staff_users}')
+        self.stdout.write(f'   Superusers: {superusers}')
         self.stdout.write('')
 
         # Répartition par rôle si disponible
         if hasattr(User, 'role'):
-            self.stdout.write(self.style.SUCCESS('👥 RÉPARTITION PAR RÔLE:'))
+            self.stdout.write(self.style.SUCCESS('REPARTITION PAR ROLE:'))
             roles = queryset.values('role').annotate(count=Count('id')).order_by('-count')
             for role_data in roles:
                 role = role_data['role'] or 'Aucun'
@@ -80,18 +80,18 @@ class Command(BaseCommand):
         
         for i, user in enumerate(users, 1):
             self.stdout.write(f'{i}. {self.style.SUCCESS(user.username)}')
-            self.stdout.write(f'   📧 Email: {user.email}')
-            self.stdout.write(f'   👤 Nom complet: {user.first_name} {user.last_name}')
+            self.stdout.write(f'   Email: {user.email}')
+            self.stdout.write(f'   Nom complet: {user.first_name} {user.last_name}')
             
             if hasattr(user, 'role'):
-                self.stdout.write(f'   🎭 Rôle: {self.style.WARNING(user.role or "Aucun")}')
+                self.stdout.write(f'   Role: {self.style.WARNING(user.role or "Aucun")}')
             
-            self.stdout.write(f'   📅 Inscrit le: {user.date_joined.strftime("%Y-%m-%d %H:%M:%S")}')
+            self.stdout.write(f'   Inscrit le: {user.date_joined.strftime("%Y-%m-%d %H:%M:%S")}')
             
             if user.last_login:
-                self.stdout.write(f'   🔐 Dernière connexion: {user.last_login.strftime("%Y-%m-%d %H:%M:%S")}')
+                self.stdout.write(f'   Derniere connexion: {user.last_login.strftime("%Y-%m-%d %H:%M:%S")}')
             else:
-                self.stdout.write(f'   🔐 Dernière connexion: {self.style.WARNING("Jamais")}')
+                self.stdout.write(f'   Derniere connexion: {self.style.WARNING("Jamais")}')
             
             status = []
             if user.is_active:
@@ -108,26 +108,26 @@ class Command(BaseCommand):
             if hasattr(user, 'is_verified') and user.is_verified:
                 status.append(self.style.SUCCESS('Vérifié'))
             
-            self.stdout.write(f'   📊 Statut: {", ".join(status)}')
+            self.stdout.write(f'   Statut: {", ".join(status)}')
             
             # Informations supplémentaires si détaillé
             if options['detailed']:
-                self.stdout.write(f'   🆔 ID: {user.id}')
+                self.stdout.write(f'   ID: {user.id}')
                 if hasattr(user, 'profile'):
                     profile = user.profile
                     if profile:
-                        self.stdout.write(f'   📝 Bio: {getattr(profile, "bio", "N/A")}')
+                        self.stdout.write(f'   Bio: {getattr(profile, "bio", "N/A")}')
                         if hasattr(profile, 'university'):
                             univ = profile.university
                             if univ:
                                 if isinstance(univ, str):
-                                    self.stdout.write(f'   🏫 Université: {univ}')
+                                    self.stdout.write(f'   Universite: {univ}')
                                 else:
-                                    self.stdout.write(f'   🏫 Université: {getattr(univ, "name", "N/A")}')
+                                    self.stdout.write(f'   Universite: {getattr(univ, "name", "N/A")}')
             
             self.stdout.write('')
 
         self.stdout.write(self.style.SUCCESS('=' * 70))
-        self.stdout.write(self.style.SUCCESS(f'✅ Total: {total} utilisateur(s)'))
+        self.stdout.write(self.style.SUCCESS(f'Total: {total} utilisateur(s)'))
         self.stdout.write(self.style.SUCCESS('=' * 70))
 

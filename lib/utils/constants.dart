@@ -1,11 +1,10 @@
 /// Constants used throughout the CampusLink mobile application
 class AppConstants {
   // API Configuration
+  // Production (Render) :
   static const String apiBaseUrl = 'https://campuslink-9knz.onrender.com/api';
-  
-  // For local development, uncomment and use:
-  // static const String apiBaseUrl = 'http://172.20.1.65:8000/api';
-  // static const String apiBaseUrl = 'http://localhost:8000/api';
+  // Backend LOCAL (Expo / appareil réel) : utilisez l'IP de votre PC (pas localhost).
+  // static const String apiBaseUrl = 'http://192.168.1.125:8000/api';
   
   // API Endpoints
   static const String loginEndpoint = '/auth/login/';

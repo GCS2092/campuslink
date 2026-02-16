@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
@@ -22,6 +22,7 @@ export default function LoginPage() {
   const { login, refreshUser } = useAuth()
   const [isLoading, setIsLoading] = useState(false)
   const [lockoutMessage, setLockoutMessage] = useState<string | null>(null)
+  const submitInProgress = useRef(false)
 
   const {
     register,
@@ -32,6 +33,8 @@ export default function LoginPage() {
   })
 
   const onSubmit = async (data: LoginFormData) => {
+    if (submitInProgress.current) return
+    submitInProgress.current = true
     setIsLoading(true)
     setLockoutMessage(null)
 
@@ -78,6 +81,11 @@ export default function LoginPage() {
         const errorData = error.response.data?.error
         const message = errorData?.message || 'Votre compte a été banni.'
         toast.error(`🚫 ${message}`, { duration: 5000 })
+      } else if (error.response?.status === 429) {
+        const detail = error.response?.data?.detail
+        const message = typeof detail === 'string' ? detail : 'Trop de tentatives de connexion. Réessayez dans quelques minutes.'
+        setLockoutMessage(message)
+        toast.error(`⏳ ${message}`, { duration: 6000 })
       } else if (error.response?.status === 401) {
         const message = '❌ Email ou mot de passe incorrect. Vérifiez vos identifiants et réessayez.'
         toast.error(message, { duration: 4000 })
@@ -94,6 +102,7 @@ export default function LoginPage() {
       }
     } finally {
       setIsLoading(false)
+      submitInProgress.current = false
     }
   }
 

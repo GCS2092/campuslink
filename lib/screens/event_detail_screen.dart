@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:provider/provider.dart';
 import '../models/event.dart';
 import '../services/event_service.dart';
 import '../utils/app_colors.dart';
 import '../utils/constants.dart';
+import '../services/api_service.dart';
+import '../providers/auth_provider.dart';
 
 /// Écran de détails d'un événement
 class EventDetailScreen extends StatefulWidget {
@@ -116,7 +119,7 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
                         Image.network(
                           _event!.imageUrl!.startsWith('http')
                               ? _event!.imageUrl!
-                              : '${AppConstants.apiBaseUrl.replaceAll('/api', '')}${_event!.imageUrl}',
+                              : '${ApiService().baseUrl.replaceAll('/api', '')}${_event!.imageUrl}',
                           height: 250,
                           width: double.infinity,
                           fit: BoxFit.cover,
@@ -227,42 +230,77 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
 
                             const SizedBox(height: 24),
 
-                            // Bouton de participation
-                            SizedBox(
-                              width: double.infinity,
-                              height: 50,
-                              child: ElevatedButton(
-                                onPressed: _event!.isParticipating == true || _isJoining
-                                    ? null
-                                    : _handleJoinEvent,
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: _event!.isParticipating == true
-                                      ? AppColors.success
-                                      : AppColors.primary,
-                                  foregroundColor: Colors.white,
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(12),
-                                  ),
-                                ),
-                                child: _isJoining
-                                    ? const SizedBox(
-                                        height: 20,
-                                        width: 20,
-                                        child: CircularProgressIndicator(
-                                          strokeWidth: 2,
-                                          valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                            // Bouton de participation (masqué si l'utilisateur est l'organisateur)
+                            Consumer<AuthProvider>(
+                              builder: (context, authProvider, child) {
+                                final currentUser = authProvider.user;
+                                final isOrganizer = currentUser != null &&
+                                    currentUser.id == _event!.organizer.id;
+
+                                // Ne pas afficher le bouton si l'utilisateur est l'organisateur
+                                if (isOrganizer) {
+                                  return Container(
+                                    padding: const EdgeInsets.all(16),
+                                    decoration: BoxDecoration(
+                                      color: AppColors.info.withOpacity(0.1),
+                                      borderRadius: BorderRadius.circular(12),
+                                      border: Border.all(color: AppColors.info),
+                                    ),
+                                    child: Row(
+                                      children: [
+                                        Icon(Icons.info_outline, color: AppColors.info),
+                                        const SizedBox(width: 12),
+                                        Expanded(
+                                          child: Text(
+                                            'Vous êtes l\'organisateur de cet événement',
+                                            style: TextStyle(
+                                              color: AppColors.info,
+                                              fontWeight: FontWeight.w500,
+                                            ),
+                                          ),
                                         ),
-                                      )
-                                    : Text(
-                                        _event!.isParticipating == true
-                                            ? 'Vous participez déjà'
-                                            : 'Participer à l\'événement',
-                                        style: const TextStyle(
-                                          fontSize: 16,
-                                          fontWeight: FontWeight.bold,
-                                        ),
+                                      ],
+                                    ),
+                                  );
+                                }
+
+                                return SizedBox(
+                                  width: double.infinity,
+                                  height: 50,
+                                  child: ElevatedButton(
+                                    onPressed: _event!.isParticipating == true || _isJoining
+                                        ? null
+                                        : _handleJoinEvent,
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: _event!.isParticipating == true
+                                          ? AppColors.success
+                                          : AppColors.primary,
+                                      foregroundColor: Colors.white,
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(12),
                                       ),
-                              ),
+                                    ),
+                                    child: _isJoining
+                                        ? const SizedBox(
+                                            height: 20,
+                                            width: 20,
+                                            child: CircularProgressIndicator(
+                                              strokeWidth: 2,
+                                              valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                                            ),
+                                          )
+                                        : Text(
+                                            _event!.isParticipating == true
+                                                ? 'Vous participez déjà'
+                                                : 'Participer à l\'événement',
+                                            style: const TextStyle(
+                                              fontSize: 16,
+                                              fontWeight: FontWeight.bold,
+                                            ),
+                                          ),
+                                  ),
+                                );
+                              },
                             ),
                           ],
                         ),

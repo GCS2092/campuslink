@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../services/admin_service.dart';
 import '../../utils/app_colors.dart';
+import '../../utils/toast_service.dart';
 
 /// Écran de gestion de tous les départements pour les administrateurs globaux
 class AdminDepartmentsScreen extends StatefulWidget {
@@ -63,20 +64,10 @@ class _AdminDepartmentsScreenState extends State<AdminDepartmentsScreen> {
         final result = await _adminService.deleteDepartment(departmentId);
         if (mounted) {
           if (result['success'] == true) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('Département supprimé'),
-                backgroundColor: AppColors.success,
-              ),
-            );
+            ToastService.showSuccess('Département supprimé');
             _loadDepartments();
           } else {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text(result['error'] ?? 'Erreur'),
-                backgroundColor: AppColors.error,
-              ),
-            );
+            ToastService.showError(result['error'] ?? 'Erreur');
           }
         }
       } catch (e) {

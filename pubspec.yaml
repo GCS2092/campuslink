@@ -31,30 +31,99 @@ dependencies:
   flutter:
     sdk: flutter
 
+  flutter_localizations:
+    sdk: flutter
+
   # The following adds the Cupertino Icons font to your application.
   # Use with the CupertinoIcons class for iOS style icons.
   cupertino_icons: ^1.0.8
 
-  # HTTP Client for API calls (alternative to axios)
-  dio: ^5.4.0
+  # UI & Animations
+  flutter_animate: ^4.5.2
+  shimmer: ^3.0.0
+  fl_chart: ^0.66.2
 
   # State Management
-  provider: ^6.1.0
+  provider: ^6.1.5+1
+  get: ^4.6.6
+  get_storage: ^2.1.1
 
-  # Local Storage for tokens and preferences
-  shared_preferences: ^2.2.2
+  # HTTP & API
+  dio: ^5.8.0
+  http: ^1.2.0
+
+  # Security & Authentication
+  local_auth: ^2.3.0
+
+  # Crashlytics
+  firebase_crashlytics: ^4.1.3
+  firebase_core: ^3.6.0
+
+  # Storage
+  hive: ^2.2.3
+  hive_flutter: ^1.1.0
+  flutter_secure_storage: ^9.2.4
+  shared_preferences: ^2.3.3
+  sqflite: ^2.3.0
+  path: ^1.8.3
+
+  # Images & Utils
+  cached_network_image: ^3.4.1
+  permission_handler: ^12.0.1
+  device_info_plus: ^12.1.0
+  connectivity_plus: ^7.0.0
+  network_info_plus: ^6.0.2
+  image_picker: ^1.0.7
+  image_cropper: ^11.0.0
+  path_provider: ^2.1.2
+  mime: ^2.0.0
+
+  # QR Code & Scanner
+  qr_flutter: ^4.1.0
+  mobile_scanner: ^7.1.2
+
+  # Contacts
+  flutter_contacts: ^1.1.9+2
+
+  # URL Launcher
+  url_launcher: ^6.3.2
+
+  # Date & Internationalization
+  intl: ^0.20.2
+
+  # Math operations
+  crypto: ^3.0.3
+  image: ^4.5.4
+  decimal: ^3.2.4
+  rational: ^2.2.3
+
+  # Modern typography (used by Google, Instagram, Twitter)
+  google_fonts: ^6.3.2
+
+  # Smooth animations (used by modern apps)
+  animations: ^2.0.7
+
+  # UI Components
+  fluttertoast: ^8.2.4              # Modern toast notifications (replaces SnackBar)
+  flutter_slidable: ^3.1.0          # Swipe actions for lists
+  flutter_speed_dial: ^7.0.0        # Enhanced FAB with options
+  pinput: ^5.0.2
+  badges: ^3.1.2
+  flutter_otp_text_field: ^1.5.1+1
+
+  # Notifications
+  flutter_local_notifications: ^17.2.3  # Local push notifications
+
+  # Utilities
+  timeago: ^3.7.1                   # Relative time formatting ("2h ago")
+  async: ^2.13.0
+  package_info_plus: ^9.0.0
+  collection: ^1.19.1
+  uuid: ^4.5.1
+  share_plus: ^12.0.1
 
   # WebSocket for real-time messaging
   web_socket_channel: ^2.4.0
-
-  # Date and time formatting
-  intl: ^0.19.0
-
-  # Image loading and caching
-  cached_network_image: ^3.3.0
-
-  # HTTP/HTTPS certificate pinning (optional, for security)
-  # http_certificate_pinning: ^2.0.0
 
 dev_dependencies:
   flutter_test:

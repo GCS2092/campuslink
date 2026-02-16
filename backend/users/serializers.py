@@ -57,14 +57,18 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
         # Generate tokens using the parent class method
         refresh = self.get_token(user)
         
-        # Return token data
+        # Return token data (complet pour les apps mobiles)
         return {
             'refresh': str(refresh),
             'access': str(refresh.access_token),
             'user_id': str(user.id),
             'email': user.email,
             'username': user.username,
+            'first_name': user.first_name or '',
+            'last_name': user.last_name or '',
             'role': user.role,
+            'is_staff': user.is_staff,
+            'is_superuser': user.is_superuser,
         }
 
 

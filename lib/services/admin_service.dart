@@ -51,8 +51,14 @@ class AdminService {
         final data = response.data;
         if (data is List) {
           return data.cast<Map<String, dynamic>>();
-        } else if (data is Map && data['results'] != null) {
-          return (data['results'] as List).cast<Map<String, dynamic>>();
+        }
+        if (data is Map<String, dynamic>) {
+          if (data['results'] != null) {
+            return (data['results'] as List).cast<Map<String, dynamic>>();
+          }
+          if (data['data'] != null) {
+            return (data['data'] as List).cast<Map<String, dynamic>>();
+          }
         }
       }
       return [];
@@ -168,8 +174,11 @@ class AdminService {
         final data = response.data;
         if (data is List) {
           return data.cast<Map<String, dynamic>>();
-        } else if (data is Map && data['results'] != null) {
-          return (data['results'] as List).cast<Map<String, dynamic>>();
+        }
+        if (data is Map<String, dynamic>) {
+          if (data['results'] != null) {
+            return (data['results'] as List).cast<Map<String, dynamic>>();
+          }
         }
       }
       return [];
@@ -591,8 +600,11 @@ class AdminService {
         final data = response.data;
         if (data is List) {
           return data.cast<Map<String, dynamic>>();
-        } else if (data is Map && data['results'] != null) {
-          return (data['results'] as List).cast<Map<String, dynamic>>();
+        }
+        if (data is Map<String, dynamic>) {
+          if (data['results'] != null) {
+            return (data['results'] as List).cast<Map<String, dynamic>>();
+          }
         }
       }
       return [];
@@ -616,16 +628,24 @@ class AdminService {
     }
   }
 
-  /// Rejette un rapport
+  /// Rejette / classe un rapport (appelle dismiss côté backend)
   Future<Map<String, dynamic>> rejectReport(String reportId) async {
+    return dismissReport(reportId);
+  }
+
+  /// Classe un rapport sans suite (dismiss)
+  Future<Map<String, dynamic>> dismissReport(String reportId, {String? reason}) async {
     try {
-      final response = await _apiService.post('/moderation/admin/reports/$reportId/reject/');
+      final response = await _apiService.post(
+        '/moderation/admin/reports/$reportId/dismiss/',
+        data: reason != null ? {'reason': reason} : null,
+      );
       if (response.statusCode == 200) {
         return {'success': true, 'data': response.data};
       }
-      return {'success': false, 'error': response.data['error'] ?? 'Erreur'};
+      return {'success': false, 'error': (response.data as Map?)?['error'] ?? 'Erreur'};
     } catch (e) {
-      debugPrint('Error rejecting report: $e');
+      debugPrint('Error dismissing report: $e');
       return {'success': false, 'error': e.toString()};
     }
   }
@@ -649,7 +669,8 @@ class AdminService {
         final data = response.data;
         if (data is List) {
           return data.cast<Map<String, dynamic>>();
-        } else if (data is Map && data['results'] != null) {
+        }
+        if (data is Map<String, dynamic> && data['results'] != null) {
           return (data['results'] as List).cast<Map<String, dynamic>>();
         }
       }

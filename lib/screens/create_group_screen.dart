@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import '../services/group_service.dart';
 import '../utils/app_colors.dart';
+import '../providers/auth_provider.dart';
 import 'group_detail_screen.dart';
 
 class CreateGroupScreen extends StatefulWidget {
@@ -27,6 +29,34 @@ class _CreateGroupScreenState extends State<CreateGroupScreen> {
 
   Future<void> _handleSubmit() async {
     if (!_formKey.currentState!.validate()) return;
+
+    // Vérifier les restrictions admin
+    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+    final user = authProvider.user;
+    
+    if (user == null || !user.isVerified) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Vous devez être vérifié pour créer un groupe'),
+          backgroundColor: AppColors.error,
+        ),
+      );
+      return;
+    }
+
+    // Empêcher les admins de créer des groupes directement
+    if (user.isAdmin || user.isUniversityAdmin || (user.isStaff ?? false)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Les administrateurs ne peuvent pas créer de groupes directement. Les étudiants et responsables de classe gèrent les groupes.'),
+          backgroundColor: AppColors.error,
+        ),
+      );
+      if (mounted) {
+        Navigator.pop(context);
+      }
+      return;
+    }
 
     setState(() => _isSubmitting = true);
     try {

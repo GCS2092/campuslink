@@ -46,6 +46,11 @@ def custom_exception_handler(exc, context):
         if isinstance(response.data, dict) and 'detail' not in response.data:
             # Si c'est un dict avec plusieurs erreurs (validation)
             error_message = 'Validation error'
+        # Message clair pour le throttle (429) en français
+        if response.status_code == 429 and ('throttl' in str(error_message).lower() or 'second' in str(error_message).lower()):
+            error_message = (
+                'Trop de tentatives de connexion. Veuillez réessayer dans quelques minutes.'
+            )
         
         custom_response_data = {
             'error': {

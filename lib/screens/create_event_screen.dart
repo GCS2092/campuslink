@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 import '../services/event_service.dart';
 import '../utils/app_colors.dart';
+import '../providers/auth_provider.dart';
 import 'event_detail_screen.dart';
 
 class CreateEventScreen extends StatefulWidget {
@@ -94,6 +96,34 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Veuillez sélectionner une date de début'), backgroundColor: AppColors.error),
       );
+      return;
+    }
+
+    // Vérifier les restrictions admin
+    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+    final user = authProvider.user;
+    
+    if (user == null || !user.isVerified) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Vous devez être vérifié pour créer un événement'),
+          backgroundColor: AppColors.error,
+        ),
+      );
+      return;
+    }
+
+    // Empêcher les admins de créer des événements directement
+    if (user.isAdmin || user.isUniversityAdmin || (user.isStaff ?? false)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Les administrateurs ne peuvent pas créer d\'événements directement'),
+          backgroundColor: AppColors.error,
+        ),
+      );
+      if (mounted) {
+        Navigator.pop(context);
+      }
       return;
     }
 

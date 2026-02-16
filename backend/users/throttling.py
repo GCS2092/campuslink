@@ -1,6 +1,7 @@
 """
 Custom throttling for User app.
 """
+from django.conf import settings
 from rest_framework.throttling import SimpleRateThrottle
 
 
@@ -27,13 +28,18 @@ class OTPThrottle(SimpleRateThrottle):
 
 
 class LoginThrottle(SimpleRateThrottle):
-    """Throttle login to 5 per 15 minutes per IP."""
-    rate = '5/s'  # Use a valid rate format, we'll override duration
+    """Throttle login: 5 per 15 min per IP (production), 30 per 15 min (DEBUG)."""
+    rate = '5/s'  # Fallback; duration overridden in __init__
     
     def __init__(self):
         super().__init__()
-        # Override duration to 15 minutes (900 seconds)
-        self.duration = 900
+        # En dev : plus permissif pour éviter le blocage après quelques essais
+        if getattr(settings, 'DEBUG', False):
+            self.num_requests = 30
+            self.duration = 900  # 15 min
+        else:
+            self.num_requests = 5
+            self.duration = 900  # 15 min
     
     def get_cache_key(self, request, view):
         ident = self.get_ident(request)

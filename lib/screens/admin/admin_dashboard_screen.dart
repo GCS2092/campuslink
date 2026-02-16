@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:fl_chart/fl_chart.dart';
 import '../../providers/auth_provider.dart';
 import '../../services/admin_service.dart';
 import '../../utils/app_colors.dart';
@@ -33,15 +34,22 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
   }
 
   Future<void> _loadData() async {
+    final user = Provider.of<AuthProvider>(context, listen: false).user;
+    if (user == null || !user.isAdmin) {
+      setState(() => _isLoading = false);
+      return;
+    }
     setState(() => _isLoading = true);
     try {
       final stats = await _adminService.getDashboardStats();
+      if (!mounted) return;
       setState(() {
         _stats = stats;
         _isLoading = false;
       });
     } catch (e) {
       debugPrint('Error loading data: $e');
+      if (!mounted) return;
       setState(() {
         _stats = null;
         _isLoading = false;
@@ -98,6 +106,8 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                       const SizedBox(height: 16),
                       _buildTrendsSection(_stats!),
                       const SizedBox(height: 24),
+                      _buildChartsSection(_stats!),
+                      const SizedBox(height: 24),
                     ],
 
                     // Actions rapides
@@ -137,7 +147,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
       crossAxisCount: 2,
       crossAxisSpacing: 12,
       mainAxisSpacing: 12,
-      childAspectRatio: 1.5,
+      childAspectRatio: 1.6, // Augmenté de 1.5 à 1.6 pour donner plus d'espace vertical
       children: [
         _buildStatCard(
           'Étudiants',
@@ -184,28 +194,37 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
       elevation: 2,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       child: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(12), // Réduit de 16 à 12
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
+          mainAxisSize: MainAxisSize.min, // Ajouté pour éviter l'overflow
           children: [
-            Icon(icon, color: color, size: 32),
-            const SizedBox(height: 8),
-            Text(
-              value,
-              style: TextStyle(
-                fontSize: 24,
-                fontWeight: FontWeight.bold,
-                color: color,
+            Icon(icon, color: color, size: 28), // Réduit de 32 à 28
+            const SizedBox(height: 6), // Réduit de 8 à 6
+            Flexible( // Ajouté pour gérer l'overflow
+              child: Text(
+                value,
+                style: TextStyle(
+                  fontSize: 20, // Réduit de 24 à 20
+                  fontWeight: FontWeight.bold,
+                  color: color,
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
               ),
             ),
-            const SizedBox(height: 4),
-            Text(
-              label,
-              style: const TextStyle(
-                fontSize: 12,
-                color: AppColors.textSecondary,
+            const SizedBox(height: 2), // Réduit de 4 à 2
+            Flexible( // Ajouté pour gérer l'overflow
+              child: Text(
+                label,
+                style: const TextStyle(
+                  fontSize: 11, // Réduit de 12 à 11
+                  color: AppColors.textSecondary,
+                ),
+                textAlign: TextAlign.center,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
               ),
-              textAlign: TextAlign.center,
             ),
           ],
         ),
@@ -302,6 +321,152 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
           ),
         ),
       ],
+    );
+  }
+
+  Widget _buildChartsSection(Map<String, dynamic> stats) {
+    // Préparer les données pour le graphique
+    final studentsCount = (stats['total_students_count'] as num?)?.toDouble() ?? 0.0;
+    final postsCount = (stats['posts_count'] as num?)?.toDouble() ?? 0.0;
+    final eventsCount = (stats['events_count'] as num?)?.toDouble() ?? 0.0;
+    final groupsCount = (stats['groups_count'] as num?)?.toDouble() ?? 0.0;
+
+    final maxValue = [studentsCount, postsCount, eventsCount, groupsCount]
+        .reduce((a, b) => a > b ? a : b);
+
+    final chartData = [
+      {'label': 'Étudiants', 'value': studentsCount, 'color': AppColors.primary},
+      {'label': 'Posts', 'value': postsCount, 'color': AppColors.accent},
+      {'label': 'Événements', 'value': eventsCount, 'color': AppColors.secondary},
+      {'label': 'Groupes', 'value': groupsCount, 'color': AppColors.warning},
+    ];
+
+    return Card(
+      elevation: 2,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Vue d\'ensemble',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                color: AppColors.textPrimary,
+              ),
+            ),
+            const SizedBox(height: 24),
+            SizedBox(
+              height: 200,
+              child: BarChart(
+                BarChartData(
+                  alignment: BarChartAlignment.spaceAround,
+                  maxY: maxValue > 0 ? maxValue * 1.2 : 100,
+                  barTouchData: BarTouchData(
+                    enabled: true,
+                    touchTooltipData: BarTouchTooltipData(
+                      tooltipRoundedRadius: 8,
+                      tooltipBgColor: AppColors.surface,
+                    ),
+                  ),
+                  titlesData: FlTitlesData(
+                    show: true,
+                    bottomTitles: AxisTitles(
+                      sideTitles: SideTitles(
+                        showTitles: true,
+                        getTitlesWidget: (value, meta) {
+                          final index = value.toInt();
+                          if (index >= 0 && index < chartData.length) {
+                            return Padding(
+                              padding: const EdgeInsets.only(top: 8),
+                              child: Text(
+                                chartData[index]['label'] as String,
+                                style: const TextStyle(
+                                  fontSize: 11,
+                                  color: AppColors.textSecondary,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                            );
+                          }
+                          return const Text('');
+                        },
+                        reservedSize: 40,
+                      ),
+                    ),
+                    leftTitles: AxisTitles(
+                      sideTitles: SideTitles(
+                        showTitles: true,
+                        reservedSize: 50,
+                        getTitlesWidget: (value, meta) {
+                          if (value == meta.max) return const Text('');
+                          return Text(
+                            value.toInt().toString(),
+                            style: const TextStyle(
+                              fontSize: 11,
+                              color: AppColors.textSecondary,
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+                    topTitles: const AxisTitles(
+                      sideTitles: SideTitles(showTitles: false),
+                    ),
+                    rightTitles: const AxisTitles(
+                      sideTitles: SideTitles(showTitles: false),
+                    ),
+                  ),
+                  gridData: FlGridData(
+                    show: true,
+                    drawVerticalLine: false,
+                    horizontalInterval: maxValue > 0 ? maxValue / 5 : 20,
+                    getDrawingHorizontalLine: (value) {
+                      return FlLine(
+                        color: AppColors.border.withValues(alpha: 0.3),
+                        strokeWidth: 1,
+                      );
+                    },
+                  ),
+                  borderData: FlBorderData(
+                    show: true,
+                    border: Border(
+                      bottom: BorderSide(
+                        color: AppColors.border,
+                        width: 1,
+                      ),
+                      left: BorderSide(
+                        color: AppColors.border,
+                        width: 1,
+                      ),
+                    ),
+                  ),
+                  barGroups: chartData.asMap().entries.map((entry) {
+                    final index = entry.key;
+                    final data = entry.value;
+                    return BarChartGroupData(
+                      x: index,
+                      barRods: [
+                        BarChartRodData(
+                          toY: data['value'] as double,
+                          color: data['color'] as Color,
+                          width: 30,
+                          borderRadius: const BorderRadius.only(
+                            topLeft: Radius.circular(8),
+                            topRight: Radius.circular(8),
+                          ),
+                        ),
+                      ],
+                    );
+                  }).toList(),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 

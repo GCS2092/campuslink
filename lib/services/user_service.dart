@@ -1,10 +1,13 @@
 import 'package:flutter/foundation.dart';
 import '../models/user.dart';
 import 'api_service.dart';
+import 'offline_cache_service.dart';
+import 'package:dio/dio.dart';
 
 /// Service pour gérer les utilisateurs, amis, profils
 class UserService {
   final ApiService _apiService = ApiService();
+  final OfflineCacheService _cacheService = OfflineCacheService();
 
   /// Récupère la liste des utilisateurs avec filtres
   Future<List<User>> getUsers({
@@ -17,24 +20,60 @@ class UserService {
     try {
       final params = <String, dynamic>{};
       if (verifiedOnly != null) params['verified_only'] = verifiedOnly;
-      if (university != null) params['university'] = university;
+      if (university != null && university.isNotEmpty) {
+        params['university'] = university;
+        debugPrint('=== FILTER BY UNIVERSITY ===');
+        debugPrint('University filter value: $university');
+        debugPrint('University filter type: ${university.runtimeType}');
+      }
       if (search != null && search.isNotEmpty) params['search'] = search;
       if (page != null) params['page'] = page;
       if (pageSize != null) params['page_size'] = pageSize;
+
+      debugPrint('API Request params: $params');
 
       final response = await _apiService.get(
         '/users/',
         queryParameters: params.isEmpty ? null : params,
       );
 
+      debugPrint('API Response status: ${response.statusCode}');
+      debugPrint('API Response data type: ${response.data.runtimeType}');
+
       if (response.statusCode == 200) {
         final data = response.data;
+        List<User> users = [];
+        
         if (data is List) {
-          return data.map((u) => User.fromJson(u as Map<String, dynamic>)).toList();
+          users = data.map((u) => User.fromJson(u as Map<String, dynamic>)).toList();
         } else if (data is Map<String, dynamic> && data['results'] != null) {
-          return (data['results'] as List).map((u) => User.fromJson(u as Map<String, dynamic>)).toList();
+          users = (data['results'] as List).map((u) => User.fromJson(u as Map<String, dynamic>)).toList();
+        }
+
+        // Sauvegarder dans le cache
+        if (users.isNotEmpty) {
+          await _cacheService.saveUsers(
+            users.map((u) => u.toJson()).toList(),
+          );
+        }
+
+        return users;
+      }
+      return <User>[];
+    } on DioException catch (e) {
+      // Mode hors ligne : récupérer depuis le cache
+      if (_apiService.isOfflineError(e)) {
+        debugPrint('Offline mode: Loading users from cache');
+        try {
+          final cachedUsers = await _cacheService.getCachedUsers(limit: pageSize ?? 20);
+          if (cachedUsers.isNotEmpty) {
+            return cachedUsers.map((u) => User.fromJson(u)).toList();
+          }
+        } catch (cacheError) {
+          debugPrint('Error loading from cache: $cacheError');
         }
       }
+      debugPrint('Error getting users: $e');
       return <User>[];
     } catch (e) {
       debugPrint('Error getting users: $e');
@@ -295,6 +334,34 @@ class UserService {
       debugPrint('Error updating notification preferences: $e');
       return {'success': false, 'error': e.toString()};
     }
+  }
+
+  /// Récupère la liste des universités actives
+  Future<List<Map<String, dynamic>>> getUniversities() async {
+    final urlsToTry = ['/users/universities/', '/auth/universities/'];
+    for (final url in urlsToTry) {
+      try {
+        final response = await _apiService.get(url);
+        if (response.statusCode == 200) {
+          final data = response.data;
+          if (data is List) {
+            return data
+                .cast<Map<String, dynamic>>()
+                .where((uni) => uni['is_active'] != false)
+                .toList();
+          }
+          if (data is Map && data['results'] != null) {
+            return (data['results'] as List)
+                .cast<Map<String, dynamic>>()
+                .where((uni) => uni['is_active'] != false)
+                .toList();
+          }
+        }
+      } catch (e) {
+        debugPrint('Error getting universities from $url: $e');
+      }
+    }
+    return [];
   }
 }
 

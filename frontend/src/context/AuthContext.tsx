@@ -51,8 +51,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
       
       setUser(userData)
-    } catch (error) {
-      console.error('Error fetching user:', error)
+    } catch (error: unknown) {
+      const isNetworkError =
+        typeof error === 'object' &&
+        error !== null &&
+        'code' in error &&
+        ((error as { code?: string }).code === 'ERR_NETWORK' ||
+          (error as { message?: string }).message?.includes('Network Error') ||
+          (error as { message?: string }).message?.includes('timeout'))
+      if (isNetworkError) {
+        console.warn('[CampusLink] Backend unreachable. Vérifiez que l’API tourne et que l’URL est correcte (voir .env.local ou auto-config).')
+      } else {
+        console.error('Error fetching user:', error)
+      }
       authService.logout()
       setUser(null)
     } finally {

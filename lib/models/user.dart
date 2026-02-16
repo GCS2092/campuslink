@@ -38,20 +38,36 @@ class User {
 
   /// Crée un User depuis un JSON (réponse API)
   factory User.fromJson(Map<String, dynamic> json) {
+    final rawRole = json['role'];
+    final role = rawRole == null
+        ? null
+        : (rawRole is String ? rawRole.trim().toLowerCase() : rawRole.toString().toLowerCase());
     return User(
       id: json['id']?.toString() ?? '',
       email: json['email'] ?? '',
       username: json['username'] ?? '',
       firstName: json['first_name'],
       lastName: json['last_name'],
-      role: json['role'],
+      role: role,
       phoneNumber: json['phone_number'],
       phoneVerified: json['phone_verified'] ?? false,
       isVerified: json['is_verified'] ?? false,
       verificationStatus: json['verification_status'] ?? 'pending',
-      isActive: json['is_active'],
-      isStaff: json['is_staff'],
-      isSuperuser: json['is_superuser'],
+      isActive: json['is_active'] is bool
+          ? json['is_active']
+          : json['is_active'] is String
+              ? json['is_active'].toLowerCase() == 'true'
+              : json['is_active'] ?? true,
+      isStaff: json['is_staff'] is bool
+          ? json['is_staff']
+          : json['is_staff'] is String
+              ? json['is_staff'].toLowerCase() == 'true'
+              : json['is_staff'] ?? false,
+      isSuperuser: json['is_superuser'] is bool
+          ? json['is_superuser']
+          : json['is_superuser'] is String
+              ? json['is_superuser'].toLowerCase() == 'true'
+              : json['is_superuser'] ?? false,
       dateJoined: json['date_joined'] != null
           ? DateTime.parse(json['date_joined'])
           : null,
@@ -96,19 +112,16 @@ class User {
     return username;
   }
 
-  /// Vérifie si l'utilisateur est un admin
-  /// Un admin peut être identifié par :
-  /// - isStaff == true
-  /// - isSuperuser == true  
-  /// - role == 'admin'
+  /// Vérifie si l'utilisateur est un étudiant (rôle explicite)
+  bool get isStudent {
+    return role != null && role!.toLowerCase() == 'student';
+  }
+
+  /// Vérifie si l'utilisateur est un admin global (pour l'affichage de l'UI).
+  /// On affiche le dashboard admin UNIQUEMENT si le backend envoie role == 'admin'.
+  /// (is_staff/is_superuser seuls ne suffisent pas, pour éviter d'afficher l'admin à un étudiant.)
   bool get isAdmin {
-    if (isStaff == true || isSuperuser == true) {
-      return true;
-    }
-    if (role != null && role!.toLowerCase() == 'admin') {
-      return true;
-    }
-    return false;
+    return role != null && role!.toLowerCase() == 'admin';
   }
 
   /// Vérifie si l'utilisateur est un responsable de classe
@@ -126,5 +139,44 @@ class User {
 
   /// Vérifie si l'utilisateur peut modérer (admin, university_admin, ou class_leader)
   bool get canModerate => isAdmin || isUniversityAdmin || isClassLeader;
+
+  /// Copie avec champs remplacés (pour fusion login/profil)
+  User copyWith({
+    String? id,
+    String? email,
+    String? username,
+    String? firstName,
+    String? lastName,
+    String? role,
+    String? phoneNumber,
+    bool? phoneVerified,
+    bool? isVerified,
+    String? verificationStatus,
+    bool? isActive,
+    bool? isStaff,
+    bool? isSuperuser,
+    DateTime? dateJoined,
+    DateTime? lastLogin,
+    Map<String, dynamic>? profile,
+  }) {
+    return User(
+      id: id ?? this.id,
+      email: email ?? this.email,
+      username: username ?? this.username,
+      firstName: firstName ?? this.firstName,
+      lastName: lastName ?? this.lastName,
+      role: role ?? this.role,
+      phoneNumber: phoneNumber ?? this.phoneNumber,
+      phoneVerified: phoneVerified ?? this.phoneVerified,
+      isVerified: isVerified ?? this.isVerified,
+      verificationStatus: verificationStatus ?? this.verificationStatus,
+      isActive: isActive ?? this.isActive,
+      isStaff: isStaff ?? this.isStaff,
+      isSuperuser: isSuperuser ?? this.isSuperuser,
+      dateJoined: dateJoined ?? this.dateJoined,
+      lastLogin: lastLogin ?? this.lastLogin,
+      profile: profile ?? this.profile,
+    );
+  }
 }
 

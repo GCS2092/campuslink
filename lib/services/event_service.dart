@@ -2,12 +2,16 @@ import 'package:flutter/foundation.dart';
 import '../models/event.dart';
 import '../utils/constants.dart';
 import 'api_service.dart';
+import 'offline_cache_service.dart';
+import 'package:dio/dio.dart';
 
 /// Service pour gérer les événements
 class EventService {
   final ApiService _apiService = ApiService();
 
-  /// Récupère la liste des événements avec filtres optionnels
+  final OfflineCacheService _cacheService = OfflineCacheService();
+
+  /// Récupère la liste des événements avec filtres optionnels (avec support hors ligne)
   Future<Map<String, dynamic>> getEvents({
     String? category,
     String? status,
@@ -50,27 +54,50 @@ class EventService {
 
       if (response.statusCode == 200) {
         final data = response.data;
+        List<Event> events = [];
+        
         if (data is List) {
-          return {
-            'results': data.map((e) => Event.fromJson(e as Map<String, dynamic>)).toList(),
-            'count': data.length,
-          };
-        } else if (data is Map<String, dynamic>) {
-          if (data['results'] != null) {
-            return {
-              'results': (data['results'] as List)
-                  .map((e) => Event.fromJson(e as Map<String, dynamic>))
-                  .toList(),
-              'count': data['count'] ?? 0,
-              'next': data['next'],
-              'previous': data['previous'],
-            };
-          }
-          return Map<String, dynamic>.from(data);
+          events = data.map((e) => Event.fromJson(e as Map<String, dynamic>)).toList();
+        } else if (data is Map<String, dynamic> && data['results'] != null) {
+          events = (data['results'] as List)
+              .map((e) => Event.fromJson(e as Map<String, dynamic>))
+              .toList();
         }
-        return {'results': <Event>[], 'count': 0};
+
+        // Sauvegarder dans le cache
+        if (events.isNotEmpty) {
+          await _cacheService.saveEvents(
+            events.map((e) => e.toJson()).toList(),
+          );
+        }
+
+        return {
+          'results': events,
+          'count': data is Map<String, dynamic> ? (data['count'] ?? events.length) : events.length,
+          'next': data is Map<String, dynamic> ? data['next'] : null,
+          'previous': data is Map<String, dynamic> ? data['previous'] : null,
+        };
       }
       return {'results': <Event>[], 'count': 0};
+    } on DioException catch (e) {
+      // Mode hors ligne : récupérer depuis le cache
+      if (_apiService.isOfflineError(e)) {
+        debugPrint('Offline mode: Loading events from cache');
+        try {
+          final cachedEvents = await _cacheService.getCachedEvents(limit: pageSize ?? 20);
+          if (cachedEvents.isNotEmpty) {
+            return {
+              'results': cachedEvents.map((e) => Event.fromJson(e)).toList(),
+              'count': cachedEvents.length,
+              'isOffline': true,
+            };
+          }
+        } catch (cacheError) {
+          debugPrint('Error loading from cache: $cacheError');
+        }
+      }
+      debugPrint('Error getting events: $e');
+      return {'results': [], 'count': 0, 'error': e.toString(), 'isOffline': _apiService.isOfflineError(e)};
     } catch (e) {
       debugPrint('Error getting events: $e');
       return {'results': [], 'count': 0, 'error': e.toString()};

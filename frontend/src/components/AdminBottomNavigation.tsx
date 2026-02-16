@@ -28,8 +28,8 @@ export default function AdminBottomNavigation() {
   const auth = useAuth()
   const user = auth?.user || null
   
-  // Only show on admin pages and admin-accessible pages
-  if (!pathname?.startsWith('/admin') && pathname !== '/feed/manage' && pathname !== '/events' && pathname !== '/groups') {
+  // Only show on admin pages and admin-accessible pages (including messages for back navigation)
+  if (!pathname?.startsWith('/admin') && pathname !== '/feed/manage' && pathname !== '/events' && pathname !== '/groups' && pathname !== '/messages') {
     return null
   }
 

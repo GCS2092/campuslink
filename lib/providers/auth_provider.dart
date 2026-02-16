@@ -20,6 +20,9 @@ class AuthProvider with ChangeNotifier {
 
   /// Initialise le provider et vérifie si l'utilisateur est déjà connecté
   Future<void> initialize() async {
+    // Ne pas réinitialiser si déjà initialisé (évite les problèmes de hot reload)
+    if (_isLoading) return;
+    
     _isLoading = true;
     notifyListeners();
 
@@ -29,12 +32,21 @@ class AuthProvider with ChangeNotifier {
         // Récupérer le profil utilisateur
         await loadUserProfile();
       } else {
+        // Pas de token, mais ne pas déconnecter si l'utilisateur était déjà chargé
+        // (cas du hot reload où le token pourrait être en cours de refresh)
+        if (_user == null) {
+          _isAuthenticated = false;
+          _user = null;
+        }
+      }
+    } catch (e) {
+      debugPrint('Erreur lors de l\'initialisation: $e');
+      // En cas d'erreur, ne pas déconnecter si l'utilisateur était déjà chargé
+      // (le token pourrait être en cours de refresh)
+      if (_user == null) {
         _isAuthenticated = false;
         _user = null;
       }
-    } catch (e) {
-      _error = 'Erreur lors de l\'initialisation: $e';
-      _isAuthenticated = false;
     } finally {
       _isLoading = false;
       notifyListeners();
@@ -68,6 +80,8 @@ class AuthProvider with ChangeNotifier {
 
         // Charger le profil utilisateur
         await loadUserProfile();
+        // Fusionner le rôle (et drapeaux) de la réponse login pour être sûr de la distinction des rôles
+        _mergeLoginRoleIntoUser(result);
         return true;
       } else {
         _error = result['error'] ?? 'Erreur lors de la connexion';
@@ -142,13 +156,24 @@ class AuthProvider with ChangeNotifier {
         _isAuthenticated = true;
         _error = null;
       } else {
+        // Si le profil ne peut pas être chargé mais qu'on avait un utilisateur,
+        // ne pas déconnecter immédiatement (le token pourrait être en cours de refresh)
+        final hasToken = await _authService.isAuthenticated();
+        if (!hasToken) {
+          _isAuthenticated = false;
+          _user = null;
+        }
+      }
+    } catch (e) {
+      debugPrint('Erreur lors du chargement du profil: $e');
+      // Vérifier si on a toujours un token valide
+      final hasToken = await _authService.isAuthenticated();
+      if (!hasToken) {
+        _error = 'Erreur lors du chargement du profil: $e';
         _isAuthenticated = false;
         _user = null;
       }
-    } catch (e) {
-      _error = 'Erreur lors du chargement du profil: $e';
-      _isAuthenticated = false;
-      _user = null;
+      // Si on a un token, garder l'utilisateur actuel (le token est peut-être en cours de refresh)
     } finally {
       _isLoading = false;
       notifyListeners();
@@ -205,6 +230,22 @@ class AuthProvider with ChangeNotifier {
   /// Efface l'erreur
   void clearError() {
     _error = null;
+    notifyListeners();
+  }
+
+  /// Fusionne le rôle (et is_staff, is_superuser) de la réponse login dans _user
+  /// pour garantir la bonne distinction des rôles côté front.
+  void _mergeLoginRoleIntoUser(Map<String, dynamic> result) {
+    if (_user == null) return;
+    final role = result['role'];
+    final isStaff = result['is_staff'];
+    final isSuperuser = result['is_superuser'];
+    if (role == null && isStaff == null && isSuperuser == null) return;
+    _user = _user!.copyWith(
+      role: role != null ? (role is String ? role.trim().toLowerCase() : role.toString().toLowerCase()) : _user!.role,
+      isStaff: isStaff != null ? (isStaff is bool ? isStaff : (isStaff == true || isStaff == 'true')) : _user!.isStaff,
+      isSuperuser: isSuperuser != null ? (isSuperuser is bool ? isSuperuser : (isSuperuser == true || isSuperuser == 'true')) : _user!.isSuperuser,
+    );
     notifyListeners();
   }
 }

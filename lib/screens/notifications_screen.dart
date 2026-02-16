@@ -3,6 +3,8 @@ import 'package:intl/intl.dart';
 import '../models/notification.dart' as models;
 import '../services/notification_service.dart';
 import '../utils/app_colors.dart';
+import '../utils/premium_design.dart';
+import '../utils/toast_service.dart';
 
 class NotificationsScreen extends StatefulWidget {
   const NotificationsScreen({super.key});
@@ -70,32 +72,17 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
         await _loadNotifications();
         await _loadUnreadCount();
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Notification supprimée'),
-              backgroundColor: AppColors.success,
-            ),
-          );
+          ToastService.showSuccess('Notification supprimée');
         }
       } else {
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Erreur lors de la suppression'),
-              backgroundColor: AppColors.error,
-            ),
-          );
+          ToastService.showError('Erreur lors de la suppression');
         }
       }
     } catch (e) {
       debugPrint('Error deleting notification: $e');
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Erreur: ${e.toString()}'),
-            backgroundColor: AppColors.error,
-          ),
-        );
+        ToastService.showError('Erreur: ${e.toString()}');
       }
     }
   }
@@ -106,12 +93,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
       await _loadNotifications();
       await _loadUnreadCount();
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Toutes les notifications ont été marquées comme lues'),
-            backgroundColor: AppColors.success,
-          ),
-        );
+        ToastService.showSuccess('Toutes les notifications ont été marquées comme lues');
       }
     } catch (e) {
       debugPrint('Error marking all as read: $e');
@@ -156,16 +138,25 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    
     return Scaffold(
+      backgroundColor: isDark ? const Color(0xFF000000) : const Color(0xFFFAFAFA),
       appBar: AppBar(
-        title: const Text('Notifications'),
+        title: Text(
+          'Notifications',
+          style: PremiumDesign.titleLarge.copyWith(
+            fontWeight: FontWeight.w700,
+            color: isDark ? Colors.white : AppColors.textPrimary,
+          ),
+        ),
         actions: [
           if (_unreadCount > 0 && _filter == 'all')
             TextButton.icon(
               onPressed: _handleMarkAllAsRead,
               icon: const Icon(Icons.done_all, size: 18),
               label: const Text('Tout marquer'),
-              style: TextButton.styleFrom(foregroundColor: Colors.white),
+              style: TextButton.styleFrom(foregroundColor: isDark ? Colors.white : AppColors.primary),
             ),
         ],
       ),
@@ -173,16 +164,23 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
         children: [
           Container(
             decoration: BoxDecoration(
-              color: AppColors.surface,
-              border: Border(bottom: BorderSide(color: AppColors.border)),
+              color: isDark ? PremiumDesign.surfaceElevatedDark : PremiumDesign.surfaceElevated,
+              border: Border(
+                bottom: BorderSide(
+                  color: isDark
+                      ? Colors.white.withValues(alpha: 0.1)
+                      : AppColors.border,
+                ),
+              ),
             ),
             child: Row(
               children: [
                 Expanded(
-                  child: _FilterButton(
+                  child: _FilterButtonPremium(
                     label: 'Toutes',
                     count: _notifications.length,
                     isSelected: _filter == 'all',
+                    isDark: isDark,
                     onTap: () {
                       setState(() => _filter = 'all');
                       _loadNotifications();
@@ -190,10 +188,11 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                   ),
                 ),
                 Expanded(
-                  child: _FilterButton(
+                  child: _FilterButtonPremium(
                     label: 'Non lues',
                     count: _unreadCount,
                     isSelected: _filter == 'unread',
+                    isDark: isDark,
                     onTap: () {
                       setState(() => _filter = 'unread');
                       _loadNotifications();
@@ -208,16 +207,28 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                 ? const Center(child: CircularProgressIndicator())
                 : _notifications.isEmpty
                     ? Center(
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(Icons.notifications_none, size: 64, color: AppColors.textSecondary),
-                            const SizedBox(height: 16),
-                            Text(
-                              _filter == 'unread' ? 'Aucune notification non lue' : 'Aucune notification',
-                              style: TextStyle(fontSize: 18, color: AppColors.textSecondary),
-                            ),
-                          ],
+                        child: PremiumCard(
+                          padding: const EdgeInsets.all(PremiumDesign.spacingXXL),
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                Icons.notifications_none,
+                                size: 64,
+                                color: isDark
+                                    ? Colors.white.withValues(alpha: 0.3)
+                                    : AppColors.textSecondary.withValues(alpha: 0.5),
+                              ),
+                              const SizedBox(height: PremiumDesign.spacingL),
+                              Text(
+                                _filter == 'unread' ? 'Aucune notification non lue' : 'Aucune notification',
+                                style: PremiumDesign.titleMedium.copyWith(
+                                  color: isDark ? Colors.white : AppColors.textPrimary,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
                       )
                     : RefreshIndicator(
@@ -226,20 +237,27 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                           await _loadUnreadCount();
                         },
                         child: ListView.builder(
-                          padding: const EdgeInsets.all(8),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: PremiumDesign.spacingL,
+                            vertical: PremiumDesign.spacingM,
+                          ),
                           itemCount: _notifications.length,
                           itemBuilder: (context, index) {
                             final notification = _notifications[index];
-                            return _NotificationCard(
-                              notification: notification,
-                              icon: _getNotificationIcon(notification.notificationType),
-                              color: _getNotificationColor(notification.notificationType),
-                              onTap: () {
-                                if (!notification.isRead) {
-                                  _handleMarkAsRead(notification.id);
-                                }
-                              },
-                              onDelete: () => _handleDeleteNotification(notification.id),
+                            return Padding(
+                              padding: const EdgeInsets.only(bottom: PremiumDesign.spacingM),
+                              child: _NotificationCardPremium(
+                                notification: notification,
+                                icon: _getNotificationIcon(notification.notificationType),
+                                color: _getNotificationColor(notification.notificationType),
+                                isDark: isDark,
+                                onTap: () {
+                                  if (!notification.isRead) {
+                                    _handleMarkAsRead(notification.id);
+                                  }
+                                },
+                                onDelete: () => _handleDeleteNotification(notification.id),
+                              ),
                             );
                           },
                         ),
@@ -251,16 +269,18 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
   }
 }
 
-class _FilterButton extends StatelessWidget {
+class _FilterButtonPremium extends StatelessWidget {
   final String label;
   final int count;
   final bool isSelected;
+  final bool isDark;
   final VoidCallback onTap;
 
-  const _FilterButton({
+  const _FilterButtonPremium({
     required this.label,
     required this.count,
     required this.isSelected,
+    required this.isDark,
     required this.onTap,
   });
 
@@ -269,7 +289,7 @@ class _FilterButton extends StatelessWidget {
     return InkWell(
       onTap: onTap,
       child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 16),
+        padding: const EdgeInsets.symmetric(vertical: PremiumDesign.spacingL),
         decoration: BoxDecoration(
           border: Border(
             bottom: BorderSide(
@@ -282,23 +302,30 @@ class _FilterButton extends StatelessWidget {
           children: [
             Text(
               label,
-              style: TextStyle(
-                fontSize: 14,
-                fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                color: isSelected ? AppColors.primary : AppColors.textSecondary,
+              style: PremiumDesign.labelLarge.copyWith(
+                fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                color: isSelected
+                    ? AppColors.primary
+                    : (isDark ? Colors.white60 : AppColors.textSecondary),
               ),
             ),
             if (count > 0)
               Container(
-                margin: const EdgeInsets.only(top: 4),
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                margin: const EdgeInsets.only(top: PremiumDesign.spacingXS),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: PremiumDesign.spacingS,
+                  vertical: PremiumDesign.spacingXS,
+                ),
                 decoration: BoxDecoration(
                   color: isSelected ? AppColors.primary : AppColors.textSecondary,
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(PremiumDesign.radiusS),
                 ),
                 child: Text(
                   '$count',
-                  style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.white),
+                  style: PremiumDesign.labelSmall.copyWith(
+                    fontWeight: FontWeight.w700,
+                    color: Colors.white,
+                  ),
                 ),
               ),
           ],
@@ -308,24 +335,25 @@ class _FilterButton extends StatelessWidget {
   }
 }
 
-class _NotificationCard extends StatelessWidget {
+class _NotificationCardPremium extends StatelessWidget {
   final models.Notification notification;
   final IconData icon;
   final Color color;
+  final bool isDark;
   final VoidCallback onTap;
   final VoidCallback onDelete;
 
-  const _NotificationCard({
+  const _NotificationCardPremium({
     required this.notification,
     required this.icon,
     required this.color,
+    required this.isDark,
     required this.onTap,
     required this.onDelete,
   });
 
   @override
   Widget build(BuildContext context) {
-    // Utiliser DateFormat sans locale spécifique pour éviter l'erreur d'initialisation
     final timeFormat = DateFormat('HH:mm');
     final dateFormat = DateFormat('dd MMM yyyy');
     final createdAt = notification.createdAt;
@@ -333,72 +361,79 @@ class _NotificationCard extends StatelessWidget {
                     createdAt.month == DateTime.now().month &&
                     createdAt.day == DateTime.now().day;
 
-    return Card(
-      margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      color: notification.isRead ? AppColors.surface : AppColors.primary.withValues(alpha: 0.05),
-      child: InkWell(
-        onTap: onTap,
-        child: Padding(
-          padding: const EdgeInsets.all(12),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: color.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Icon(icon, color: color, size: 24),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      notification.title,
-                      style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: notification.isRead ? FontWeight.normal : FontWeight.bold,
-                        color: AppColors.textPrimary,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      notification.message,
-                      style: const TextStyle(fontSize: 12, color: AppColors.textSecondary),
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      isToday ? timeFormat.format(createdAt) : dateFormat.format(createdAt),
-                      style: const TextStyle(fontSize: 10, color: AppColors.textSecondary),
-                    ),
-                  ],
-                ),
-              ),
-              Column(
-                children: [
-                  if (!notification.isRead)
-                    Container(
-                      width: 8,
-                      height: 8,
-                      margin: const EdgeInsets.only(bottom: 8),
-                      decoration: const BoxDecoration(color: AppColors.primary, shape: BoxShape.circle),
-                    ),
-                  IconButton(
-                    icon: const Icon(Icons.delete_outline, size: 20),
-                    color: AppColors.textSecondary,
-                    onPressed: onDelete,
-                    tooltip: 'Supprimer',
+    return PremiumCard(
+      onTap: onTap,
+      padding: const EdgeInsets.all(PremiumDesign.spacingL),
+      backgroundColor: notification.isRead
+          ? null
+          : AppColors.primary.withValues(alpha: 0.05),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: 48,
+            height: 48,
+            decoration: BoxDecoration(
+              color: color.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(PremiumDesign.radiusM),
+            ),
+            child: Icon(icon, color: color, size: 24),
+          ),
+          const SizedBox(width: PremiumDesign.spacingM),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  notification.title,
+                  style: PremiumDesign.titleSmall.copyWith(
+                    fontWeight: notification.isRead ? FontWeight.w500 : FontWeight.w700,
+                    color: isDark ? Colors.white : AppColors.textPrimary,
                   ),
-                ],
+                ),
+                const SizedBox(height: PremiumDesign.spacingXS),
+                Text(
+                  notification.message,
+                  style: PremiumDesign.bodySmall.copyWith(
+                    color: isDark ? Colors.white70 : AppColors.textSecondary,
+                  ),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                const SizedBox(height: PremiumDesign.spacingXS),
+                Text(
+                  isToday ? timeFormat.format(createdAt) : dateFormat.format(createdAt),
+                  style: PremiumDesign.labelSmall.copyWith(
+                    color: isDark ? Colors.white38 : AppColors.textTertiary,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Column(
+            children: [
+              if (!notification.isRead)
+                Container(
+                  width: 8,
+                  height: 8,
+                  margin: const EdgeInsets.only(bottom: PremiumDesign.spacingS),
+                  decoration: const BoxDecoration(
+                    color: AppColors.primary,
+                    shape: BoxShape.circle,
+                  ),
+                ),
+              IconButton(
+                icon: Icon(
+                  Icons.delete_outline,
+                  size: 20,
+                  color: isDark ? Colors.white38 : AppColors.textSecondary,
+                ),
+                onPressed: onDelete,
+                tooltip: 'Supprimer',
               ),
             ],
           ),
-        ),
+        ],
       ),
     );
   }

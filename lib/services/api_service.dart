@@ -1,23 +1,33 @@
 import 'package:dio/dio.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:flutter/foundation.dart';
 import '../utils/constants.dart';
+import 'api_config.dart';
 
 /// Service de base pour communiquer avec l'API Django
-/// Gère automatiquement l'authentification JWT et le refresh token
+/// Gère automatiquement l'authentification JWT et le refresh token.
+/// L'URL de base est résolue automatiquement selon le réseau (WiFi / local ou production).
 class ApiService {
   static final ApiService _instance = ApiService._internal();
   factory ApiService() => _instance;
   ApiService._internal();
 
   late Dio _dio;
+  String _baseUrl = AppConstants.apiBaseUrl;
+  bool _initialized = false;
   bool _isRefreshing = false;
   final List<({RequestOptions options, ErrorInterceptorHandler handler})> _pendingRequests = [];
 
-  /// Initialise le service API avec la configuration de base
-  void initialize() {
+  /// URL de base actuelle (résolue selon le réseau). À utiliser pour construire les URLs d'images.
+  String get baseUrl => _baseUrl;
+
+  /// Initialise le service API : résout l'URL selon le réseau puis configure Dio.
+  Future<void> initialize() async {
+    if (_initialized) return;
+    _baseUrl = await ApiConfig.resolveBaseUrl();
     _dio = Dio(
       BaseOptions(
-        baseUrl: AppConstants.apiBaseUrl,
+        baseUrl: _baseUrl,
         connectTimeout: AppConstants.connectionTimeout,
         receiveTimeout: AppConstants.receiveTimeout,
         headers: {
@@ -26,6 +36,7 @@ class ApiService {
         },
       ),
     );
+    _initialized = true;
 
     // Intercepteur pour ajouter le token JWT dans les headers
     _dio.interceptors.add(
@@ -53,11 +64,23 @@ class ApiService {
     );
 
     // Intercepteur pour logger les requêtes (en développement)
+    // Réduit la verbosité pour éviter de polluer la console
     if (const bool.fromEnvironment('dart.vm.product') == false) {
       _dio.interceptors.add(LogInterceptor(
-        requestBody: true,
-        responseBody: true,
-        error: true,
+        request: false, // Ne pas afficher les détails de la requête
+        requestHeader: false, // Ne pas afficher les headers
+        requestBody: false, // Ne pas afficher le body de la requête
+        responseHeader: false, // Ne pas afficher les headers de réponse
+        responseBody: false, // Ne pas afficher le body de réponse
+        error: true, // Afficher seulement les erreurs
+        logPrint: (obj) {
+          // Logger seulement les erreurs importantes
+          if (obj.toString().contains('Error') || 
+              obj.toString().contains('Exception') ||
+              obj.toString().contains('Failed')) {
+            debugPrint(obj.toString());
+          }
+        },
       ));
     }
   }
@@ -155,17 +178,35 @@ class ApiService {
     await prefs.remove(AppConstants.userDataKey);
   }
 
-  /// GET request
+  /// Vérifie si l'erreur est due à une absence de connexion
+  bool isOfflineError(DioException error) {
+    return error.type == DioExceptionType.connectionTimeout ||
+           error.type == DioExceptionType.sendTimeout ||
+           error.type == DioExceptionType.receiveTimeout ||
+           error.type == DioExceptionType.connectionError ||
+           (error.error != null && error.error.toString().contains('SocketException'));
+  }
+
+  /// GET request avec support du mode hors ligne
   Future<Response> get(
     String path, {
     Map<String, dynamic>? queryParameters,
     Options? options,
   }) async {
-    return await _dio.get(
-      path,
-      queryParameters: queryParameters,
-      options: options,
-    );
+    try {
+      return await _dio.get(
+        path,
+        queryParameters: queryParameters,
+        options: options,
+      );
+    } on DioException catch (e) {
+      if (isOfflineError(e)) {
+        debugPrint('Offline mode: Cannot fetch $path');
+        // Lancer une exception spéciale pour indiquer le mode hors ligne
+        rethrow;
+      }
+      rethrow;
+    }
   }
 
   /// POST request

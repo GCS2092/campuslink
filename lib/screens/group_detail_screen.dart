@@ -4,6 +4,7 @@ import '../services/group_service.dart';
 import '../services/messaging_service.dart';
 import '../utils/app_colors.dart';
 import '../utils/constants.dart';
+import '../services/api_service.dart';
 import 'chat_screen.dart';
 import 'group_members_screen.dart';
 
@@ -179,7 +180,7 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
                         Image.network(
                           _group!.coverImage!.startsWith('http')
                               ? _group!.coverImage!
-                              : '${AppConstants.apiBaseUrl.replaceAll('/api', '')}${_group!.coverImage}',
+                              : '${ApiService().baseUrl.replaceAll('/api', '')}${_group!.coverImage}',
                           height: 200,
                           width: double.infinity,
                           fit: BoxFit.cover,

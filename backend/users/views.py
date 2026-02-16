@@ -93,6 +93,14 @@ class CustomTokenObtainPairView(TokenObtainPairView):
                                 {
                                     'access': str(refresh.access_token),
                                     'refresh': str(refresh),
+                                    'user_id': str(user.id),
+                                    'email': user.email,
+                                    'username': user.username,
+                                    'first_name': user.first_name or '',
+                                    'last_name': user.last_name or '',
+                                    'role': user.role,
+                                    'is_staff': user.is_staff,
+                                    'is_superuser': user.is_superuser,
                                     'account_status': {
                                         'is_active': user.is_active,
                                         'is_verified': user.is_verified,

@@ -3,7 +3,10 @@ import 'package:intl/intl.dart';
 import '../models/user.dart';
 import '../services/user_service.dart';
 import '../services/messaging_service.dart';
+import '../services/admin_service.dart';
 import '../utils/app_colors.dart';
+import '../utils/confirm_dialog.dart';
+import '../utils/toast_service.dart';
 import 'chat_screen.dart';
 import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
@@ -21,12 +24,15 @@ class UserDetailScreen extends StatefulWidget {
 class _UserDetailScreenState extends State<UserDetailScreen> {
   final UserService _userService = UserService();
   final MessagingService _messagingService = MessagingService();
-  
+  final AdminService _adminService = AdminService();
+
   User? _user;
   Map<String, dynamic>? _friendshipStatus;
   bool _isLoading = true;
   bool _isLoadingStatus = false;
   bool _isSendingRequest = false;
+  bool _isAssigningClassLeader = false;
+  bool _isRevokingClassLeader = false;
 
   @override
   void initState() {
@@ -293,6 +299,37 @@ class _UserDetailScreenState extends State<UserDetailScreen> {
                               label: 'Membre depuis',
                               value: DateFormat('dd MMMM yyyy').format(_user!.dateJoined ?? DateTime.now()),
                             ),
+                            if (_user!.isActive != false)
+                              _InfoRow(
+                                icon: Icons.toggle_on,
+                                label: 'Compte',
+                                value: 'Actif',
+                                valueColor: AppColors.success,
+                              ),
+                            if (_user!.isActive == false)
+                              _InfoRow(
+                                icon: Icons.toggle_off,
+                                label: 'Compte',
+                                value: 'Inactif',
+                                valueColor: AppColors.error,
+                              ),
+                            // Profil détaillé (université, filière, année)
+                            ..._buildProfileDetailRows(),
+                            // Actions admin (désigner / révoquer responsable de classe)
+                            if (!isOwnProfile && authProvider.user?.isAdmin == true) ...[
+                              const SizedBox(height: 24),
+                              const Divider(),
+                              const Text(
+                                'Actions administrateur',
+                                style: TextStyle(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.bold,
+                                  color: AppColors.textPrimary,
+                                ),
+                              ),
+                              const SizedBox(height: 12),
+                              ..._buildAdminActionButtons(),
+                            ],
                           ],
                         ),
                       ),
@@ -300,6 +337,203 @@ class _UserDetailScreenState extends State<UserDetailScreen> {
                   ),
                 ),
     );
+  }
+
+  List<Widget> _buildProfileDetailRows() {
+    final profile = _user?.profile;
+    if (profile == null || profile is! Map<String, dynamic>) return [];
+
+    final rows = <Widget>[];
+    final university = profile['university'];
+    String? universityName;
+    if (university is Map<String, dynamic>) {
+      universityName = university['name'] ?? university['short_name']?.toString();
+    }
+    if (universityName != null && universityName.toString().isNotEmpty) {
+      rows.add(_InfoRow(
+        icon: Icons.school,
+        label: 'Université',
+        value: universityName.toString(),
+      ));
+    }
+
+    final campus = profile['campus'];
+    if (campus is Map<String, dynamic>) {
+      final campusName = campus['name']?.toString();
+      if (campusName != null && campusName.isNotEmpty) {
+        rows.add(_InfoRow(icon: Icons.location_city, label: 'Campus', value: campusName));
+      }
+    }
+
+    final department = profile['department'];
+    if (department is Map<String, dynamic>) {
+      final deptName = department['name']?.toString();
+      if (deptName != null && deptName.isNotEmpty) {
+        rows.add(_InfoRow(icon: Icons.category, label: 'Département / Filière', value: deptName));
+      }
+    }
+
+    final fieldOfStudy = profile['field_of_study']?.toString();
+    if (fieldOfStudy != null && fieldOfStudy.isNotEmpty) {
+      rows.add(_InfoRow(icon: Icons.menu_book, label: 'Domaine / Filière', value: fieldOfStudy));
+    }
+
+    final academicYear = profile['academic_year']?.toString();
+    if (academicYear != null && academicYear.isNotEmpty) {
+      rows.add(_InfoRow(icon: Icons.school_outlined, label: 'Année académique', value: academicYear));
+    }
+
+    final bio = profile['bio']?.toString();
+    if (bio != null && bio.trim().isNotEmpty) {
+      rows.add(
+        Padding(
+          padding: const EdgeInsets.only(bottom: 12),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Icon(Icons.info_outline, size: 20, color: AppColors.primary),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Bio',
+                      style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      bio,
+                      style: const TextStyle(
+                        fontSize: 14,
+                        color: AppColors.textPrimary,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+    return rows;
+  }
+
+  List<Widget> _buildAdminActionButtons() {
+    if (_user == null) return [];
+    final role = _user!.role ?? '';
+
+    if (role == 'student') {
+      return [
+        SizedBox(
+          width: double.infinity,
+          child: FilledButton.icon(
+            onPressed: _isAssigningClassLeader
+                ? null
+                : () => _handleAssignClassLeader(),
+            icon: _isAssigningClassLeader
+                ? const SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                  )
+                : const Icon(Icons.admin_panel_settings),
+            label: Text(_isAssigningClassLeader ? 'En cours...' : 'Désigner comme responsable de classe'),
+            style: FilledButton.styleFrom(
+              backgroundColor: AppColors.primary,
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(vertical: 12),
+            ),
+          ),
+        ),
+      ];
+    }
+
+    if (role == 'class_leader') {
+      return [
+        SizedBox(
+          width: double.infinity,
+          child: OutlinedButton.icon(
+            onPressed: _isRevokingClassLeader
+                ? null
+                : () => _handleRevokeClassLeader(),
+            icon: _isRevokingClassLeader
+                ? const SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : const Icon(Icons.person_off_outlined),
+            label: Text(_isRevokingClassLeader ? 'En cours...' : 'Révoquer le rôle de responsable de classe'),
+            style: OutlinedButton.styleFrom(
+              foregroundColor: AppColors.error,
+              side: const BorderSide(color: AppColors.error),
+              padding: const EdgeInsets.symmetric(vertical: 12),
+            ),
+          ),
+        ),
+      ];
+    }
+
+    return [];
+  }
+
+  Future<void> _handleAssignClassLeader() async {
+    if (_user == null) return;
+    final confirmed = await showConfirmDialog(
+      context,
+      title: 'Désigner responsable de classe',
+      message: 'Désigner ${_user!.fullName} comme responsable de classe ?',
+      confirmText: 'Désigner',
+      cancelText: 'Annuler',
+    );
+    if (!confirmed || !mounted) return;
+    setState(() => _isAssigningClassLeader = true);
+    try {
+      final result = await _adminService.assignClassLeader(_user!.id);
+      if (mounted) {
+        if (result['success'] == true) {
+          ToastService.showSuccess('Responsable de classe désigné');
+          _loadUser();
+        } else {
+          ToastService.showError(result['error'] ?? 'Erreur');
+        }
+      }
+    } catch (e) {
+      if (mounted) ToastService.showError('Erreur');
+    } finally {
+      if (mounted) setState(() => _isAssigningClassLeader = false);
+    }
+  }
+
+  Future<void> _handleRevokeClassLeader() async {
+    if (_user == null) return;
+    final confirmed = await showConfirmDialog(
+      context,
+      title: 'Révoquer le rôle',
+      message: 'Révoquer le rôle de responsable de classe pour ${_user!.fullName} ?',
+      confirmText: 'Révoquer',
+      cancelText: 'Annuler',
+      isDanger: true,
+    );
+    if (!confirmed || !mounted) return;
+    setState(() => _isRevokingClassLeader = true);
+    try {
+      final result = await _adminService.revokeClassLeader(_user!.id);
+      if (mounted) {
+        if (result['success'] == true) {
+          ToastService.showSuccess('Rôle révoqué');
+          _loadUser();
+        } else {
+          ToastService.showError(result['error'] ?? 'Erreur');
+        }
+      }
+    } catch (e) {
+      if (mounted) ToastService.showError('Erreur');
+    } finally {
+      if (mounted) setState(() => _isRevokingClassLeader = false);
+    }
   }
 
   Widget _getActionButton() {

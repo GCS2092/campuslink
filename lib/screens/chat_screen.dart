@@ -1,11 +1,15 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:provider/provider.dart';
+import 'package:google_fonts/google_fonts.dart';
+import 'package:cached_network_image/cached_network_image.dart';
+import 'package:image_picker/image_picker.dart';
 import '../models/message.dart';
 import '../services/messaging_service.dart';
-import '../utils/app_colors.dart';
+import '../services/image_picker_service.dart';
+import '../utils/toast_service.dart';
 import '../providers/auth_provider.dart';
-import 'package:provider/provider.dart';
 
 /// Écran de chat pour une conversation
 class ChatScreen extends StatefulWidget {
@@ -24,19 +28,22 @@ class ChatScreen extends StatefulWidget {
 
 class _ChatScreenState extends State<ChatScreen> {
   final MessagingService _messagingService = MessagingService();
+  final ImagePickerService _imagePickerService = ImagePickerService();
   final TextEditingController _messageController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
   
   List<Message> _messages = [];
   bool _isLoading = true;
   bool _isSending = false;
+  bool _isUploadingImage = false;
   Timer? _refreshTimer;
+  final bool _isTyping = false; // Simuler le statut "Typing...."
 
   @override
   void initState() {
     super.initState();
     _loadMessages();
-    // Rafraîchir les messages toutes les 3 secondes pour la synchronisation
+    // Rafraîchir les messages toutes les 3 secondes
     _refreshTimer = Timer.periodic(const Duration(seconds: 3), (_) {
       if (mounted && !_isSending) {
         _refreshMessages();
@@ -61,7 +68,7 @@ class _ChatScreenState extends State<ChatScreen> {
       );
       
       setState(() {
-        _messages = messages.reversed.toList(); // Inverser pour afficher du plus ancien au plus récent
+        _messages = messages.reversed.toList();
         _isLoading = false;
       });
       
@@ -83,17 +90,11 @@ class _ChatScreenState extends State<ChatScreen> {
       });
       
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Erreur lors du chargement: ${e.toString()}'),
-            backgroundColor: AppColors.error,
-          ),
-        );
+        ToastService.showError('Erreur lors du chargement: ${e.toString()}');
       }
     }
   }
 
-  /// Rafraîchir les messages silencieusement pour la synchronisation
   Future<void> _refreshMessages() async {
     try {
       final messages = await _messagingService.getMessages(
@@ -102,17 +103,14 @@ class _ChatScreenState extends State<ChatScreen> {
       
       final newMessages = messages.reversed.toList();
       
-      // Vérifier s'il y a de nouveaux messages
       if (newMessages.length != _messages.length || 
           (newMessages.isNotEmpty && _messages.isNotEmpty && 
            newMessages.last.id != _messages.last.id)) {
-        // Il y a de nouveaux messages, mettre à jour la liste
         if (mounted) {
           setState(() {
             _messages = newMessages;
           });
           
-          // Scroller vers le bas si on était déjà en bas
           WidgetsBinding.instance.addPostFrameCallback((_) {
             if (_scrollController.hasClients) {
               final isAtBottom = _scrollController.position.pixels >= 
@@ -129,7 +127,6 @@ class _ChatScreenState extends State<ChatScreen> {
         }
       }
     } catch (e) {
-      // Ignorer les erreurs silencieuses lors du rafraîchissement
       debugPrint('Error refreshing messages: $e');
     }
   }
@@ -152,7 +149,6 @@ class _ChatScreenState extends State<ChatScreen> {
           _messages.add(message);
         });
 
-        // Scroller vers le bas
         WidgetsBinding.instance.addPostFrameCallback((_) {
           if (_scrollController.hasClients) {
             _scrollController.animateTo(
@@ -163,23 +159,14 @@ class _ChatScreenState extends State<ChatScreen> {
           }
         });
       } else {
-        // Si le message n'est pas retourné, recharger les messages pour synchroniser
         await _refreshMessages();
       }
     } catch (e) {
       debugPrint('Error sending message: $e');
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Erreur lors de l\'envoi: ${e.toString()}'),
-            backgroundColor: AppColors.error,
-          ),
-        );
+        ToastService.showError('Erreur lors de l\'envoi: ${e.toString()}');
       }
-      // Remettre le texte dans le champ
       _messageController.text = content;
-      
-      // Recharger les messages pour voir si le message a quand même été créé
       await _refreshMessages();
     } finally {
       if (mounted) {
@@ -188,110 +175,119 @@ class _ChatScreenState extends State<ChatScreen> {
     }
   }
 
+  Future<void> _pickAndSendImage({bool fromCamera = false}) async {
+    try {
+      setState(() => _isUploadingImage = true);
+
+      // Sélectionner l'image
+      final currentContext = context;
+      XFile? imageFile;
+      if (fromCamera) {
+        imageFile = await _imagePickerService.pickImageFromCamera();
+      } else {
+        if (!mounted) return;
+        imageFile = await _imagePickerService.pickImage(context: currentContext);
+      }
+
+      if (imageFile == null) {
+        if (mounted) {
+          setState(() => _isUploadingImage = false);
+        }
+        return;
+      }
+
+      // Vérifier la taille (max 10MB)
+      final fileSize = await imageFile.length();
+      const maxSize = 10 * 1024 * 1024; // 10MB
+      if (fileSize > maxSize) {
+        if (mounted) {
+          ToastService.showError('L\'image est trop volumineuse (max 10MB)');
+        }
+        setState(() => _isUploadingImage = false);
+        return;
+      }
+
+      // Uploader l'image
+      final uploadResult = await _messagingService.uploadAttachment(imageFile);
+
+      if (uploadResult == null) {
+        if (mounted) {
+          ToastService.showError('Erreur lors de l\'upload de l\'image');
+        }
+        setState(() => _isUploadingImage = false);
+        return;
+      }
+
+      // Envoyer le message avec l'image
+      final message = await _messagingService.sendMessage(
+        conversationId: widget.conversationId,
+        content: '📷 Image',
+        attachmentUrl: uploadResult['url'] as String,
+        attachmentName: uploadResult['name'] as String,
+        attachmentSize: uploadResult['size'] as int,
+        messageType: 'image',
+      );
+
+      if (message != null) {
+        setState(() {
+          _messages.add(message);
+        });
+
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (_scrollController.hasClients) {
+            _scrollController.animateTo(
+              _scrollController.position.maxScrollExtent,
+              duration: const Duration(milliseconds: 300),
+              curve: Curves.easeOut,
+            );
+          }
+        });
+
+        if (mounted) {
+          ToastService.showSuccess('Image envoyée avec succès');
+        }
+      } else {
+        await _refreshMessages();
+      }
+    } catch (e) {
+      debugPrint('Error picking and sending image: $e');
+      if (mounted) {
+        ToastService.showError('Erreur lors de l\'envoi de l\'image: ${e.toString()}');
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isUploadingImage = false);
+      }
+    }
+  }
+
+  String _formatMessageTime(DateTime dateTime) {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final messageDate = DateTime(dateTime.year, dateTime.month, dateTime.day);
+    
+    if (messageDate == today) {
+      return 'Today ${DateFormat('h:mm a').format(dateTime).toLowerCase()}';
+    } else if (messageDate == today.subtract(const Duration(days: 1))) {
+      return 'Yesterday ${DateFormat('h:mm a').format(dateTime).toLowerCase()}';
+    } else {
+      return DateFormat('MMM d, h:mm a').format(dateTime);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final authProvider = Provider.of<AuthProvider>(context);
     final currentUserId = authProvider.user?.id;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(widget.conversationName),
-        actions: [
-          PopupMenuButton<String>(
-            onSelected: (value) async {
-              switch (value) {
-                case 'pin':
-                  final success = await _messagingService.pinConversation(widget.conversationId);
-                  if (mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text(success ? 'Conversation épinglée' : 'Erreur'),
-                        backgroundColor: success ? AppColors.success : AppColors.error,
-                      ),
-                    );
-                  }
-                  break;
-                case 'archive':
-                  final success = await _messagingService.archiveConversation(widget.conversationId);
-                  if (mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text(success ? 'Conversation archivée' : 'Erreur'),
-                        backgroundColor: success ? AppColors.success : AppColors.error,
-                      ),
-                    );
-                    if (success) {
-                      Navigator.pop(context);
-                    }
-                  }
-                  break;
-                case 'clear':
-                  final confirmed = await showDialog<bool>(
-                    context: context,
-                    builder: (context) => AlertDialog(
-                      title: const Text('Effacer l\'historique'),
-                      content: const Text('Êtes-vous sûr de vouloir effacer tous les messages de cette conversation ?'),
-                      actions: [
-                        TextButton(
-                          onPressed: () => Navigator.pop(context, false),
-                          child: const Text('Annuler'),
-                        ),
-                        TextButton(
-                          onPressed: () => Navigator.pop(context, true),
-                          child: const Text('Effacer', style: TextStyle(color: AppColors.error)),
-                        ),
-                      ],
-                    ),
-                  );
-                  if (confirmed == true && mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Fonctionnalité à venir'),
-                        backgroundColor: AppColors.warning,
-                      ),
-                    );
-                  }
-                  break;
-              }
-            },
-            itemBuilder: (context) => [
-              const PopupMenuItem(
-                value: 'pin',
-                child: Row(
-                  children: [
-                    Icon(Icons.push_pin, size: 20),
-                    SizedBox(width: 8),
-                    Text('Épingler'),
-                  ],
-                ),
-              ),
-              const PopupMenuItem(
-                value: 'archive',
-                child: Row(
-                  children: [
-                    Icon(Icons.archive, size: 20),
-                    SizedBox(width: 8),
-                    Text('Archiver'),
-                  ],
-                ),
-              ),
-              const PopupMenuDivider(),
-              const PopupMenuItem(
-                value: 'clear',
-                child: Row(
-                  children: [
-                    Icon(Icons.delete_outline, size: 20, color: AppColors.error),
-                    SizedBox(width: 8),
-                    Text('Effacer l\'historique', style: TextStyle(color: AppColors.error)),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-      body: Column(
+    return Container(
+      color: isDark ? const Color(0xFF000000) : Colors.white,
+      child: Column(
         children: [
+          // Header avec photo, nom et statut
+          _buildChatHeader(isDark),
+          
           // Liste des messages
           Expanded(
             child: _isLoading
@@ -303,15 +299,15 @@ class _ChatScreenState extends State<ChatScreen> {
                           children: [
                             Icon(
                               Icons.chat_bubble_outline,
-                              size: 64,
-                              color: AppColors.textSecondary,
+                              size: 80,
+                              color: isDark ? Colors.white38 : Colors.grey[300],
                             ),
                             const SizedBox(height: 16),
                             Text(
-                              'Aucun message',
-                              style: TextStyle(
-                                fontSize: 18,
-                                color: AppColors.textSecondary,
+                              'No messages yet',
+                              style: GoogleFonts.inter(
+                                fontSize: 16,
+                                color: isDark ? Colors.white70 : Colors.grey[600],
                               ),
                             ),
                           ],
@@ -319,7 +315,10 @@ class _ChatScreenState extends State<ChatScreen> {
                       )
                     : ListView.builder(
                         controller: _scrollController,
-                        padding: const EdgeInsets.all(16),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 20,
+                          vertical: 16,
+                        ),
                         itemCount: _messages.length,
                         itemBuilder: (context, index) {
                           final message = _messages[index];
@@ -328,64 +327,219 @@ class _ChatScreenState extends State<ChatScreen> {
                           return _MessageBubble(
                             message: message,
                             isMe: isMe,
+                            isDark: isDark,
+                            timeFormatter: _formatMessageTime,
                           );
                         },
                       ),
           ),
 
           // Champ de saisie
-          Container(
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: AppColors.surface,
-              border: Border(
-                top: BorderSide(color: AppColors.border),
-              ),
+          _buildMessageInput(isDark),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildChatHeader(bool isDark) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF1C1C1E) : Colors.white,
+        border: Border(
+          bottom: BorderSide(
+            color: isDark ? Colors.white.withValues(alpha: 0.1) : Colors.grey.withValues(alpha: 0.2),
+          ),
+        ),
+      ),
+      child: Row(
+        children: [
+          // Bouton retour (sur petits écrans ou si on vient de conversations_screen)
+          IconButton(
+            icon: Icon(
+              Icons.arrow_back,
+              color: isDark ? Colors.white70 : Colors.grey[700],
+              size: 24,
             ),
-            child: SafeArea(
-              child: Row(
-                children: [
-                  Expanded(
-                    child: TextField(
-                      controller: _messageController,
-                      decoration: InputDecoration(
-                        hintText: 'Tapez un message...',
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(24),
-                          borderSide: BorderSide(color: AppColors.border),
-                        ),
-                        filled: true,
-                        fillColor: AppColors.background,
-                        contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 16,
-                          vertical: 8,
-                        ),
-                      ),
-                      maxLines: null,
-                      textCapitalization: TextCapitalization.sentences,
-                      onSubmitted: (_) => _sendMessage(),
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  IconButton(
-                    onPressed: _isSending ? null : _sendMessage,
-                    icon: _isSending
-                        ? const SizedBox(
-                            width: 20,
-                            height: 20,
-                            child: CircularProgressIndicator(strokeWidth: 2),
-                          )
-                        : const Icon(Icons.send),
-                    color: AppColors.primary,
-                    style: IconButton.styleFrom(
-                      backgroundColor: AppColors.primary.withValues(alpha: 0.1),
-                    ),
-                  ),
-                ],
+            onPressed: () {
+              Navigator.of(context).pop();
+            },
+          ),
+          
+          // Photo de profil
+          Container(
+            width: 45,
+            height: 45,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: const Color(0xFF4A90E2),
+            ),
+            child: Center(
+              child: Text(
+                widget.conversationName.isNotEmpty
+                    ? widget.conversationName[0].toUpperCase()
+                    : 'U',
+                style: GoogleFonts.inter(
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 18,
+                ),
               ),
             ),
           ),
+          const SizedBox(width: 12),
+          
+          // Nom et statut
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  widget.conversationName,
+                  style: GoogleFonts.inter(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                    color: isDark ? Colors.white : Colors.black87,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  _isTyping ? 'Typing.....' : 'Online',
+                  style: GoogleFonts.inter(
+                    fontSize: 12,
+                    color: _isTyping ? const Color(0xFF4A90E2) : Colors.green,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          
+          // Icônes d'appel
+          IconButton(
+            icon: Icon(
+              Icons.phone,
+              color: isDark ? Colors.white70 : Colors.grey[700],
+              size: 22,
+            ),
+            onPressed: () {
+              ToastService.showInfo('Fonctionnalité d\'appel à venir');
+            },
+          ),
+          IconButton(
+            icon: Icon(
+              Icons.videocam,
+              color: isDark ? Colors.white70 : Colors.grey[700],
+              size: 22,
+            ),
+            onPressed: () {
+              ToastService.showInfo('Fonctionnalité d\'appel vidéo à venir');
+            },
+          ),
+          IconButton(
+            icon: Icon(
+              Icons.more_vert,
+              color: isDark ? Colors.white70 : Colors.grey[700],
+              size: 22,
+            ),
+            onPressed: () {
+              // TODO: Menu d'options
+            },
+          ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildMessageInput(bool isDark) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF1C1C1E) : Colors.white,
+        border: Border(
+          top: BorderSide(
+            color: isDark ? Colors.white.withValues(alpha: 0.1) : Colors.grey.withValues(alpha: 0.2),
+          ),
+        ),
+      ),
+      child: SafeArea(
+        child: Row(
+          children: [
+            // Icône Add (pour sélectionner une image)
+            IconButton(
+              icon: Icon(
+                Icons.add_circle_outline,
+                color: isDark ? Colors.white70 : Colors.grey[700],
+                size: 28,
+              ),
+              onPressed: _isUploadingImage ? null : () => _pickAndSendImage(),
+            ),
+            
+            // Champ de texte
+            Expanded(
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                decoration: BoxDecoration(
+                  color: isDark ? const Color(0xFF2C2C2E) : const Color(0xFFF5F5F5),
+                  borderRadius: BorderRadius.circular(25),
+                ),
+                child: TextField(
+                  controller: _messageController,
+                  style: GoogleFonts.inter(
+                    color: isDark ? Colors.white : Colors.black87,
+                    fontSize: 14,
+                  ),
+                  decoration: InputDecoration(
+                    hintText: 'Type your message......',
+                    hintStyle: GoogleFonts.inter(
+                      color: isDark ? Colors.white54 : Colors.grey[600],
+                      fontSize: 14,
+                    ),
+                    border: InputBorder.none,
+                    contentPadding: EdgeInsets.zero,
+                  ),
+                  maxLines: null,
+                  textCapitalization: TextCapitalization.sentences,
+                  onSubmitted: (_) => _sendMessage(),
+                ),
+              ),
+            ),
+            
+            const SizedBox(width: 8),
+            
+            // Icône Caméra (pour prendre une photo)
+            IconButton(
+              icon: Icon(
+                Icons.camera_alt_outlined,
+                color: isDark ? Colors.white70 : Colors.grey[700],
+                size: 24,
+              ),
+              onPressed: _isUploadingImage ? null : () => _pickAndSendImage(fromCamera: true),
+            ),
+            
+            // Icône Send
+            IconButton(
+              icon: Icon(
+                Icons.send,
+                color: const Color(0xFF4A90E2),
+                size: 24,
+              ),
+              onPressed: _isSending ? null : _sendMessage,
+            ),
+            
+            // Icône Microphone
+            IconButton(
+              icon: Icon(
+                Icons.mic_outlined,
+                color: isDark ? Colors.white70 : Colors.grey[700],
+                size: 24,
+              ),
+              onPressed: () {
+                ToastService.showInfo('Fonctionnalité vocale à venir');
+              },
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -394,24 +548,28 @@ class _ChatScreenState extends State<ChatScreen> {
 class _MessageBubble extends StatelessWidget {
   final Message message;
   final bool isMe;
+  final bool isDark;
+  final String Function(DateTime) timeFormatter;
 
   const _MessageBubble({
     required this.message,
     required this.isMe,
+    required this.isDark,
+    required this.timeFormatter,
   });
 
   @override
   Widget build(BuildContext context) {
     if (message.isDeleted) {
       return Padding(
-        padding: const EdgeInsets.symmetric(vertical: 4),
+        padding: const EdgeInsets.symmetric(vertical: 8),
         child: Center(
           child: Text(
             'Message supprimé',
-            style: TextStyle(
+            style: GoogleFonts.inter(
               fontSize: 12,
               fontStyle: FontStyle.italic,
-              color: AppColors.textSecondary,
+              color: isDark ? Colors.white38 : Colors.grey[600],
             ),
           ),
         ),
@@ -419,100 +577,140 @@ class _MessageBubble extends StatelessWidget {
     }
 
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4),
+      padding: const EdgeInsets.only(bottom: 12),
       child: Row(
         mainAxisAlignment: isMe ? MainAxisAlignment.end : MainAxisAlignment.start,
         crossAxisAlignment: CrossAxisAlignment.end,
         children: [
           if (!isMe) ...[
-            CircleAvatar(
-              radius: 16,
-              backgroundColor: AppColors.primary.withValues(alpha: 0.1),
-              child: Text(
-                message.sender.username.isNotEmpty
-                    ? message.sender.username[0].toUpperCase()
-                    : 'U',
-                style: const TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.bold,
-                  color: AppColors.primary,
+            Container(
+              width: 35,
+              height: 35,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: const Color(0xFF4A90E2),
+              ),
+              child: Center(
+                child: Text(
+                  message.sender.username.isNotEmpty
+                      ? message.sender.username[0].toUpperCase()
+                      : 'U',
+                  style: GoogleFonts.inter(
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 16,
+                  ),
                 ),
               ),
             ),
             const SizedBox(width: 8),
           ],
+          
           Flexible(
             child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
               decoration: BoxDecoration(
-                color: isMe ? AppColors.primary : AppColors.surface,
+                color: const Color(0xFFE3F2FD), // Bleu clair comme sur l'image
                 borderRadius: BorderRadius.circular(18),
-                border: isMe
-                    ? null
-                    : Border.all(color: AppColors.border),
+                border: Border.all(
+                  color: const Color(0xFF4A90E2).withValues(alpha: 0.3),
+                  width: 1,
+                ),
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  if (!isMe)
-                    Text(
-                      message.sender.username,
-                      style: TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.bold,
-                        color: isMe ? Colors.white.withValues(alpha: 0.9) : AppColors.primary,
+                  // Afficher l'image si c'est un message image
+                  if (message.messageType == 'image' && message.attachmentUrl != null) ...[
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(12),
+                      child: CachedNetworkImage(
+                        imageUrl: message.attachmentUrl!,
+                        width: 250,
+                        height: 250,
+                        fit: BoxFit.cover,
+                        placeholder: (context, url) => Container(
+                          width: 250,
+                          height: 250,
+                          color: Colors.grey[300],
+                          child: const Center(
+                            child: CircularProgressIndicator(),
+                          ),
+                        ),
+                        errorWidget: (context, url, error) => Container(
+                          width: 250,
+                          height: 250,
+                          color: Colors.grey[300],
+                          child: const Icon(Icons.error),
+                        ),
                       ),
                     ),
-                  if (!isMe) const SizedBox(height: 4),
-                  Text(
-                    message.content,
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: isMe ? Colors.white : AppColors.textPrimary,
+                    const SizedBox(height: 8),
+                  ],
+                  // Afficher le contenu du message
+                  if (message.content.isNotEmpty)
+                    Text(
+                      message.content,
+                      style: GoogleFonts.inter(
+                        fontSize: 14,
+                        color: Colors.black87,
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 4),
+                  if (message.content.isNotEmpty) const SizedBox(height: 4),
                   Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       Text(
-                        DateFormat('HH:mm').format(message.createdAt),
-                        style: TextStyle(
-                          fontSize: 10,
-                          color: isMe
-                              ? Colors.white.withValues(alpha: 0.7)
-                              : AppColors.textSecondary,
+                        timeFormatter(message.createdAt),
+                        style: GoogleFonts.inter(
+                          fontSize: 11,
+                          color: Colors.grey[600],
                         ),
                       ),
-                      if (isMe) ...[
-                        const SizedBox(width: 4),
-                        Icon(
-                          message.isRead ? Icons.done_all : Icons.done,
-                          size: 12,
-                          color: message.isRead
-                              ? Colors.white.withValues(alpha: 0.7)
-                              : Colors.white.withValues(alpha: 0.5),
-                        ),
-                      ],
+                      const SizedBox(width: 6),
+                      // Indicateurs de statut (deux points bleus)
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            message.isRead ? Icons.done_all : Icons.done,
+                            size: 14,
+                            color: const Color(0xFF4A90E2),
+                          ),
+                          const SizedBox(width: 2),
+                          Icon(
+                            message.isRead ? Icons.done_all : Icons.done,
+                            size: 14,
+                            color: const Color(0xFF4A90E2),
+                          ),
+                        ],
+                      ),
                     ],
                   ),
                 ],
               ),
             ),
           ),
+          
           if (isMe) ...[
             const SizedBox(width: 8),
-            CircleAvatar(
-              radius: 16,
-              backgroundColor: AppColors.primary.withValues(alpha: 0.1),
-              child: Text(
-                message.sender.username.isNotEmpty
-                    ? message.sender.username[0].toUpperCase()
-                    : 'U',
-                style: const TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.bold,
-                  color: AppColors.primary,
+            Container(
+              width: 35,
+              height: 35,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: const Color(0xFF4A90E2),
+              ),
+              child: Center(
+                child: Text(
+                  message.sender.username.isNotEmpty
+                      ? message.sender.username[0].toUpperCase()
+                      : 'U',
+                  style: GoogleFonts.inter(
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 16,
+                  ),
                 ),
               ),
             ),

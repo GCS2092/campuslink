@@ -1,3 +1,4 @@
+import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
@@ -58,16 +59,48 @@ class AuthService {
           'user_id': data['user_id'],
           'email': data['email'],
           'username': data['username'],
+          'first_name': data['first_name'],
+          'last_name': data['last_name'],
+          'role': data['role'],
+          'is_staff': data['is_staff'],
+          'is_superuser': data['is_superuser'],
         };
       } else {
         throw Exception('Login failed: ${response.statusCode}');
       }
+    } on DioException catch (e) {
+      final statusCode = e.response?.statusCode;
+      final data = e.response?.data;
+      String message;
+      if (statusCode == 401) {
+        message = _extractMessage(data) ?? 'Email ou mot de passe incorrect.';
+      } else if (statusCode == 429) {
+        message = _extractMessage(data) ??
+            'Trop de tentatives. Réessayez dans quelques minutes.';
+      } else if (_apiService.isOfflineError(e)) {
+        message =
+            'Impossible de joindre le serveur. Vérifiez que le backend tourne (runserver 0.0.0.0:8000) et l\'URL dans constants.';
+      } else {
+        message = _extractMessage(data) ?? e.message ?? 'Erreur lors de la connexion.';
+      }
+      return {'success': false, 'error': message};
     } catch (e) {
       return {
         'success': false,
-        'error': e.toString(),
+        'error': e.toString().replaceFirst('Exception: ', ''),
       };
     }
+  }
+
+  static String? _extractMessage(dynamic data) {
+    if (data == null) return null;
+    if (data is Map) {
+      if (data['error'] is Map && data['error']['message'] != null) {
+        return data['error']['message'] as String?;
+      }
+      if (data['detail'] != null) return data['detail'] as String?;
+    }
+    return null;
   }
 
   /// Inscription d'un nouvel utilisateur

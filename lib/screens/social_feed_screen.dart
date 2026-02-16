@@ -4,6 +4,7 @@ import '../models/post.dart';
 import '../services/social_service.dart';
 import '../utils/app_colors.dart';
 import '../utils/constants.dart';
+import '../services/api_service.dart';
 import 'create_post_screen.dart';
 
 class SocialFeedScreen extends StatefulWidget {
@@ -165,7 +166,7 @@ class _PostCard extends StatelessWidget {
                 child: Image.network(
                   post.imageUrl!.startsWith('http')
                       ? post.imageUrl!
-                      : '${AppConstants.apiBaseUrl.replaceAll('/api', '')}${post.imageUrl}',
+                      : '${ApiService().baseUrl.replaceAll('/api', '')}${post.imageUrl}',
                   width: double.infinity,
                   fit: BoxFit.cover,
                   errorBuilder: (context, error, stackTrace) {

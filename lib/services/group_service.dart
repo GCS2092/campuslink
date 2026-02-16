@@ -1,12 +1,15 @@
 import 'package:flutter/foundation.dart';
 import '../models/group.dart';
 import 'api_service.dart';
+import 'offline_cache_service.dart';
+import 'package:dio/dio.dart';
 
 /// Service pour gérer les groupes
 class GroupService {
   final ApiService _apiService = ApiService();
+  final OfflineCacheService _cacheService = OfflineCacheService();
 
-  /// Récupère la liste des groupes
+  /// Récupère la liste des groupes (avec support hors ligne)
   Future<List<Group>> getGroups({
     String? university,
     String? category,
@@ -31,12 +34,38 @@ class GroupService {
 
       if (response.statusCode == 200) {
         final data = response.data;
+        List<Group> groups = [];
+        
         if (data is List) {
-          return data.map((g) => Group.fromJson(g as Map<String, dynamic>)).toList();
+          groups = data.map((g) => Group.fromJson(g as Map<String, dynamic>)).toList();
         } else if (data is Map<String, dynamic> && data['results'] != null) {
-          return (data['results'] as List).map((g) => Group.fromJson(g as Map<String, dynamic>)).toList();
+          groups = (data['results'] as List).map((g) => Group.fromJson(g as Map<String, dynamic>)).toList();
+        }
+
+        // Sauvegarder dans le cache
+        if (groups.isNotEmpty) {
+          await _cacheService.saveGroups(
+            groups.map((g) => g.toJson()).toList(),
+          );
+        }
+
+        return groups;
+      }
+      return <Group>[];
+    } on DioException catch (e) {
+      // Mode hors ligne : récupérer depuis le cache
+      if (_apiService.isOfflineError(e)) {
+        debugPrint('Offline mode: Loading groups from cache');
+        try {
+          final cachedGroups = await _cacheService.getCachedGroups(limit: pageSize ?? 20);
+          if (cachedGroups.isNotEmpty) {
+            return cachedGroups.map((g) => Group.fromJson(g)).toList();
+          }
+        } catch (cacheError) {
+          debugPrint('Error loading from cache: $cacheError');
         }
       }
+      debugPrint('Error getting groups: $e');
       return <Group>[];
     } catch (e) {
       debugPrint('Error getting groups: $e');

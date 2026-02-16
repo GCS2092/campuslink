@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
-    "dev": "node auto-config.js && next dev",
+    "dev": "node auto-config.js && node scripts/run-dev.js",
     "dev:mobile": "node start-mobile.js",
     "dev:auto": "node auto-config.js && next dev -H 0.0.0.0",
     "dev:network": "node auto-config.js && next dev -H 0.0.0.0",
@@ -12,7 +12,8 @@
     "lint": "next lint",
     "test": "jest",
     "test:watch": "jest --watch",
-    "test:e2e": "playwright test"
+    "test:e2e": "playwright test",
+    "pwa:icons": "node scripts/generate-icons-png.js"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.3.2",

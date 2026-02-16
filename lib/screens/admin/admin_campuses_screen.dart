@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../services/admin_service.dart';
 import '../../utils/app_colors.dart';
+import '../../utils/toast_service.dart';
 
 /// Écran de gestion de tous les campus pour les administrateurs globaux
 class AdminCampusesScreen extends StatefulWidget {
@@ -63,20 +64,10 @@ class _AdminCampusesScreenState extends State<AdminCampusesScreen> {
         final result = await _adminService.deleteCampus(campusId);
         if (mounted) {
           if (result['success'] == true) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('Campus supprimé'),
-                backgroundColor: AppColors.success,
-              ),
-            );
+            ToastService.showSuccess('Campus supprimé');
             _loadCampuses();
           } else {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text(result['error'] ?? 'Erreur'),
-                backgroundColor: AppColors.error,
-              ),
-            );
+            ToastService.showError(result['error'] ?? 'Erreur');
           }
         }
       } catch (e) {

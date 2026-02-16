@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import '../../services/admin_service.dart';
 import '../../utils/app_colors.dart';
+import '../../utils/confirm_dialog.dart';
+import '../../utils/toast_service.dart';
 import '../user_detail_screen.dart';
 
 /// Écran de gestion des vérifications pour les administrateurs globaux
@@ -22,6 +24,13 @@ class _AdminVerificationsScreenState extends State<AdminVerificationsScreen> {
     _loadPendingVerifications();
   }
 
+  String _userDisplayName(Map<String, dynamic> u) {
+    final fn = u['first_name'] ?? '';
+    final ln = u['last_name'] ?? '';
+    final full = '$fn $ln'.trim();
+    return full.isEmpty ? (u['username'] ?? u['email'] ?? 'cet utilisateur') : full;
+  }
+
   Future<void> _loadPendingVerifications() async {
     setState(() => _isLoading = true);
     try {
@@ -39,43 +48,46 @@ class _AdminVerificationsScreenState extends State<AdminVerificationsScreen> {
     }
   }
 
-  Future<void> _handleVerify(String userId) async {
+  Future<void> _handleVerify(String userId, String displayName) async {
     try {
       final result = await _adminService.verifyUser(userId);
       if (mounted) {
         if (result['success'] == true) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Utilisateur vérifié'), backgroundColor: AppColors.success),
-          );
+          ToastService.showSuccess('Utilisateur vérifié');
           _loadPendingVerifications();
         } else {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(result['error'] ?? 'Erreur'), backgroundColor: AppColors.error),
-          );
+          ToastService.showError(result['error'] ?? 'Erreur');
         }
       }
     } catch (e) {
       debugPrint('Error verifying user: $e');
+      if (mounted) ToastService.showError('Erreur lors de la vérification');
     }
   }
 
-  Future<void> _handleReject(String userId) async {
+  Future<void> _handleReject(String userId, String displayName) async {
+    final confirmed = await showConfirmDialog(
+      context,
+      title: 'Rejeter la demande',
+      message: 'Êtes-vous sûr de vouloir rejeter la demande de $displayName ?',
+      confirmText: 'Rejeter',
+      cancelText: 'Annuler',
+      isDanger: true,
+    );
+    if (!confirmed || !mounted) return;
     try {
       final result = await _adminService.rejectUser(userId);
       if (mounted) {
         if (result['success'] == true) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Utilisateur rejeté'), backgroundColor: AppColors.success),
-          );
+          ToastService.showSuccess('Utilisateur rejeté');
           _loadPendingVerifications();
         } else {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(result['error'] ?? 'Erreur'), backgroundColor: AppColors.error),
-          );
+          ToastService.showError(result['error'] ?? 'Erreur');
         }
       }
     } catch (e) {
       debugPrint('Error rejecting user: $e');
+      if (mounted) ToastService.showError('Erreur lors du rejet');
     }
   }
 
@@ -106,10 +118,11 @@ class _AdminVerificationsScreenState extends State<AdminVerificationsScreen> {
                     itemCount: _pendingVerifications.length,
                     itemBuilder: (context, index) {
                       final user = _pendingVerifications[index];
+                      final name = _userDisplayName(user);
                       return _VerificationCard(
                         user: user,
-                        onVerify: () => _handleVerify(user['id'].toString()),
-                        onReject: () => _handleReject(user['id'].toString()),
+                        onVerify: () => _handleVerify(user['id'].toString(), name),
+                        onReject: () => _handleReject(user['id'].toString(), name),
                         onView: () {
                           Navigator.push(
                             context,

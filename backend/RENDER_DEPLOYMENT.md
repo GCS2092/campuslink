@@ -59,9 +59,14 @@ DEBUG=False
 ALLOWED_HOSTS=votre-app.render.com,*.render.com
 ```
 
-### CORS
+### CORS (obligatoire pour le front Vercel)
+Ajoutez **toutes** les URLs de votre front (prod + preview Vercel), séparées par des virgules :
 ```
-CORS_ALLOWED_ORIGINS=https://votre-frontend.vercel.app,https://votre-frontend.vercel.app
+CORS_ALLOWED_ORIGINS=https://votre-app.vercel.app,https://campuslink-1lexqnggw-gcs2092s-projects.vercel.app
+```
+Ou pour autoriser toute origine (pratique pour les previews Vercel qui changent) :
+```
+CORS_ALLOW_ALL_ORIGINS=True
 ```
 
 ### Cloudinary (Stockage de fichiers)

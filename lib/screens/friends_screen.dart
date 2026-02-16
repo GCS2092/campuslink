@@ -3,6 +3,7 @@ import '../models/user.dart';
 import '../services/user_service.dart';
 import '../services/messaging_service.dart';
 import '../utils/app_colors.dart';
+import '../utils/premium_design.dart';
 import 'user_detail_screen.dart';
 import 'chat_screen.dart';
 
@@ -60,9 +61,20 @@ class _FriendsScreenState extends State<FriendsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    
     return Scaffold(
+      backgroundColor: isDark ? const Color(0xFF000000) : const Color(0xFFFAFAFA),
       appBar: AppBar(
-        title: const Text('Mes Amis'),
+        elevation: 0,
+        backgroundColor: Colors.transparent,
+        title: Text(
+          'Mes Amis',
+          style: PremiumDesign.titleLarge.copyWith(
+            fontWeight: FontWeight.w700,
+            color: isDark ? Colors.white : AppColors.textPrimary,
+          ),
+        ),
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
@@ -71,11 +83,24 @@ class _FriendsScreenState extends State<FriendsScreen> {
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Icon(Icons.people_outline, size: 64, color: AppColors.textSecondary),
-                      const SizedBox(height: 16),
+                      Icon(
+                        Icons.people_outline,
+                        size: 80,
+                        color: isDark ? Colors.white38 : AppColors.textSecondary,
+                      ),
+                      const SizedBox(height: PremiumDesign.spacingL),
                       Text(
                         'Aucun ami',
-                        style: TextStyle(fontSize: 18, color: AppColors.textSecondary),
+                        style: PremiumDesign.titleMedium.copyWith(
+                          color: isDark ? Colors.white60 : AppColors.textSecondary,
+                        ),
+                      ),
+                      const SizedBox(height: PremiumDesign.spacingXS),
+                      Text(
+                        'Ajoutez des amis pour commencer',
+                        style: PremiumDesign.bodySmall.copyWith(
+                          color: isDark ? Colors.white38 : AppColors.textSecondary,
+                        ),
                       ),
                     ],
                   ),
@@ -83,34 +108,86 @@ class _FriendsScreenState extends State<FriendsScreen> {
               : RefreshIndicator(
                   onRefresh: _loadFriends,
                   child: ListView.builder(
-                    padding: const EdgeInsets.all(16),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: PremiumDesign.spacingL,
+                      vertical: PremiumDesign.spacingM,
+                    ),
                     itemCount: _friends.length,
                     itemBuilder: (context, index) {
                       final friend = _friends[index];
-                      return Card(
-                        margin: const EdgeInsets.only(bottom: 12),
-                        child: ListTile(
-                          leading: CircleAvatar(
-                            radius: 25,
-                            backgroundColor: AppColors.primary.withValues(alpha: 0.1),
-                            child: Text(
-                              friend.username[0].toUpperCase(),
-                              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppColors.primary),
-                            ),
-                          ),
-                          title: Text(friend.fullName, style: const TextStyle(fontWeight: FontWeight.bold)),
-                          subtitle: Text('@${friend.username}'),
-                          trailing: IconButton(
-                            icon: const Icon(Icons.message),
-                            onPressed: () => _handleStartConversation(friend.id, friend.username),
-                            tooltip: 'Message',
-                          ),
+                      return Padding(
+                        padding: const EdgeInsets.only(bottom: PremiumDesign.spacingS),
+                        child: PremiumCard(
+                          padding: const EdgeInsets.all(PremiumDesign.spacingM),
                           onTap: () {
                             Navigator.push(
                               context,
                               MaterialPageRoute(builder: (context) => UserDetailScreen(userId: friend.id)),
                             );
                           },
+                          child: Row(
+                            children: [
+                              // Avatar premium
+                              Container(
+                                width: 56,
+                                height: 56,
+                                decoration: BoxDecoration(
+                                  gradient: PremiumDesign.primaryGradient,
+                                  shape: BoxShape.circle,
+                                  boxShadow: PremiumDesign.shadowSmall,
+                                ),
+                                child: Center(
+                                  child: Text(
+                                    friend.username.isNotEmpty
+                                        ? friend.username[0].toUpperCase()
+                                        : 'U',
+                                    style: PremiumDesign.titleLarge.copyWith(
+                                      color: Colors.white,
+                                      fontWeight: FontWeight.w700,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: PremiumDesign.spacingM),
+                              // Informations
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      friend.fullName,
+                                      style: PremiumDesign.titleMedium.copyWith(
+                                        fontWeight: FontWeight.w700,
+                                        color: isDark ? Colors.white : AppColors.textPrimary,
+                                      ),
+                                    ),
+                                    const SizedBox(height: PremiumDesign.spacingXS),
+                                    Text(
+                                      '@${friend.username}',
+                                      style: PremiumDesign.bodySmall.copyWith(
+                                        color: isDark ? Colors.white54 : AppColors.textSecondary,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              // Bouton message premium
+                              Container(
+                                width: 40,
+                                height: 40,
+                                decoration: BoxDecoration(
+                                  gradient: PremiumDesign.primaryGradient,
+                                  shape: BoxShape.circle,
+                                  boxShadow: PremiumDesign.shadowSmall,
+                                ),
+                                child: IconButton(
+                                  icon: const Icon(Icons.message, color: Colors.white, size: 20),
+                                  onPressed: () => _handleStartConversation(friend.id, friend.username),
+                                  tooltip: 'Message',
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
                       );
                     },

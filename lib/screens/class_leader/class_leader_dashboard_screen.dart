@@ -28,15 +28,22 @@ class _ClassLeaderDashboardScreenState extends State<ClassLeaderDashboardScreen>
   }
 
   Future<void> _loadStats() async {
+    final user = Provider.of<AuthProvider>(context, listen: false).user;
+    if (user == null || !user.isClassLeader) {
+      setState(() => _isLoading = false);
+      return;
+    }
     setState(() => _isLoading = true);
     try {
       final stats = await _classLeaderService.getDashboardStats();
+      if (!mounted) return;
       setState(() {
         _stats = stats;
         _isLoading = false;
       });
     } catch (e) {
       debugPrint('Error loading stats: $e');
+      if (!mounted) return;
       setState(() {
         _stats = null;
         _isLoading = false;

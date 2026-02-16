@@ -1,0 +1,301 @@
+CampusLink — Application Campus (Expo)
+
+Spécification pour développer CampusLink avec Expo / React Native, en alignement avec l’app Flutter existante.
+
+⸻
+
+Architecture recommandée — CampusLink (Expo)
+
+Stack simple et efficace :
+	•	Expo + React Native
+	•	Expo Router (navigation type tabs + stack)
+	•	AsyncStorage / SecureStore (token, préférences)
+	•	Backend existant (API Django) ou Firebase / Supabase si migration
+	•	Expo Image Picker → photo de profil, pièces jointes
+	•	Expo Notifications → notifications push
+	•	Expo SecureStore → token d’authentification
+
+⸻
+
+Structure des écrans
+
+Navigation principale = Bottom Tabs
+
+Tabs :
+	•	Accueil (Dashboard)
+	•	Feed
+	•	Événements
+	•	Groupes
+	•	Profil (ou Plus)
+
+⸻
+
+Écran Accueil (Dashboard)
+
+Résumé pour l’étudiant connecté.
+
+Affiche :
+	•	Bienvenue + infos utilisateur (nom, rôle, campus)
+	•	Raccourcis : Événements à venir, Dernières notifs
+	•	Accès rapide : Amis, Messages, Créer un post / un événement
+	•	Notifications non lues (badge)
+
+Tech Expo :
+	•	expo-secure-store (session)
+	•	AsyncStorage (cache léger)
+
+⸻
+
+Module Feed (réseau social)
+
+	•	Fil d’actualité (posts, partages)
+	•	Création de post (texte, image)
+	•	Likes, commentaires
+	•	Filtres (tous / amis / groupes)
+
+Flow création de post :
+	Saisie contenu → option image → choix visibilité → publication
+
+Tech :
+	•	FlatList (liste virtuelle)
+	•	expo-image-picker
+	•	Backend API (feed_service équivalent)
+
+⸻
+
+Module Événements
+
+	•	Liste des événements (campus / global)
+	•	Détail événement (date, lieu, description, participants)
+	•	Création d’événement (titres, date, lieu, type)
+	•	Mes événements
+	•	Calendrier / carte (optionnel)
+
+Tech :
+	•	expo-calendar (optionnel)
+	•	expo-maps ou react-native-maps (carte événements)
+
+⸻
+
+Module Groupes
+
+	•	Liste des groupes (rejoindre, créer)
+	•	Détail groupe (membres, posts, événements du groupe)
+	•	Création de groupe (nom, description, visibilité)
+	•	Gestion des membres (si admin du groupe)
+
+Tech :
+	•	Même pattern que Feed pour les posts de groupe
+	•	API groupes (équivalent group_service)
+
+⸻
+
+Module Messagerie (Chat)
+
+	•	Liste des conversations
+	•	Chat 1-to-1 ou groupe
+	•	Envoi texte, images (optionnel)
+	•	Notifications de nouveaux messages
+
+Tech :
+	•	WebSockets ou polling pour messages en temps réel
+	•	expo-image-picker pour pièces jointes
+	•	expo-notifications (nouveau message)
+
+⸻
+
+Amis & Étudiants
+
+	•	Liste amis
+	•	Demandes d’amis (envoyer / accepter / refuser)
+	•	Recherche d’étudiants (par nom, filière, campus)
+	•	Profil public d’un étudiant (profil, posts, événements)
+
+Tech :
+	•	API user_service, friend requests
+	•	Search / filtres côté client ou API
+
+⸻
+
+Authentification
+
+	•	Login (email + mot de passe)
+	•	Inscription (email, username, mot de passe, infos campus)
+	•	Récupération mot de passe (optionnel)
+	•	Token stocké dans SecureStore
+	•	Refresh token si backend le gère
+
+Expo :
+	•	expo-secure-store (token, refresh_token)
+
+⸻
+
+Profil & Paramètres
+
+	•	Profil : nom, photo, bio, campus, filière
+	•	Modifier profil (expo-image-picker pour photo)
+	•	Paramètres : thème (clair / sombre), notifications, langue
+	•	Déconnexion
+
+⸻
+
+Notifications
+
+	•	Centre de notifications (liste)
+	•	Types : nouveau message, ami, like, commentaire, événement, modération
+	•	Marquer comme lu
+	•	Push : expo-notifications + backend (FCM / APNs via Expo)
+
+⸻
+
+Rôles & espaces (alignés sur l’app Flutter)
+
+	•	Étudiant : dashboard, feed, événements, groupes, amis, chat, profil
+	•	Class Leader : dashboard dédié, modération (contenu de la classe)
+	•	University Admin : dashboard admin université (étudiants, campus, départements, modération, vérifications)
+	•	Admin global : dashboard super-admin (universités, campuses, class leaders, modération globale)
+
+Les écrans admin peuvent être des stacks séparées accessibles selon le rôle après login.
+
+⸻
+
+Modèle de données (simplifié, aligné API existante)
+
+User
+	id, email, username, first_name, last_name, role, phone_number,
+	phone_verified, is_verified, verification_status, profile (bio, avatar, campus, etc.)
+
+Post / FeedItem
+	id, author_id, content, image_url, created_at, likes_count, comments_count, visibility
+
+Event
+	id, title, description, date, location, creator_id, campus_id, type, participants
+
+Group
+	id, name, description, creator_id, members_count, is_private
+
+Message / Conversation
+	id, participants, last_message, updated_at
+
+Notification
+	id, user_id, type, title, body, read, created_at
+
+⸻
+
+Gestion des erreurs
+
+	•	Token expiré → redirection login
+	•	Réseau indisponible → message + cache offline si implémenté
+	•	Erreurs API (4xx/5xx) → toasts / messages clairs
+	•	Validation formulaires (email, mot de passe, champs requis)
+
+⸻
+
+Structure dossiers Expo (recommandée)
+
+	/app
+		_layout.tsx          (root, auth check, theme)
+		(index).tsx         (redirect dashboard ou login)
+		/(tabs)/
+			_dayout.tsx     (bottom tabs)
+			index.tsx       (Dashboard)
+			feed.tsx
+			events.tsx
+			events/[id].tsx
+			groups.tsx
+			groups/[id].tsx
+			profile.tsx
+		/conversations.tsx
+		/chat/[id].tsx
+		/login.tsx
+		/register.tsx
+		/notifications.tsx
+		/settings.tsx
+		/admin/             (si rôle admin)
+		/university-admin/
+		/class-leader/
+	/components
+	/services      (api, auth, events, feed, groups, messaging, notifications, user)
+	/store         (zustand ou context)
+	/hooks
+	/utils
+	/constants
+
+⸻
+
+Dépendances recommandées (Expo)
+
+Création projet :
+	npx create-expo-app campuslink-app -t expo-router
+	cd campuslink-app
+
+Navigation :
+	npx expo install expo-router react-native-screens react-native-safe-area-context
+
+Stockage & auth :
+	npx expo install expo-secure-store @react-native-async-storage/async-storage
+
+UI & état :
+	npm install react-native-paper
+	npm install zustand
+	npx expo install expo-font
+
+Réseau :
+	npm install axios
+
+Images & médias :
+	npx expo install expo-image-picker expo-file-system
+
+Notifications :
+	npx expo install expo-notifications expo-device
+
+Optionnel (carte, calendrier) :
+	npx expo install expo-location
+	npm install react-native-maps
+
+Validation formulaires :
+	npm install zod react-hook-form
+
+⸻
+
+Plan de développement conseillé
+
+Phase 1 — Auth & cœur
+	•	Auth (login, register, token SecureStore)
+	•	Dashboard simple
+	•	Navigation tabs (Dashboard, Feed, Events, Groups, Profile)
+	•	Profil utilisateur (lecture + édition)
+	•	API service (base URL, intercepteurs, token)
+
+Phase 2 — Social & contenu
+	•	Feed (liste posts, création post)
+	•	Événements (liste, détail, création)
+	•	Groupes (liste, détail, création)
+	•	Amis (liste, demandes, recherche étudiants)
+
+Phase 3 — Messagerie & notifs
+	•	Conversations & chat
+	•	Centre de notifications
+	•	Push notifications (Expo + backend)
+
+Phase 4 — Rôles & admin
+	•	Class Leader dashboard & modération
+	•	University Admin (étudiants, campus, départements, modération)
+	•	Admin global (universités, etc.)
+
+⸻
+
+Résumé
+
+Avec cette spec, tu peux construire CampusLink en Expo en restant aligné avec :
+	•	Les écrans et parcours de l’app Flutter
+	•	Les rôles (étudiant, class leader, university admin, admin)
+	•	Les modules : Feed, Événements, Groupes, Amis, Chat, Notifications, Profil, Paramètres
+
+Prochaines étapes possibles :
+	•	Arborescence Expo complète (fichiers _layout, routes)
+	•	Code de base des écrans (Dashboard, Feed, Events, Groups, Profile)
+	•	Service API (axios + auth) branché sur le backend Django existant
+	•	Maquettes écran par écran
+
+Dis-moi si tu veux qu’on détaille une phase (par ex. Phase 1) ou un module précis (Feed, Events, Auth).

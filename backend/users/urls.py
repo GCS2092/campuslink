@@ -7,7 +7,7 @@ from rest_framework_simplejwt.views import TokenRefreshView
 from .views import (
     register, verify_phone, resend_otp, verify_email, verification_status, profile, my_profile_stats, my_profile_stats_detailed,
     change_password, notification_preferences,
-    CustomTokenObtainPairView, UserViewSet, UniversityViewSet, CampusViewSet, friends_list, send_friend_request,
+    CustomTokenObtainPairView, UserViewSet, UniversityViewSet, CampusViewSet, DepartmentViewSet, friends_list, send_friend_request,
     friend_suggestions,
     accept_friend_request, reject_friend_request, remove_friend, friend_requests,
     friendship_status, pending_students, activate_student, deactivate_student,
@@ -20,10 +20,12 @@ from .admin_views import (
 )
 
 router = DefaultRouter()
-router.register(r'', UserViewSet, basename='user')
+# Enregistrer universities et campuses AVANT UserViewSet (r'') pour éviter
+# que "universities/" soit capté comme pk utilisateur → 404
 router.register(r'universities', UniversityViewSet, basename='university')
 router.register(r'campuses', CampusViewSet, basename='campus')
-# DepartmentViewSet removed as per user request
+router.register(r'departments', DepartmentViewSet, basename='department')
+router.register(r'', UserViewSet, basename='user')
 
 urlpatterns = [
     # Authentication

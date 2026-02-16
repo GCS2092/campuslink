@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart';
+import 'package:dio/dio.dart';
 import '../models/message.dart';
 import '../utils/constants.dart';
 import 'api_service.dart';
@@ -247,6 +248,42 @@ class MessagingService {
       return null;
     } catch (e) {
       debugPrint('Error getting group conversation: $e');
+      return null;
+    }
+  }
+
+  /// Upload un fichier/image pour un message
+  Future<Map<String, dynamic>?> uploadAttachment(dynamic file) async {
+    try {
+      // Créer FormData pour l'upload multipart
+      final formData = FormData.fromMap({
+        'file': await MultipartFile.fromFile(
+          file.path,
+          filename: file.name ?? file.path.split('/').last,
+        ),
+      });
+
+      final response = await _apiService.post(
+        '/messaging/messages/upload_attachment/',
+        data: formData,
+        options: Options(
+          headers: {
+            'Content-Type': 'multipart/form-data',
+          },
+        ),
+      );
+
+      if (response.statusCode == 200) {
+        return {
+          'url': response.data['url'],
+          'name': response.data['name'],
+          'size': response.data['size'],
+          'content_type': response.data['content_type'],
+        };
+      }
+      return null;
+    } catch (e) {
+      debugPrint('Error uploading attachment: $e');
       return null;
     }
   }

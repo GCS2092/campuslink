@@ -3,6 +3,8 @@ import 'package:provider/provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../services/admin_service.dart';
 import '../../utils/app_colors.dart';
+import '../../utils/confirm_dialog.dart';
+import '../../utils/toast_service.dart';
 import '../user_detail_screen.dart';
 
 /// Écran de gestion de tous les étudiants pour les administrateurs globaux
@@ -37,6 +39,13 @@ class _AdminStudentsScreenState extends State<AdminStudentsScreen> with SingleTi
     super.dispose();
   }
 
+  String _studentDisplayName(Map<String, dynamic> s) {
+    final fn = s['first_name'] ?? '';
+    final ln = s['last_name'] ?? '';
+    final full = '$fn $ln'.trim();
+    return full.isEmpty ? (s['username'] ?? s['email'] ?? 'cet étudiant') : full;
+  }
+
   Future<void> _loadStudents() async {
     setState(() => _isLoading = true);
     try {
@@ -59,55 +68,46 @@ class _AdminStudentsScreenState extends State<AdminStudentsScreen> with SingleTi
     }
   }
 
-  Future<void> _handleActivateStudent(String userId) async {
+  Future<void> _handleActivateStudent(String userId, String displayName) async {
     try {
       final result = await _adminService.activateStudent(userId);
       if (mounted) {
         if (result['success'] == true) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Étudiant activé'),
-              backgroundColor: AppColors.success,
-            ),
-          );
+          ToastService.showSuccess('Étudiant activé');
           _loadStudents();
         } else {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(result['error'] ?? 'Erreur'),
-              backgroundColor: AppColors.error,
-            ),
-          );
+          ToastService.showError(result['error'] ?? 'Erreur');
         }
       }
     } catch (e) {
       debugPrint('Error activating student: $e');
+      if (mounted) ToastService.showError('Erreur lors de l\'activation');
     }
   }
 
-  Future<void> _handleDeactivateStudent(String userId) async {
+  Future<void> _handleDeactivateStudent(String userId, String displayName) async {
+    final confirmed = await showConfirmDialog(
+      context,
+      title: 'Désactiver l\'étudiant',
+      message: 'Êtes-vous sûr de vouloir désactiver $displayName ? Il ne pourra plus se connecter.',
+      confirmText: 'Désactiver',
+      cancelText: 'Annuler',
+      isDanger: true,
+    );
+    if (!confirmed || !mounted) return;
     try {
       final result = await _adminService.deactivateStudent(userId);
       if (mounted) {
         if (result['success'] == true) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Étudiant désactivé'),
-              backgroundColor: AppColors.success,
-            ),
-          );
+          ToastService.showSuccess('Étudiant désactivé');
           _loadStudents();
         } else {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(result['error'] ?? 'Erreur'),
-              backgroundColor: AppColors.error,
-            ),
-          );
+          ToastService.showError(result['error'] ?? 'Erreur');
         }
       }
     } catch (e) {
       debugPrint('Error deactivating student: $e');
+      if (mounted) ToastService.showError('Erreur lors de la désactivation');
     }
   }
 
@@ -198,8 +198,8 @@ class _AdminStudentsScreenState extends State<AdminStudentsScreen> with SingleTi
                     final isActive = student['is_active'] ?? false;
                     return _StudentCard(
                       student: student,
-                      onActivate: isActive ? null : () => _handleActivateStudent(student['id'].toString()),
-                      onDeactivate: isActive ? () => _handleDeactivateStudent(student['id'].toString()) : null,
+                      onActivate: isActive ? null : () => _handleActivateStudent(student['id'].toString(), _studentDisplayName(student)),
+                      onDeactivate: isActive ? () => _handleDeactivateStudent(student['id'].toString(), _studentDisplayName(student)) : null,
                       onView: () {
                         Navigator.push(
                           context,

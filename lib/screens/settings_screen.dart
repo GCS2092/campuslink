@@ -1,8 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
+import '../providers/theme_provider.dart';
 import '../services/user_service.dart';
 import '../utils/app_colors.dart';
+import '../utils/premium_design.dart';
+import '../utils/toast_service.dart';
+import 'login_screen.dart';
 
 /// Écran des paramètres avec onglets pour compte, sécurité et notifications
 class SettingsScreen extends StatefulWidget {
@@ -17,8 +21,6 @@ class _SettingsScreenState extends State<SettingsScreen>
   late TabController _tabController;
   final UserService _userService = UserService();
 
-  // Onglets
-  int _currentTab = 0;
 
   // Formulaire de modification de profil
   final _profileFormKey = GlobalKey<FormState>();
@@ -58,11 +60,6 @@ class _SettingsScreenState extends State<SettingsScreen>
   void initState() {
     super.initState();
     _tabController = TabController(length: 3, vsync: this);
-    _tabController.addListener(() {
-      setState(() {
-        _currentTab = _tabController.index;
-      });
-    });
     _loadUserData();
     _loadNotificationPreferences();
   }
@@ -129,38 +126,24 @@ class _SettingsScreenState extends State<SettingsScreen>
       };
 
       final result = await _userService.updateProfile(profileData);
+      if (!mounted) return;
+      
       if (result['success'] == true) {
         // Recharger le profil utilisateur
         final authProvider = Provider.of<AuthProvider>(context, listen: false);
         await authProvider.loadUserProfile();
 
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Profil mis à jour avec succès'),
-              backgroundColor: AppColors.success,
-            ),
-          );
-        }
+        if (!mounted) return;
+        ToastService.showSuccess('Profil mis à jour avec succès');
       } else {
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(result['error'] ?? 'Erreur lors de la mise à jour'),
-              backgroundColor: AppColors.error,
-            ),
-          );
+          ToastService.showError(result['error'] ?? 'Erreur lors de la mise à jour');
         }
       }
     } catch (e) {
       debugPrint('Error saving profile: $e');
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Erreur: ${e.toString()}'),
-            backgroundColor: AppColors.error,
-          ),
-        );
+        ToastService.showError('Erreur: ${e.toString()}');
       }
     } finally {
       if (mounted) {
@@ -187,32 +170,17 @@ class _SettingsScreenState extends State<SettingsScreen>
         _confirmPasswordController.clear();
 
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Mot de passe modifié avec succès'),
-              backgroundColor: AppColors.success,
-            ),
-          );
+          ToastService.showSuccess('Mot de passe modifié avec succès');
         }
       } else {
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(result['error'] ?? 'Erreur lors du changement de mot de passe'),
-              backgroundColor: AppColors.error,
-            ),
-          );
+          ToastService.showError(result['error'] ?? 'Erreur lors du changement de mot de passe');
         }
       }
     } catch (e) {
       debugPrint('Error changing password: $e');
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Erreur: ${e.toString()}'),
-            backgroundColor: AppColors.error,
-          ),
-        );
+        ToastService.showError('Erreur: ${e.toString()}');
       }
     } finally {
       if (mounted) {
@@ -227,32 +195,17 @@ class _SettingsScreenState extends State<SettingsScreen>
       final result = await _userService.updateNotificationPreferences(_notificationPrefs);
       if (result['success'] == true) {
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Préférences mises à jour avec succès'),
-              backgroundColor: AppColors.success,
-            ),
-          );
+          ToastService.showSuccess('Préférences mises à jour avec succès');
         }
       } else {
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(result['error'] ?? 'Erreur lors de la mise à jour'),
-              backgroundColor: AppColors.error,
-            ),
-          );
+          ToastService.showError(result['error'] ?? 'Erreur lors de la mise à jour');
         }
       }
     } catch (e) {
       debugPrint('Error saving notification preferences: $e');
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Erreur: ${e.toString()}'),
-            backgroundColor: AppColors.error,
-          ),
-        );
+        ToastService.showError('Erreur: ${e.toString()}');
       }
     } finally {
       if (mounted) {
@@ -263,9 +216,18 @@ class _SettingsScreenState extends State<SettingsScreen>
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    
     return Scaffold(
+      backgroundColor: isDark ? const Color(0xFF000000) : const Color(0xFFFAFAFA),
       appBar: AppBar(
-        title: const Text('Paramètres'),
+        title: Text(
+          'Paramètres',
+          style: PremiumDesign.titleLarge.copyWith(
+            fontWeight: FontWeight.w700,
+            color: isDark ? Colors.white : AppColors.textPrimary,
+          ),
+        ),
         bottom: TabBar(
           controller: _tabController,
           tabs: const [
@@ -287,22 +249,26 @@ class _SettingsScreenState extends State<SettingsScreen>
   }
 
   Widget _buildAccountTab() {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    
     return SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.symmetric(
+        horizontal: PremiumDesign.spacingL,
+        vertical: PremiumDesign.spacingM,
+      ),
       child: Form(
         key: _profileFormKey,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
+            Text(
               'Informations personnelles',
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-                color: AppColors.textPrimary,
+              style: PremiumDesign.headlineSmall.copyWith(
+                color: isDark ? Colors.white : AppColors.textPrimary,
+                fontWeight: FontWeight.w700,
               ),
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: PremiumDesign.spacingL),
             Row(
               children: [
                 Expanded(
@@ -385,29 +351,12 @@ class _SettingsScreenState extends State<SettingsScreen>
               ),
               keyboardType: TextInputType.url,
             ),
-            const SizedBox(height: 24),
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
-                onPressed: _isSavingProfile ? null : _saveProfile,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.primary,
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                ),
-                child: _isSavingProfile
-                    ? const SizedBox(
-                        height: 20,
-                        width: 20,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                        ),
-                      )
-                    : const Text(
-                        'Enregistrer les modifications',
-                        style: TextStyle(fontSize: 16),
-                      ),
-              ),
+            const SizedBox(height: PremiumDesign.spacingXL),
+            PremiumButton(
+              text: 'Enregistrer les modifications',
+              onPressed: _isSavingProfile ? null : _saveProfile,
+              isLoading: _isSavingProfile,
+              icon: Icons.save,
             ),
           ],
         ),
@@ -517,33 +466,97 @@ class _SettingsScreenState extends State<SettingsScreen>
                 return null;
               },
             ),
+            const SizedBox(height: PremiumDesign.spacingXL),
+            PremiumButton(
+              text: 'Changer le mot de passe',
+              onPressed: _isChangingPassword ? null : _changePassword,
+              isLoading: _isChangingPassword,
+              icon: Icons.lock,
+            ),
+            const SizedBox(height: 32),
+            const Divider(),
+            const SizedBox(height: 24),
+            const Text(
+              'Déconnexion',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                color: AppColors.textPrimary,
+              ),
+            ),
+            const SizedBox(height: 8),
+            const Text(
+              'Vous serez déconnecté de votre compte et devrez vous reconnecter pour accéder à l\'application.',
+              style: TextStyle(
+                color: AppColors.textSecondary,
+                fontSize: 14,
+              ),
+            ),
             const SizedBox(height: 24),
             SizedBox(
               width: double.infinity,
-              child: ElevatedButton(
-                onPressed: _isChangingPassword ? null : _changePassword,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.primary,
+              child: OutlinedButton(
+                onPressed: _handleLogout,
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: AppColors.error,
+                  side: const BorderSide(color: AppColors.error, width: 2),
                   padding: const EdgeInsets.symmetric(vertical: 16),
                 ),
-                child: _isChangingPassword
-                    ? const SizedBox(
-                        height: 20,
-                        width: 20,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                        ),
-                      )
-                    : const Text(
-                        'Changer le mot de passe',
-                        style: TextStyle(fontSize: 16),
-                      ),
+                child: const Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(Icons.logout, size: 20),
+                    SizedBox(width: 8),
+                    Text(
+                      'Se déconnecter',
+                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                    ),
+                  ],
+                ),
               ),
             ),
           ],
         ),
       ),
+    );
+  }
+
+  Future<void> _handleLogout() async {
+    // Afficher une confirmation
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Déconnexion'),
+        content: const Text('Êtes-vous sûr de vouloir vous déconnecter ?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Annuler'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: TextButton.styleFrom(
+              foregroundColor: AppColors.error,
+            ),
+            child: const Text('Déconnexion'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true || !mounted) return;
+
+    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+    await authProvider.logout();
+
+    if (!mounted) return;
+
+    ToastService.showSuccess('Déconnexion réussie');
+
+    // Rediriger vers l'écran de login
+    Navigator.of(context).pushAndRemoveUntil(
+      MaterialPageRoute(builder: (context) => const LoginScreen()),
+      (route) => false,
     );
   }
 
@@ -573,86 +586,139 @@ class _SettingsScreenState extends State<SettingsScreen>
               fontSize: 14,
             ),
           ),
-          const SizedBox(height: 24),
-          _buildNotificationSwitch(
+          const SizedBox(height: PremiumDesign.spacingL),
+          // Toggle Dark Mode premium
+          Consumer<ThemeProvider>(
+            builder: (context, themeProvider, child) {
+              final isDark = Theme.of(context).brightness == Brightness.dark;
+              return PremiumCard(
+                padding: EdgeInsets.zero,
+                child: SwitchListTile(
+                  title: Text(
+                    'Mode sombre',
+                    style: PremiumDesign.titleMedium.copyWith(
+                      fontWeight: FontWeight.w600,
+                      color: isDark ? Colors.white : AppColors.textPrimary,
+                    ),
+                  ),
+                  subtitle: Text(
+                    themeProvider.themeMode == ThemeMode.dark
+                        ? 'Actif'
+                        : themeProvider.themeMode == ThemeMode.light
+                            ? 'Désactivé'
+                            : 'Suivre le système',
+                    style: PremiumDesign.bodySmall.copyWith(
+                      color: isDark ? Colors.white54 : AppColors.textSecondary,
+                    ),
+                  ),
+                  secondary: Container(
+                    width: 40,
+                    height: 40,
+                    decoration: BoxDecoration(
+                      color: AppColors.primary.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(PremiumDesign.radiusS),
+                    ),
+                    child: Icon(
+                      themeProvider.themeMode == ThemeMode.dark
+                          ? Icons.dark_mode
+                          : Icons.light_mode,
+                      color: AppColors.primary,
+                      size: 20,
+                    ),
+                  ),
+                  value: themeProvider.themeMode == ThemeMode.dark,
+                  onChanged: (value) {
+                    themeProvider.toggleTheme();
+                  },
+                ),
+              );
+            },
+          ),
+          const SizedBox(height: PremiumDesign.spacingM),
+          _buildNotificationSwitchPremium(
             'Notifications par email',
             'email_notifications',
             Icons.email,
           ),
-          _buildNotificationSwitch(
+          _buildNotificationSwitchPremium(
             'Notifications push',
             'push_notifications',
             Icons.notifications_active,
           ),
-          const Divider(height: 32),
-          _buildNotificationSwitch(
+          const SizedBox(height: PremiumDesign.spacingM),
+          _buildNotificationSwitchPremium(
             'Rappels d\'événements',
             'event_reminders',
             Icons.event,
           ),
-          _buildNotificationSwitch(
+          _buildNotificationSwitchPremium(
             'Demandes d\'ami',
             'friend_requests',
             Icons.person_add,
           ),
-          _buildNotificationSwitch(
+          _buildNotificationSwitchPremium(
             'Messages',
             'messages',
             Icons.message,
           ),
-          _buildNotificationSwitch(
+          _buildNotificationSwitchPremium(
             'Mises à jour de groupes',
             'group_updates',
             Icons.group,
           ),
-          _buildNotificationSwitch(
+          _buildNotificationSwitchPremium(
             'Invitations à des événements',
             'event_invitations',
             Icons.event_available,
           ),
-          const SizedBox(height: 24),
-          SizedBox(
-            width: double.infinity,
-            child: ElevatedButton(
-              onPressed: _isSavingPrefs ? null : _saveNotificationPreferences,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.primary,
-                padding: const EdgeInsets.symmetric(vertical: 16),
-              ),
-              child: _isSavingPrefs
-                  ? const SizedBox(
-                      height: 20,
-                      width: 20,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                      ),
-                    )
-                  : const Text(
-                      'Enregistrer les préférences',
-                      style: TextStyle(fontSize: 16),
-                    ),
-            ),
+          const SizedBox(height: PremiumDesign.spacingXL),
+          PremiumButton(
+            text: 'Enregistrer les préférences',
+            onPressed: _isSavingPrefs ? null : _saveNotificationPreferences,
+            isLoading: _isSavingPrefs,
+            icon: Icons.save,
           ),
         ],
       ),
     );
   }
 
-  Widget _buildNotificationSwitch(String title, String key, IconData icon) {
-    return SwitchListTile(
-      title: Text(title),
-      subtitle: Text(
-        _getNotificationDescription(key),
-        style: const TextStyle(fontSize: 12),
+  Widget _buildNotificationSwitchPremium(String title, String key, IconData icon) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    
+    return PremiumCard(
+      padding: EdgeInsets.zero,
+      margin: const EdgeInsets.only(bottom: PremiumDesign.spacingS),
+      child: SwitchListTile(
+        title: Text(
+          title,
+          style: PremiumDesign.titleMedium.copyWith(
+            fontWeight: FontWeight.w600,
+            color: isDark ? Colors.white : AppColors.textPrimary,
+          ),
+        ),
+        subtitle: Text(
+          _getNotificationDescription(key),
+          style: PremiumDesign.bodySmall.copyWith(
+            color: isDark ? Colors.white54 : AppColors.textSecondary,
+          ),
+        ),
+        secondary: Container(
+          width: 40,
+          height: 40,
+          decoration: BoxDecoration(
+            color: AppColors.primary.withValues(alpha: 0.1),
+            borderRadius: BorderRadius.circular(PremiumDesign.radiusS),
+          ),
+          child: Icon(icon, color: AppColors.primary, size: 20),
+        ),
+        value: _notificationPrefs[key] ?? true,
+        onChanged: (value) {
+          setState(() {
+            _notificationPrefs[key] = value;
+          });
+        },
       ),
-      secondary: Icon(icon, color: AppColors.primary),
-      value: _notificationPrefs[key] ?? true,
-      onChanged: (value) {
-        setState(() {
-          _notificationPrefs[key] = value;
-        });
-      },
     );
   }
 

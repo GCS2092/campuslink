@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../../services/admin_service.dart';
 import '../../utils/app_colors.dart';
+import '../../utils/confirm_dialog.dart';
+import '../../utils/toast_service.dart';
 
 /// Écran de modération pour les administrateurs globaux
 class AdminModerationScreen extends StatefulWidget {
@@ -69,54 +71,53 @@ class _AdminModerationScreenState extends State<AdminModerationScreen> with Sing
   }
 
   Future<void> _handleResolveReport(String reportId) async {
+    final confirmed = await showConfirmDialog(
+      context,
+      title: 'Résoudre le rapport',
+      message: 'Marquer ce signalement comme résolu ?',
+      confirmText: 'Résoudre',
+      cancelText: 'Annuler',
+    );
+    if (!confirmed || !mounted) return;
     try {
       final result = await _adminService.resolveReport(reportId);
       if (mounted) {
         if (result['success'] == true) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Rapport résolu'),
-              backgroundColor: AppColors.success,
-            ),
-          );
+          ToastService.showSuccess('Rapport résolu');
           _loadReports();
         } else {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(result['error'] ?? 'Erreur'),
-              backgroundColor: AppColors.error,
-            ),
-          );
+          ToastService.showError(result['error'] ?? 'Erreur');
         }
       }
     } catch (e) {
       debugPrint('Error resolving report: $e');
+      if (mounted) ToastService.showError('Erreur');
     }
   }
 
   Future<void> _handleRejectReport(String reportId) async {
+    final confirmed = await showConfirmDialog(
+      context,
+      title: 'Classer sans suite',
+      message: 'Classer ce signalement sans suite (dismiss) ?',
+      confirmText: 'Oui, classer',
+      cancelText: 'Annuler',
+      isDanger: false,
+    );
+    if (!confirmed || !mounted) return;
     try {
       final result = await _adminService.rejectReport(reportId);
       if (mounted) {
         if (result['success'] == true) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Rapport rejeté'),
-              backgroundColor: AppColors.success,
-            ),
-          );
+          ToastService.showSuccess('Rapport classé sans suite');
           _loadReports();
         } else {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(result['error'] ?? 'Erreur'),
-              backgroundColor: AppColors.error,
-            ),
-          );
+          ToastService.showError(result['error'] ?? 'Erreur');
         }
       }
     } catch (e) {
       debugPrint('Error rejecting report: $e');
+      if (mounted) ToastService.showError('Erreur');
     }
   }
 

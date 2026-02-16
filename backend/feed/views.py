@@ -1,6 +1,7 @@
 """
 Views for feed app.
 """
+from datetime import timedelta
 from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
@@ -136,13 +137,18 @@ class FeedItemViewSet(viewsets.ModelViewSet):
         for friendship in user_friends:
             friend_ids.add(friendship[0] if friendship[0] != user.id else friendship[1])
         
-        # Get personalized events
+        # Get personalized events (non-admin: only last 7 days or future)
         events_queryset = Event.objects.filter(
             status='published'
         ).select_related('organizer', 'category', 'university').prefetch_related(
             'organizer__profile',
             'participations__user'
         )
+        if not (getattr(user, 'is_staff', False) or getattr(user, 'is_superuser', False) or getattr(user, 'role', None) == 'admin'):
+            threshold = timezone.now() - timedelta(days=7)
+            events_queryset = events_queryset.filter(
+                Q(end_date__gte=threshold) | Q(end_date__isnull=True, start_date__gte=threshold)
+            )
         
         # Filter events: user's participations, friends' events, university events
         # Note: Events don't have a direct 'group' field, so we filter by organizer's groups instead

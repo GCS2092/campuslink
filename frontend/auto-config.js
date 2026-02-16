@@ -58,5 +58,6 @@ process.env.NEXT_PUBLIC_API_URL = apiUrl;
 
 console.log(`📱 Local IP: ${localIP}`);
 console.log(`🔗 API URL: ${apiUrl}`);
+console.log(`🌐 Sur le même Wi‑Fi, ouvrez: http://${localIP}:3000`);
 console.log('');
 

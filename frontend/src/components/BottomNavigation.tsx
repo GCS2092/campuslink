@@ -25,7 +25,7 @@ export default function BottomNavigation() {
   const auth = useAuth()
   const user = auth?.user || null
   
-  // Don't show on login/register pages or admin pages
+  // Don't show on login/register pages or admin pages; hide for admin/university_admin on messages (they have their own nav)
   if (
     pathname === '/login' || 
     pathname === '/register' || 
@@ -33,6 +33,9 @@ export default function BottomNavigation() {
     pathname?.startsWith('/admin') ||
     pathname === '/feed/manage'
   ) {
+    return null
+  }
+  if (pathname === '/messages' && (user?.role === 'admin' || user?.role === 'university_admin')) {
     return null
   }
 

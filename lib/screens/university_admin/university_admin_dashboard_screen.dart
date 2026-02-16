@@ -35,10 +35,16 @@ class _UniversityAdminDashboardScreenState extends State<UniversityAdminDashboar
   }
 
   Future<void> _loadData() async {
+    final user = Provider.of<AuthProvider>(context, listen: false).user;
+    if (user == null || !user.isUniversityAdmin) {
+      setState(() => _isLoading = false);
+      return;
+    }
     setState(() => _isLoading = true);
     try {
       final stats = await _universityAdminService.getDashboardStats();
       final university = await _universityAdminService.getMyUniversity();
+      if (!mounted) return;
       setState(() {
         _stats = stats;
         _university = university;
@@ -46,6 +52,7 @@ class _UniversityAdminDashboardScreenState extends State<UniversityAdminDashboar
       });
     } catch (e) {
       debugPrint('Error loading data: $e');
+      if (!mounted) return;
       setState(() {
         _stats = null;
         _university = null;

@@ -26,8 +26,8 @@ export default function UniversityAdminBottomNavigation() {
   const auth = useAuth()
   const user = auth?.user || null
   
-  // Only show on university-admin pages
-  if (!pathname?.startsWith('/university-admin')) {
+  // Only show on university-admin pages or messages (for back navigation)
+  if (!pathname?.startsWith('/university-admin') && pathname !== '/messages') {
     return null
   }
 

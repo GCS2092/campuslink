@@ -46,4 +46,17 @@ class NotificationViewSet(viewsets.ReadOnlyModelViewSet):
         """Mark all notifications as read."""
         Notification.objects.filter(recipient=request.user, is_read=False).update(is_read=True)
         return Response({'message': 'Toutes les notifications ont été marquées comme lues.'})
+    
+    @action(detail=True, methods=['delete', 'post'])
+    def delete(self, request, pk=None):
+        """Delete a notification."""
+        notification = self.get_object()
+        # Vérifier que la notification appartient à l'utilisateur
+        if notification.recipient != request.user:
+            return Response(
+                {'error': 'Vous n\'avez pas la permission de supprimer cette notification.'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+        notification.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
 

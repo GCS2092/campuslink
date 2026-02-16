@@ -46,8 +46,8 @@ if DEBUG:
     ALLOWED_HOSTS = ['*', 'localhost', '127.0.0.1']
     if local_ip:
         ALLOWED_HOSTS.append(local_ip)
-    # Also add common network IPs
-    ALLOWED_HOSTS.extend(['192.168.1.118', ' 192.168.1.118', '192.168.1.1', '192.168.0.1'])
+    # Also add common network IPs (10.0.2.2 = Android emulator → host)
+    ALLOWED_HOSTS.extend(['192.168.1.118', '192.168.1.1', '192.168.0.1', '10.0.2.2'])
 else:
     ALLOWED_HOSTS = env.list('ALLOWED_HOSTS', default=['localhost', '127.0.0.1'])
 
@@ -324,8 +324,6 @@ if DEBUG:
     default_origins.extend([
         'http://192.168.1.118:3000',
         'http://192.168.1.118:3001',
-        'http:// 192.168.1.118:3000',
-        'http:// 192.168.1.118:3001',
         'http://192.168.1.1:3000',
         'http://192.168.0.1:3000',
         'http://10.0.2.2:3000',  # Android emulator
@@ -379,16 +377,19 @@ else:
     # or use CORS_ALLOW_ALL_ORIGINS = True (less secure but works for Vercel preview deployments)
     CORS_ALLOW_ALL_ORIGINS = env.bool('CORS_ALLOW_ALL_ORIGINS', default=False)
     if not CORS_ALLOW_ALL_ORIGINS:
+        # Liste par défaut : inclut les URLs Vercel connues (prod + preview)
+        default_production_origins = [
+            'http://localhost:3000',
+            'http://127.0.0.1:3000',
+            'http://192.168.1.118:3000',
+            'https://campuslink-sigma.vercel.app',
+            'https://campuslink-git-main-gcs2092s-projects.vercel.app',
+            # Preview / déploiements Vercel (ajoutez les vôtres si besoin)
+            'https://campuslink-1lexqnggw-gcs2092s-projects.vercel.app',
+        ]
         CORS_ALLOWED_ORIGINS = env.list(
             'CORS_ALLOWED_ORIGINS',
-            default=[
-                'http://localhost:3000', 
-                'http://127.0.0.1:3000',
-                'http://192.168.1.118:3000',
-                # Vercel production URLs - add your specific Vercel URLs here
-                'https://campuslink-sigma.vercel.app',
-                'https://campuslink-git-main-gcs2092s-projects.vercel.app',
-            ]
+            default=default_production_origins
         )
     else:
         # If CORS_ALLOW_ALL_ORIGINS is True, CORS_ALLOWED_ORIGINS is ignored

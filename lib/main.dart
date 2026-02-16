@@ -9,6 +9,7 @@ import 'providers/theme_provider.dart';
 import 'utils/routes.dart';
 import 'utils/app_colors.dart';
 import 'services/local_notification_service.dart';
+import 'services/api_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -27,6 +28,8 @@ void main() async {
 
 /// Initialise les services de l'application
 Future<void> _initializeServices() async {
+  // Résoudre l'URL API selon le réseau (WiFi/local ou production) puis initialiser Dio
+  await ApiService().initialize();
   // Initialiser le service de notifications locales
   await LocalNotificationService().initialize();
 }
@@ -39,7 +42,15 @@ class CampusLinkApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MultiProvider(
       providers: [
-        ChangeNotifierProvider(create: (_) => AuthProvider()),
+        ChangeNotifierProvider(
+          create: (_) {
+            final authProvider = AuthProvider();
+            // Initialiser l'authentification au démarrage
+            // Ne pas attendre, l'initialisation se fera en arrière-plan
+            authProvider.initialize();
+            return authProvider;
+          },
+        ),
         ChangeNotifierProvider(create: (_) => ThemeProvider()),
       ],
       child: Consumer<ThemeProvider>(

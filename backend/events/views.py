@@ -8,6 +8,7 @@ from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.exceptions import NotFound
 from django.http import Http404
 from django.db import models
+from datetime import timedelta
 from django.db.models import Q, Case, When, F
 from django.utils import timezone
 from .models import Category, Event, Participation, EventComment, EventLike, EventFavorite, EventShare, EventFilterPreference
@@ -84,6 +85,14 @@ class EventViewSet(viewsets.ModelViewSet):
                 'likes__user',
                 'favorited_by__user'
             )
+            
+            # For non-admin users: only show events from the last 7 days or in the future (list "empties" after one week)
+            if (hasattr(self.request, 'user') and self.request.user.is_authenticated and
+                not (self.request.user.is_staff or self.request.user.is_superuser or self.request.user.role == 'admin')):
+                threshold = timezone.now() - timedelta(days=7)
+                queryset = queryset.filter(
+                    Q(end_date__gte=threshold) | Q(end_date__isnull=True, start_date__gte=threshold)
+                )
             
             # Filters
             university = self.request.query_params.get('university')

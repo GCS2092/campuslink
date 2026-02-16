@@ -27,6 +27,8 @@ import '../screens/my_events_screen.dart';
 import '../screens/friends_activity_screen.dart';
 import '../screens/events_map_screen.dart';
 import '../screens/group_members_screen.dart';
+import '../screens/main_navigation_screen.dart';
+import '../widgets/role_based_home.dart';
 import '../providers/auth_provider.dart';
 import 'package:provider/provider.dart';
 
@@ -55,14 +57,17 @@ class AppRoutes {
     return {
       '/': (context) => Consumer<AuthProvider>(
             builder: (context, authProvider, child) {
-              if (authProvider.isLoading && !authProvider.isAuthenticated) {
+              // Attendre que l'initialisation soit terminée
+              if (authProvider.isLoading) {
                 return const Scaffold(
                   body: Center(child: CircularProgressIndicator()),
                 );
               }
-              if (authProvider.isAuthenticated) {
-                return const DashboardScreen();
+              // Si authentifié, afficher l'accueil selon le rôle (admin, univ admin, class leader, étudiant)
+              if (authProvider.isAuthenticated && authProvider.user != null) {
+                return const RoleBasedHome();
               }
+              // Sinon, afficher le login
               return const LoginScreen();
             },
           ),
