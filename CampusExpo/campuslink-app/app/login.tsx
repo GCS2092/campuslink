@@ -31,8 +31,15 @@ export default function LoginScreen() {
     setLoading(true);
     const result = await authLogin(email.trim(), password);
     setLoading(false);
-    if ('error' in result) {
+    if (result.status === 'error') {
       Alert.alert('Erreur', result.error);
+      return;
+    }
+    if (result.status === 'pending_activation') {
+      // Le backend peut générer un token même si le compte est en attente.
+      if (result.token) setToken(result.token);
+      setUser(result.user);
+      router.replace('/pending-activation');
       return;
     }
     setUser(result.user);
@@ -46,7 +53,7 @@ export default function LoginScreen() {
     await SecureStore.setItemAsync(STORAGE_KEYS.userData, JSON.stringify(mockUser));
     setUser(mockUser);
     setToken(token);
-    router.replace('/(tabs)');
+    router.replace('/(tabs)/index');
   };
 
   return (

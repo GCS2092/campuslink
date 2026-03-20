@@ -24,8 +24,10 @@ export default function PostDetailScreen() {
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
 
+  const isValidId = !!id && !id.includes('[') && !id.includes(']');
+
   const load = async () => {
-    if (!id) return;
+    if (!isValidId) return;
     const [p, c] = await Promise.all([getPost(id), getComments(id)]);
     setPost(p ?? null);
     setComments(c);
@@ -37,7 +39,7 @@ export default function PostDetailScreen() {
 
   const handleSend = async () => {
     const content = input.trim();
-    if (!content || !id || loading) return;
+    if (!content || !isValidId || loading) return;
     setLoading(true);
     const newComment = await addComment(id, content);
     setLoading(false);
@@ -49,7 +51,9 @@ export default function PostDetailScreen() {
     return (
       <>
         <Stack.Screen options={{ title: 'Publication', headerBackTitle: 'Retour' }} />
-        <View style={styles.centered}><Text>Chargement...</Text></View>
+        <View style={styles.centered}>
+          <Text>{isValidId ? 'Chargement...' : 'Publication introuvable'}</Text>
+        </View>
       </>
     );
   }

@@ -8,6 +8,9 @@ import UniversityAdminBottomNavigation from '@/components/UniversityAdminBottomN
 import PageLoader from '@/components/PageLoader'
 import PwaProvider from '@/components/PwaProvider'
 
+// ❌ Supprime cette ligne
+// import 'leaflet/dist/leaflet.css'
+
 const inter = Inter({ subsets: ['latin'] })
 
 export const metadata: Metadata = {
@@ -45,6 +48,15 @@ export default function RootLayout({
 }) {
   return (
     <html lang="fr">
+      <head>
+        {/* ✅ Leaflet CSS via CDN */}
+        <link
+          rel="stylesheet"
+          href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+          integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
+          crossOrigin=""
+        />
+      </head>
       <body className={inter.className}>
         <PwaProvider />
         <Providers>
@@ -58,4 +70,3 @@ export default function RootLayout({
     </html>
   )
 }
-

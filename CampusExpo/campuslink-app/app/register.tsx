@@ -37,13 +37,18 @@ export default function RegisterScreen() {
       password,
     });
     setLoading(false);
-    if ('error' in result) {
+    if (result.status === 'error') {
       Alert.alert('Erreur', result.error);
+      return;
+    }
+    if (result.status === 'pending_activation') {
+      // Inscription OK mais validation requise (le backend ne renvoie pas de token)
+      router.replace('/register-success');
       return;
     }
     setUser(result.user);
     setToken(result.token);
-    router.replace('/(tabs)');
+    router.replace('/(tabs)/index');
   };
 
   return (

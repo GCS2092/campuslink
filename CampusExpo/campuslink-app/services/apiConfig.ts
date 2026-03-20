@@ -12,6 +12,11 @@ const CACHE_TTL_MS = 5 * 60 * 1000; // 5 min
 
 const PRODUCTION_URL = 'https://campuslink-9knz.onrender.com/api';
 
+function isWeb(): boolean {
+  // eslint-disable-next-line no-restricted-globals
+  return typeof window !== 'undefined' && typeof document !== 'undefined';
+}
+
 /** Liste des URLs candidates : locales (émulateur + 192.168.x.x) puis production. */
 function getCandidates(): string[] {
   return [
@@ -48,6 +53,13 @@ async function tryBaseUrl(baseUrl: string): Promise<boolean> {
  * Résout l'URL de base : cache 5 min, sinon détection (IP WiFi si dispo) + test des candidats.
  */
 export async function resolveApiBaseUrl(): Promise<string> {
+  // En Web, les probes cross-origin (ex: GET /auth/login/) sont bloqués par CORS.
+  // On utilise donc une URL explicite (env) ou la prod.
+  if (isWeb()) {
+    const envUrl = (process.env.EXPO_PUBLIC_API_BASE_URL ?? '').trim();
+    return envUrl || PRODUCTION_URL;
+  }
+
   try {
     const cached = await AsyncStorage.getItem(CACHE_KEY);
     const tsStr = await AsyncStorage.getItem(CACHE_TS_KEY);

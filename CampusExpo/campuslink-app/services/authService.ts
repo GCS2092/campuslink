@@ -3,7 +3,17 @@ import { ENDPOINTS, STORAGE_KEYS } from '../constants';
 import type { User } from '../types';
 import { getApi, apiGet, apiPost } from './api';
 
-export async function login(email: string, password: string): Promise<{ user: User; token: string } | { error: string }> {
+export type LoginResult =
+  | { status: 'success'; user: User; token: string }
+  | { status: 'pending_activation'; user: User; token?: string; message?: string }
+  | { status: 'error'; error: string };
+
+export type RegisterResult =
+  | { status: 'success'; user: User; token: string }
+  | { status: 'pending_activation'; userId: string; message?: string }
+  | { status: 'error'; error: string };
+
+export async function login(email: string, password: string): Promise<LoginResult> {
   try {
     const api = await getApi();
     const { data } = await api.post<{
@@ -17,11 +27,16 @@ export async function login(email: string, password: string): Promise<{ user: Us
       role?: string;
       is_staff?: boolean;
       is_superuser?: boolean;
+      account_status?: {
+        is_active?: boolean;
+        is_verified?: boolean;
+        verification_status?: string;
+        requires_activation?: boolean;
+        message?: string;
+      };
     }>(ENDPOINTS.login, { email, password });
     const token = data.access;
-    if (!token) return { error: 'Pas de token reçu' };
-    await SecureStore.setItemAsync(STORAGE_KEYS.accessToken, token);
-    if (data.refresh) await SecureStore.setItemAsync(STORAGE_KEYS.refreshToken, data.refresh);
+
     let user: User = {
       id: String(data.user_id ?? ''),
       email: data.email ?? email,
@@ -32,13 +47,39 @@ export async function login(email: string, password: string): Promise<{ user: Us
       is_staff: data.is_staff,
       is_superuser: data.is_superuser,
     };
-    const profileData = await getProfile().catch(() => null);
-    if (profileData) {
-      user = { ...user, ...profileData };
-      if (profileData.role != null) user.role = typeof profileData.role === 'string' ? profileData.role.toLowerCase() : profileData.role;
+
+    const requiresActivation = data.account_status?.requires_activation === true;
+
+    if (token) {
+      await SecureStore.setItemAsync(STORAGE_KEYS.accessToken, token);
+      if (data.refresh) await SecureStore.setItemAsync(STORAGE_KEYS.refreshToken, data.refresh);
+      const profileData = await getProfile().catch(() => null);
+      if (profileData) {
+        user = { ...user, ...profileData };
+        if (profileData.role != null) user.role = typeof profileData.role === 'string' ? profileData.role.toLowerCase() : profileData.role;
+      }
+      await SecureStore.setItemAsync(STORAGE_KEYS.userData, JSON.stringify(user));
+
+      if (requiresActivation) {
+        return {
+          status: 'pending_activation',
+          user,
+          token,
+          message: data.account_status?.message,
+        };
+      }
+      return { status: 'success', user, token };
     }
-    await SecureStore.setItemAsync(STORAGE_KEYS.userData, JSON.stringify(user));
-    return { user, token };
+
+    if (requiresActivation) {
+      return {
+        status: 'pending_activation',
+        user,
+        message: data.account_status?.message,
+      };
+    }
+
+    return { status: 'error', error: 'Pas de token reçu' };
   } catch (e: unknown) {
     const err = e as { response?: { data?: Record<string, unknown>; status?: number }; message?: string };
     const status = err.response?.status;
@@ -58,7 +99,7 @@ export async function login(email: string, password: string): Promise<{ user: Us
       msg = 'Serveur introuvable. Vérifiez que l\'URL dans constants.ts pointe vers votre backend (ex: http://VOTRE_IP:8000/api).';
     if (!msg && (err.message === 'Network Error' || err.message?.includes('timeout')))
       msg = 'Impossible de joindre le serveur. Vérifiez la connexion et que le backend tourne (python manage.py runserver 0.0.0.0:8000).';
-    return { error: msg || 'Connexion impossible' };
+    return { status: 'error', error: msg || 'Connexion impossible' };
   }
 }
 
@@ -70,16 +111,25 @@ export async function register(payload: {
   phone_number?: string;
   first_name?: string;
   last_name?: string;
-}): Promise<{ user: User; token: string } | { error: string }> {
+}): Promise<RegisterResult> {
   try {
     const body = { ...payload, password_confirm: payload.password_confirm ?? payload.password };
     const api = await getApi();
-    const { data } = await api.post<{ access?: string; user_id?: string; email?: string; username?: string }>(
+    const { data } = await api.post<{ access?: string; user_id?: string; email?: string; username?: string; message?: string }>(
       ENDPOINTS.register,
       body
     );
     const token = data.access;
-    if (!token) return { error: 'Inscription échouée' };
+
+    // Certains backends retournent juste {message, user_id} et exigent validation avant activation
+    if (!token) {
+      return {
+        status: 'pending_activation',
+        userId: String(data.user_id ?? ''),
+        message: data.message,
+      };
+    }
+
     await SecureStore.setItemAsync(STORAGE_KEYS.accessToken, token);
     let user: User = {
       id: String(data.user_id ?? ''),
@@ -92,11 +142,11 @@ export async function register(payload: {
     const profile = await getProfile().catch(() => null);
     if (profile) user = { ...user, ...profile };
     await SecureStore.setItemAsync(STORAGE_KEYS.userData, JSON.stringify(user));
-    return { user, token };
+    return { status: 'success', user, token };
   } catch (e: unknown) {
     const res = e && typeof e === 'object' && 'response' in e ? (e as { response?: { data?: Record<string, string[]> } }).response?.data : null;
     const first = res && typeof res === 'object' ? Object.values(res).flat().find(Boolean) : null;
-    return { error: first || 'Inscription impossible' };
+    return { status: 'error', error: first || 'Inscription impossible' };
   }
 }
 

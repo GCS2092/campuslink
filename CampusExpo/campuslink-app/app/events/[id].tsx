@@ -11,8 +11,10 @@ export default function EventDetailScreen() {
   const [event, setEvent] = useState<Event | null>(null);
   const [loading, setLoading] = useState(false);
 
+  const isValidId = !!id && !id.includes('[') && !id.includes(']');
+
   const load = async () => {
-    if (!id) return;
+    if (!isValidId) return;
     const ev = await getEvent(id);
     setEvent(ev);
   };
@@ -38,7 +40,17 @@ export default function EventDetailScreen() {
     return (
       <>
         <Stack.Screen options={{ title: 'Événement', headerBackTitle: 'Retour' }} />
-        <View style={styles.centered}><Text style={styles.empty}>Chargement...</Text></View>
+        <View style={styles.centered}>
+          <Text style={styles.empty}>{isValidId ? 'Chargement...' : 'Événement introuvable'}</Text>
+          {!isValidId ? (
+            <TouchableOpacity
+              style={{ marginTop: 12 }}
+              onPress={() => (router.canGoBack() ? router.back() : router.replace('/(tabs)/index'))}
+            >
+              <Text style={{ color: '#2563eb', fontWeight: '600' }}>Retour</Text>
+            </TouchableOpacity>
+          ) : null}
+        </View>
       </>
     );
   }

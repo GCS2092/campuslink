@@ -2,11 +2,11 @@ import type { User } from '../types';
 import { isAdmin, isClassLeader, isUniversityAdmin } from '../types';
 
 export function getRedirectForUser(user: User | null): string {
-  if (!user) return '/(tabs)';
+  if (!user) return '/(tabs)/index';
   if (isAdmin(user)) return '/admin';
   if (isUniversityAdmin(user)) return '/university-admin';
   if (isClassLeader(user)) return '/class-leader';
-  return '/(tabs)';
+  return '/(tabs)/index';
 }
 
 /** Routes réservées à chaque rôle (premier segment du path). */
@@ -16,7 +16,7 @@ const UNIVERSITY_ADMIN_PREFIX = 'university-admin';
 const TABS_PREFIX = '(tabs)';
 
 /** Chemins accessibles sans être connecté. */
-const PUBLIC_PATHS = ['login', 'register'];
+const PUBLIC_PATHS = ['login', 'register', 'pending-activation', 'register-success'];
 
 /**
  * Retourne la redirection à effectuer si l'utilisateur n'a pas le droit d'être sur ce chemin.
@@ -59,7 +59,7 @@ export function getRedirectIfUnauthorized(
       firstSegment === CLASS_LEADER_PREFIX ||
       firstSegment === UNIVERSITY_ADMIN_PREFIX
     ) {
-      return '/(tabs)';
+      return '/(tabs)/index';
     }
   }
   return null;

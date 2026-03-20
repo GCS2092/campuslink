@@ -21,8 +21,10 @@ export default function ChatScreen() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
 
+  const isValidId = !!id && !id.includes('[') && !id.includes(']');
+
   const load = async () => {
-    if (!id) return;
+    if (!isValidId) return;
     const data = await getMessages(id);
     setMessages(data);
   };
@@ -33,7 +35,7 @@ export default function ChatScreen() {
 
   const handleSend = async () => {
     const content = input.trim();
-    if (!content || !id) return;
+    if (!content || !isValidId) return;
     setInput('');
     const newMsg = await sendMessage(id, content);
     if (newMsg) setMessages((prev) => [...prev, newMsg]);
@@ -49,6 +51,17 @@ export default function ChatScreen() {
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         keyboardVerticalOffset={90}
       >
+        {!isValidId ? (
+          <View style={{ padding: 16 }}>
+            <Text style={{ color: '#64748b' }}>Conversation introuvable</Text>
+            <TouchableOpacity
+              style={{ marginTop: 12 }}
+              onPress={() => (router.canGoBack() ? router.back() : router.replace('/(tabs)/index'))}
+            >
+              <Text style={{ color: '#2563eb', fontWeight: '600' }}>Retour</Text>
+            </TouchableOpacity>
+          </View>
+        ) : null}
         <FlatList
           data={messages}
           keyExtractor={(item) => item.id}
@@ -70,11 +83,12 @@ export default function ChatScreen() {
             onChangeText={setInput}
             multiline
             maxLength={500}
+            editable={isValidId}
           />
           <TouchableOpacity
             style={[styles.sendBtn, !input.trim() && styles.sendBtnDisabled]}
             onPress={handleSend}
-            disabled={!input.trim()}
+            disabled={!input.trim() || !isValidId}
           >
             <Text style={styles.sendText}>Envoyer</Text>
           </TouchableOpacity>

@@ -312,6 +312,10 @@ if DEBUG:
         'http://127.0.0.1:3000',
         'http://localhost:3001',
         'http://127.0.0.1:3001',
+        'http://localhost:8081',
+        'http://127.0.0.1:8081',
+        'http://localhost:19006',
+        'http://127.0.0.1:19006',
     ]
     
     if local_ip:
@@ -381,6 +385,10 @@ else:
         default_production_origins = [
             'http://localhost:3000',
             'http://127.0.0.1:3000',
+            'http://localhost:8081',
+            'http://127.0.0.1:8081',
+            'http://localhost:19006',
+            'http://127.0.0.1:19006',
             'http://192.168.1.118:3000',
             'https://campuslink-sigma.vercel.app',
             'https://campuslink-git-main-gcs2092s-projects.vercel.app',

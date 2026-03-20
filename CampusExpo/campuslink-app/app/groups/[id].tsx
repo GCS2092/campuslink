@@ -13,8 +13,10 @@ export default function GroupDetailScreen() {
   const [joined, setJoined] = useState(false);
   const [loading, setLoading] = useState(false);
 
+  const isValidId = !!id && !id.includes('[') && !id.includes(']');
+
   const load = async () => {
-    if (!id) return;
+    if (!isValidId) return;
     const [g, m] = await Promise.all([getGroup(id), getGroupMembers(id)]);
     setGroup(g ?? null);
     setMembers(m);
@@ -44,7 +46,17 @@ export default function GroupDetailScreen() {
     return (
       <>
         <Stack.Screen options={{ title: 'Groupe', headerBackTitle: 'Retour' }} />
-        <View style={styles.centered}><Text>Chargement...</Text></View>
+        <View style={styles.centered}>
+          <Text>{isValidId ? 'Chargement...' : 'Groupe introuvable'}</Text>
+          {!isValidId ? (
+            <TouchableOpacity
+              style={{ marginTop: 12 }}
+              onPress={() => (router.canGoBack() ? router.back() : router.replace('/(tabs)/index'))}
+            >
+              <Text style={{ color: '#2563eb', fontWeight: '600' }}>Retour</Text>
+            </TouchableOpacity>
+          ) : null}
+        </View>
       </>
     );
   }

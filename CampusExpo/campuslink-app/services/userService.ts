@@ -1,9 +1,10 @@
 import { ENDPOINTS } from '../constants';
-import { apiGet, apiPost } from './api';
+import { apiGet, apiPost, apiPut } from './api';
 import type { User } from '../types';
 import { mockUser, mockUsers } from './mockData';
 
 export async function getUser(id: string): Promise<User | null> {
+  if (!id || id.includes('[') || id.includes(']')) return null;
   try {
     return await apiGet<User>(`${ENDPOINTS.users}${id}/`);
   } catch {
@@ -48,7 +49,8 @@ export async function sendFriendRequest(userId: string): Promise<boolean> {
 
 export async function acceptFriendRequest(requestId: string): Promise<boolean> {
   try {
-    await apiPost(`${ENDPOINTS.usersFriends}accept/`, { request_id: requestId });
+    // Backend: PUT /users/friends/<friendship_id>/accept/
+    await apiPut(`${ENDPOINTS.usersFriends}${requestId}/accept/`, {});
     return true;
   } catch {
     return true;
@@ -57,7 +59,8 @@ export async function acceptFriendRequest(requestId: string): Promise<boolean> {
 
 export async function rejectFriendRequest(requestId: string): Promise<boolean> {
   try {
-    await apiPost(`${ENDPOINTS.usersFriends}reject/`, { request_id: requestId });
+    // Backend: PUT /users/friends/<friendship_id>/reject/
+    await apiPut(`${ENDPOINTS.usersFriends}${requestId}/reject/`, {});
     return true;
   } catch {
     return true;

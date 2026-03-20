@@ -5,31 +5,43 @@ import { useAuthStore } from '../store/authStore';
 import { resolveApiBaseUrl } from './apiConfig';
 
 let api: AxiosInstance | null = null;
+let apiPromise: Promise<AxiosInstance> | null = null;
+let refreshPromise: Promise<string | null> | null = null;
 
 async function getToken(): Promise<string | null> {
   return SecureStore.getItemAsync(STORAGE_KEYS.accessToken);
 }
 
 async function doRefreshToken(instance: AxiosInstance): Promise<string | null> {
-  const refresh = await SecureStore.getItemAsync(STORAGE_KEYS.refreshToken);
-  if (!refresh) return null;
-  try {
-    const base = (instance.defaults.baseURL ?? '').replace(/\/$/, '');
-    const path = ENDPOINTS.refreshToken.replace(/^\//, '');
-    const { data } = await axios.post<{ access?: string }>(
-      `${base}/${path}`,
-      { refresh },
-      { headers: { 'Content-Type': 'application/json' }, timeout: 10000 }
-    );
-    const access = data.access;
-    if (access) {
-      await SecureStore.setItemAsync(STORAGE_KEYS.accessToken, access);
-      return access;
+  if (refreshPromise) return refreshPromise;
+
+  refreshPromise = (async () => {
+    const refresh = await SecureStore.getItemAsync(STORAGE_KEYS.refreshToken);
+    if (!refresh) return null;
+    try {
+      const base = (instance.defaults.baseURL ?? '').replace(/\/$/, '');
+      const path = ENDPOINTS.refreshToken.replace(/^\//, '');
+      const { data } = await axios.post<{ access?: string }>(
+        `${base}/${path}`,
+        { refresh },
+        { headers: { 'Content-Type': 'application/json' }, timeout: 10000 }
+      );
+      const access = data.access;
+      if (access) {
+        await SecureStore.setItemAsync(STORAGE_KEYS.accessToken, access);
+        return access;
+      }
+    } catch {
+      /* ignore */
     }
-  } catch {
-    /* ignore */
+    return null;
+  })();
+
+  try {
+    return await refreshPromise;
+  } finally {
+    refreshPromise = null;
   }
-  return null;
 }
 
 async function clearAuth(): Promise<void> {
@@ -42,19 +54,22 @@ async function clearAuth(): Promise<void> {
 
 /** Retourne l'instance API (résout l'URL selon le réseau au premier appel). */
 export async function getApi(): Promise<AxiosInstance> {
-  if (!api) {
+  if (api) return api;
+  if (apiPromise) return apiPromise;
+
+  apiPromise = (async () => {
     const baseURL = await resolveApiBaseUrl();
-    api = axios.create({
+    const instance = axios.create({
       baseURL,
       timeout: 30000,
       headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
     });
-    api.interceptors.request.use(async (config) => {
+    instance.interceptors.request.use(async (config) => {
       const token = await getToken();
       if (token) config.headers.Authorization = `Bearer ${token}`;
       return config;
     });
-    api.interceptors.response.use(
+    instance.interceptors.response.use(
       (r) => r,
       async (err) => {
         const originalRequest = err.config as InternalAxiosRequestConfig & { _retry?: boolean };
@@ -64,11 +79,11 @@ export async function getApi(): Promise<AxiosInstance> {
             (String(err.response?.data?.detail ?? '').includes('token'));
           if (isTokenError && (await SecureStore.getItemAsync(STORAGE_KEYS.refreshToken))) {
             originalRequest._retry = true;
-            const newToken = await doRefreshToken(api!);
+            const newToken = await doRefreshToken(instance);
             if (newToken) {
               originalRequest.headers.Authorization = `Bearer ${newToken}`;
               useAuthStore.getState().setToken(newToken);
-              return api!.request(originalRequest);
+              return instance.request(originalRequest);
             }
           }
           await clearAuth();
@@ -76,8 +91,15 @@ export async function getApi(): Promise<AxiosInstance> {
         return Promise.reject(err);
       }
     );
+    api = instance;
+    return instance;
+  })();
+
+  try {
+    return await apiPromise;
+  } finally {
+    apiPromise = null;
   }
-  return api;
 }
 
 export async function apiGet<T = unknown>(url: string): Promise<T> {

@@ -10,16 +10,32 @@ export default function ConversationsScreen() {
   const [list, setList] = useState<Conversation[]>([]);
   const [refreshing, setRefreshing] = useState(false);
 
+  const safeConversation = (c: unknown): Conversation | null => {
+    if (!c || typeof c !== 'object') return null;
+    const id = (c as { id?: unknown }).id;
+    if (id == null) return null;
+    return c as Conversation;
+  };
+
   const load = async () => {
     const data = await getConversations();
-    setList(data);
+    const safeArray = Array.isArray(data) ? data : [];
+    const normalized = safeArray
+      .map((c) => safeConversation(c))
+      .filter((c): c is Conversation => !!c);
+    setList(normalized);
   };
 
   useEffect(() => {
     load();
   }, []);
 
-  const otherParticipant = (c: Conversation) => c.participants?.find((p) => p.id !== c.participants?.[0]?.id) ?? c.participants?.[0];
+  const otherParticipant = (c: Conversation) => {
+    const ps = Array.isArray(c.participants) ? c.participants.filter(Boolean) : [];
+    const firstId = ps[0]?.id;
+    return ps.find((p) => p?.id != null && p.id !== firstId) ?? ps[0];
+  };
+
   const displayName = (c: Conversation) => {
     const u = otherParticipant(c);
     return u ? `${u.first_name ?? ''} ${u.last_name ?? ''}`.trim() || u.username : 'Conversation';
@@ -30,27 +46,41 @@ export default function ConversationsScreen() {
       <Stack.Screen options={{ title: 'Messages', headerBackTitle: 'Retour' }} />
       <FlatList
         data={list}
-        keyExtractor={(item) => item.id}
+        keyExtractor={(item, index) => {
+          const id = (item as unknown as { id?: unknown })?.id;
+          if (typeof id === 'string' && id) return id;
+          if (typeof id === 'number') return String(id);
+          return String(index);
+        }}
         contentContainerStyle={styles.list}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={async () => { setRefreshing(true); await load(); setRefreshing(false); }} />}
         ListEmptyComponent={<Text style={styles.empty}>Aucune conversation</Text>}
-        renderItem={({ item }) => (
-          <TouchableOpacity
-            style={styles.row}
-            onPress={() => router.push({ pathname: '/chat/[id]', params: { id: item.id } })}
-          >
-            <View style={styles.avatar}>
-              <Text style={styles.avatarText}>{(displayName(item)[0] || '?').toUpperCase()}</Text>
-            </View>
-            <View style={styles.body}>
-              <Text style={styles.name}>{displayName(item)}</Text>
-              <Text style={styles.preview} numberOfLines={1}>{item.last_message?.content ?? '—'}</Text>
-            </View>
-            {(item.unread_count ?? 0) > 0 && (
-              <View style={styles.unread}><Text style={styles.unreadText}>{item.unread_count}</Text></View>
-            )}
-          </TouchableOpacity>
-        )}
+        renderItem={({ item }) => {
+          const conv = safeConversation(item);
+          if (!conv) return null;
+          const id = (conv as unknown as { id?: unknown })?.id;
+          const name = displayName(conv);
+          return (
+            <TouchableOpacity
+              style={styles.row}
+              onPress={() => {
+                if (typeof id !== 'string' && typeof id !== 'number') return;
+                router.push({ pathname: '/chat/[id]', params: { id: String(id) } });
+              }}
+            >
+              <View style={styles.avatar}>
+                <Text style={styles.avatarText}>{(name[0] || '?').toUpperCase()}</Text>
+              </View>
+              <View style={styles.body}>
+                <Text style={styles.name}>{name}</Text>
+                <Text style={styles.preview} numberOfLines={1}>{conv.last_message?.content ?? '—'}</Text>
+              </View>
+              {(conv.unread_count ?? 0) > 0 && (
+                <View style={styles.unread}><Text style={styles.unreadText}>{conv.unread_count}</Text></View>
+              )}
+            </TouchableOpacity>
+          );
+        }}
       />
     </>
   );

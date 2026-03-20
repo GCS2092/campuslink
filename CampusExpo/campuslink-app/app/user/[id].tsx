@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-nati
 import { useLocalSearchParams, useRouter, Stack } from 'expo-router';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { getUser, sendFriendRequest } from '../../services/userService';
+import { startConversation } from '../../services/messagingService';
 import { useAuthStore } from '../../store/authStore';
 import type { User } from '../../types';
 
@@ -16,9 +17,12 @@ export default function UserProfileScreen() {
   const { user: me } = useAuthStore();
   const [user, setUser] = useState<User | null>(null);
   const [requestSent, setRequestSent] = useState(false);
+  const [startingChat, setStartingChat] = useState(false);
+
+  const isValidId = !!id && !id.includes('[') && !id.includes(']');
 
   const load = async () => {
-    if (!id) return;
+    if (!isValidId) return;
     const u = await getUser(id);
     setUser(u ?? null);
   };
@@ -27,8 +31,14 @@ export default function UserProfileScreen() {
     load();
   }, [id]);
 
-  const handleMessage = () => {
-    router.push({ pathname: '/chat/[id]', params: { id: id! } });
+  const handleMessage = async () => {
+    if (!id || startingChat) return;
+    setStartingChat(true);
+    const conv = await startConversation(id);
+    setStartingChat(false);
+    if (conv?.id) {
+      router.push({ pathname: '/chat/[id]', params: { id: conv.id } });
+    }
   };
 
   const handleAddFriend = async () => {
@@ -41,7 +51,17 @@ export default function UserProfileScreen() {
     return (
       <>
         <Stack.Screen options={{ title: 'Profil', headerBackTitle: 'Retour' }} />
-        <View style={styles.centered}><Text>Chargement...</Text></View>
+        <View style={styles.centered}>
+          <Text>{isValidId ? 'Chargement...' : 'Utilisateur introuvable'}</Text>
+          {!isValidId ? (
+            <TouchableOpacity
+              style={{ marginTop: 12 }}
+              onPress={() => (router.canGoBack() ? router.back() : router.replace('/(tabs)/index'))}
+            >
+              <Text style={{ color: '#2563eb', fontWeight: '600' }}>Retour</Text>
+            </TouchableOpacity>
+          ) : null}
+        </View>
       </>
     );
   }
@@ -61,9 +81,9 @@ export default function UserProfileScreen() {
         {user.profile?.campus ? <Text style={styles.meta}>{user.profile.campus}</Text> : null}
         {!isMe && (
           <View style={styles.actions}>
-            <TouchableOpacity style={styles.msgBtn} onPress={handleMessage}>
+            <TouchableOpacity style={styles.msgBtn} onPress={handleMessage} disabled={startingChat}>
               <Ionicons name="chatbubble" size={20} color="#fff" />
-              <Text style={styles.msgBtnText}>Message</Text>
+              <Text style={styles.msgBtnText}>{startingChat ? 'Ouverture...' : 'Message'}</Text>
             </TouchableOpacity>
             <TouchableOpacity
               style={[styles.addBtn, requestSent && styles.addBtnDisabled]}
