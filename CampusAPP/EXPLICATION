@@ -1,0 +1,89 @@
+Parfait, j'ai tout. Je vais te faire un guide complet, exhaustif, du premier
+ `flutter doctor` jusqu'à la connexion WebSocket avec ton backend Django.
+
+---
+
+## Guide complet Flutter pour CampusLink
+
+### 1. Installation de Flutter### 2. Structure du projet et packages
+
+La combinaison gagnante en 2025 est Riverpod ou BLoC pour le state management, 
+GoRouter pour la navigation, Dio pour les APIs,
+ et Drift si tu as besoin d'une base de données locale.
+
+Voici la structure de projet recommandée et le `pubspec.yaml`
+ complet pour CampusLink :### 3. Connexion avec le backend Django — le code réel
+
+Voici les fichiers clés à créer. 
+Commence par le client Dio avec les intercepteurs JWT,
+ c'est le cœur de la connexion avec ton API Django.### 4. 
+ Un point important côté Django pour les WebSockets
+
+En Flutter, le package `web_socket_channel` gère la connexion WebSocket. 
+Quand le serveur Django envoie un message, 
+l'app Flutter met à jour l'UI en temps réel via un listener sur le stream. 
+Mais il faut ajouter un middleware côté Django 
+pour valider le JWT lors de la connexion WebSocket, 
+car Django Channels n'utilise pas les headers HTTP classiques. 
+Voici ce petit ajout à faire dans ton backend :
+
+```python
+# backend/middleware/jwt_ws_middleware.py
+from channels.middleware import BaseMiddleware
+from channels.db import database_sync_to_async
+from django.contrib.auth.models import AnonymousUser
+from rest_framework_simplejwt.tokens import AccessToken
+
+class JWTAuthMiddleware(BaseMiddleware):
+    async def __call__(self, scope, receive, send):
+        # Lire le token depuis ?token=... dans l'URL WebSocket
+        query_string = scope.get("query_string", b"").decode()
+        params = dict(p.split("=") for p in query_string.split("&") if "=" in p)
+        token = params.get("token")
+        
+        if token:
+            scope["user"] = await self.get_user(token)
+        return await super().__call__(scope, receive, send)
+
+    @database_sync_to_async
+    def get_user(self, token):
+        try:
+            validated = AccessToken(token)
+            from django.contrib.auth import get_user_model
+            User = get_user_model()
+            return User.objects.get(id=validated["user_id"])
+        except Exception:
+            return AnonymousUser()
+```
+
+### 5. Workflow de développement au quotidien
+
+Une fois tout installé, voici les commandes que tu utiliseras en permanence :
+
+```bash
+# Démarrer l'app (hot reload actif)
+flutter run
+
+# Regénérer les modèles Freezed après modification
+flutter pub run build_runner build --delete-conflicting-outputs
+
+# Lancer sur un device spécifique
+flutter devices              # lister les devices connectés
+flutter run -d <device_id>
+
+# Build de production
+flutter build apk --release          # Android APK
+flutter build appbundle --release    # Android App Bundle (Play Store)
+flutter build ipa --release          # iOS (macOS requis)
+```
+
+---
+
+En résumé, l'essentiel à retenir :
+installe Flutter stable, 
+utilise la stack **Riverpod + GoRouter + Dio + web_socket_channel**,
+génère tes modèles avec Freezed, et la connexion avec ton backend 
+Django existant sera quasi transparente puisque tu réutilises les mêmes endpoints
+REST et WebSockets. 
+Tu veux que je te génère 
+l'écran de chat complet avec `flutter_chat_ui` branché sur ton WebSocket Django ?

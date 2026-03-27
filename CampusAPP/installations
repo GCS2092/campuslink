@@ -1,0 +1,478 @@
+# ============================================================
+# CAMPUSLINK — SETUP COMPLET POWERSHELL
+# À exécuter depuis : C:\campusLink\CampusAPP
+# ============================================================
+
+
+# ════════════════════════════════════════════════════════════
+# ÉTAPE 1 — Créer le projet
+# ════════════════════════════════════════════════════════════
+
+flutter upgrade
+flutter doctor -v
+
+# Créer le projet (tout sur une ligne, PowerShell ne supporte pas \)
+flutter create `
+  --org sn.campuslink `
+  --platforms ios,android `
+  --template app `
+  --overwrite `
+  --description "CampusLink - Plateforme etudiante" `
+  campuslink_mobile
+
+cd campuslink_mobile
+
+flutter run
+# Ctrl+C pour arrêter puis continuer
+
+
+# ════════════════════════════════════════════════════════════
+# ÉTAPE 2 — Installer tous les packages
+# ════════════════════════════════════════════════════════════
+
+# Navigation
+flutter pub add go_router
+
+# State Management
+flutter pub add flutter_riverpod:2.6.1
+flutter pub add hooks_riverpod:2.6.1
+flutter pub add flutter_hooks
+flutter pub add riverpod_annotation:2.6.1
+
+# Réseau
+flutter pub add dio
+flutter pub add web_socket_channel
+flutter pub add connectivity_plus
+
+# Stockage sécurisé
+flutter pub add flutter_secure_storage
+
+# Sérialisation
+flutter pub add freezed_annotation
+flutter pub add json_annotation
+
+# UI & Design
+flutter pub add gap
+flutter pub add cached_network_image
+flutter pub add shimmer
+flutter pub add flutter_svg
+flutter pub add lottie
+flutter pub add badges
+
+# Animations
+flutter pub add animations
+flutter pub add flutter_animate
+
+# Chat
+flutter pub add flutter_chat_ui
+flutter pub add flutter_chat_types
+
+# Formulaires
+flutter pub add reactive_forms
+
+# Images & Médias
+flutter pub add image_picker
+flutter pub add image_cropper
+
+# Dates & Localisation
+flutter pub add intl
+flutter pub add timeago
+
+# Géolocalisation
+flutter pub add geolocator
+flutter pub add geocoding
+
+# Notifications Push
+flutter pub add firebase_core
+flutter pub add firebase_messaging
+flutter pub add flutter_local_notifications
+
+# Utilitaires
+flutter pub add url_launcher
+flutter pub add share_plus
+flutter pub add permission_handler
+flutter pub add package_info_plus
+flutter pub add device_info_plus
+flutter pub add flutter_keyboard_visibility
+
+# App Launch
+flutter pub add flutter_launcher_icons
+flutter pub add flutter_native_splash
+
+# Dev dependencies
+flutter pub add --dev build_runner
+flutter pub add --dev freezed
+flutter pub add --dev json_serializable
+flutter pub add --dev riverpod_generator:2.6.5
+flutter pub add --dev custom_lint
+flutter pub add --dev riverpod_lint
+
+
+# ════════════════════════════════════════════════════════════
+# ÉTAPE 3 — pubspec.yaml
+# (Remplace manuellement le contenu avec le fichier du guide)
+# ════════════════════════════════════════════════════════════
+
+# Ouvre le fichier dans VS Code
+code pubspec.yaml
+
+
+# ════════════════════════════════════════════════════════════
+# ÉTAPE 4 — Créer toute la structure de dossiers
+# ════════════════════════════════════════════════════════════
+
+# Dossiers sources
+New-Item -ItemType Directory -Force -Path "lib\core\constants"
+New-Item -ItemType Directory -Force -Path "lib\core\network"
+New-Item -ItemType Directory -Force -Path "lib\core\storage"
+New-Item -ItemType Directory -Force -Path "lib\core\theme"
+New-Item -ItemType Directory -Force -Path "lib\core\utils"
+
+New-Item -ItemType Directory -Force -Path "lib\features\auth\data\models"
+New-Item -ItemType Directory -Force -Path "lib\features\auth\providers"
+New-Item -ItemType Directory -Force -Path "lib\features\auth\screens"
+New-Item -ItemType Directory -Force -Path "lib\features\auth\widgets"
+
+New-Item -ItemType Directory -Force -Path "lib\features\feed\data\models"
+New-Item -ItemType Directory -Force -Path "lib\features\feed\providers"
+New-Item -ItemType Directory -Force -Path "lib\features\feed\screens"
+New-Item -ItemType Directory -Force -Path "lib\features\feed\widgets"
+
+New-Item -ItemType Directory -Force -Path "lib\features\events\data\models"
+New-Item -ItemType Directory -Force -Path "lib\features\events\providers"
+New-Item -ItemType Directory -Force -Path "lib\features\events\screens"
+New-Item -ItemType Directory -Force -Path "lib\features\events\widgets"
+
+New-Item -ItemType Directory -Force -Path "lib\features\groups\data\models"
+New-Item -ItemType Directory -Force -Path "lib\features\groups\providers"
+New-Item -ItemType Directory -Force -Path "lib\features\groups\screens"
+New-Item -ItemType Directory -Force -Path "lib\features\groups\widgets"
+
+New-Item -ItemType Directory -Force -Path "lib\features\messaging\data\models"
+New-Item -ItemType Directory -Force -Path "lib\features\messaging\providers"
+New-Item -ItemType Directory -Force -Path "lib\features\messaging\screens"
+New-Item -ItemType Directory -Force -Path "lib\features\messaging\widgets"
+
+New-Item -ItemType Directory -Force -Path "lib\features\notifications\data\models"
+New-Item -ItemType Directory -Force -Path "lib\features\notifications\providers"
+New-Item -ItemType Directory -Force -Path "lib\features\notifications\screens"
+
+New-Item -ItemType Directory -Force -Path "lib\features\profile\data\models"
+New-Item -ItemType Directory -Force -Path "lib\features\profile\providers"
+New-Item -ItemType Directory -Force -Path "lib\features\profile\screens"
+New-Item -ItemType Directory -Force -Path "lib\features\profile\widgets"
+
+New-Item -ItemType Directory -Force -Path "lib\shared\widgets"
+New-Item -ItemType Directory -Force -Path "lib\shared\extensions"
+New-Item -ItemType Directory -Force -Path "lib\shared\hooks"
+
+# Dossiers assets
+New-Item -ItemType Directory -Force -Path "assets\images"
+New-Item -ItemType Directory -Force -Path "assets\icons"
+New-Item -ItemType Directory -Force -Path "assets\lottie"
+New-Item -ItemType Directory -Force -Path "assets\fonts"
+
+# Fichiers placeholder (PowerShell = New-Item au lieu de touch)
+New-Item -ItemType File -Force -Path "assets\images\.gitkeep"
+New-Item -ItemType File -Force -Path "assets\icons\.gitkeep"
+New-Item -ItemType File -Force -Path "assets\lottie\.gitkeep"
+New-Item -ItemType File -Force -Path "assets\fonts\.gitkeep"
+
+
+# ════════════════════════════════════════════════════════════
+# ÉTAPE 5 — Configurer Android (minSdk)
+# ════════════════════════════════════════════════════════════
+
+# Lire et modifier build.gradle
+$buildGradle = Get-Content "android\app\build.gradle" -Raw
+$buildGradle = $buildGradle -replace 'minSdkVersion flutter\.minSdkVersion', 'minSdkVersion 21'
+$buildGradle = $buildGradle -replace 'targetSdkVersion flutter\.targetSdkVersion', 'targetSdkVersion 34'
+Set-Content "android\app\build.gradle" $buildGradle
+Write-Host "build.gradle mis a jour" -ForegroundColor Green
+
+# AndroidManifest.xml — à éditer manuellement dans VS Code
+code android\app\src\main\AndroidManifest.xml
+
+
+# ════════════════════════════════════════════════════════════
+# ÉTAPE 6 — Configurer iOS
+# (Info.plist — à éditer manuellement dans VS Code)
+# ════════════════════════════════════════════════════════════
+
+code ios\Runner\Info.plist
+
+
+# ════════════════════════════════════════════════════════════
+# ÉTAPE 7 — Créer les fichiers core du projet
+# ════════════════════════════════════════════════════════════
+
+# api_constants.dart
+@'
+class ApiConstants {
+  static const String baseUrl = String.fromEnvironment(
+    'API_BASE_URL',
+    defaultValue: 'http://10.0.2.2:8000/api',
+  );
+
+  static const String wsBaseUrl = String.fromEnvironment(
+    'WS_BASE_URL',
+    defaultValue: 'ws://10.0.2.2:8000',
+  );
+
+  static const String login = '/auth/login/';
+  static const String register = '/auth/register/';
+  static const String verifyOtp = '/auth/verify-otp/';
+  static const String tokenRefresh = '/auth/token/refresh/';
+  static const String me = '/auth/me/';
+
+  static const String conversations = '/messaging/conversations/';
+  static const String messages = '/messaging/messages/';
+  static const String events = '/events/';
+  static const String groups = '/groups/';
+
+  static String chatWs(int conversationId) =>
+      '$wsBaseUrl/ws/messaging/$conversationId/';
+  static String notificationsWs() => '$wsBaseUrl/ws/notifications/';
+}
+'@ | Set-Content "lib\core\constants\api_constants.dart" -Encoding UTF8
+Write-Host "api_constants.dart cree" -ForegroundColor Green
+
+# app_theme.dart
+@'
+import 'package:flutter/material.dart';
+
+class AppTheme {
+  static const Color primary = Color(0xFF4F46E5);
+  static const Color primaryLight = Color(0xFF818CF8);
+  static const Color primaryDark = Color(0xFF3730A3);
+  static const Color secondary = Color(0xFF10B981);
+  static const Color error = Color(0xFFEF4444);
+  static const Color warning = Color(0xFFF59E0B);
+  static const Color surface = Color(0xFFF9FAFB);
+  static const Color surfaceDark = Color(0xFF111827);
+
+  static ThemeData get lightTheme => ThemeData(
+    useMaterial3: true,
+    fontFamily: 'Inter',
+    colorScheme: ColorScheme.fromSeed(
+      seedColor: primary,
+      brightness: Brightness.light,
+      primary: primary,
+      secondary: secondary,
+      error: error,
+      surface: surface,
+    ),
+    appBarTheme: const AppBarTheme(
+      elevation: 0,
+      centerTitle: false,
+      backgroundColor: Colors.white,
+      foregroundColor: Color(0xFF111827),
+      titleTextStyle: TextStyle(
+        fontFamily: 'Inter',
+        fontSize: 18,
+        fontWeight: FontWeight.w600,
+        color: Color(0xFF111827),
+      ),
+    ),
+    cardTheme: CardTheme(
+      elevation: 0,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+        side: const BorderSide(color: Color(0xFFE5E7EB)),
+      ),
+      color: Colors.white,
+    ),
+    elevatedButtonTheme: ElevatedButtonThemeData(
+      style: ElevatedButton.styleFrom(
+        backgroundColor: primary,
+        foregroundColor: Colors.white,
+        elevation: 0,
+        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        textStyle: const TextStyle(
+          fontFamily: 'Inter',
+          fontSize: 15,
+          fontWeight: FontWeight.w600,
+        ),
+      ),
+    ),
+    inputDecorationTheme: InputDecorationTheme(
+      filled: true,
+      fillColor: const Color(0xFFF3F4F6),
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: BorderSide.none,
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: const BorderSide(color: primary, width: 2),
+      ),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      hintStyle: const TextStyle(color: Color(0xFF9CA3AF), fontSize: 15),
+    ),
+    bottomNavigationBarTheme: const BottomNavigationBarThemeData(
+      selectedItemColor: primary,
+      unselectedItemColor: Color(0xFF9CA3AF),
+      showUnselectedLabels: true,
+      type: BottomNavigationBarType.fixed,
+      elevation: 0,
+    ),
+  );
+
+  static ThemeData get darkTheme => ThemeData(
+    useMaterial3: true,
+    fontFamily: 'Inter',
+    colorScheme: ColorScheme.fromSeed(
+      seedColor: primary,
+      brightness: Brightness.dark,
+      primary: primaryLight,
+      secondary: secondary,
+      error: error,
+      surface: surfaceDark,
+    ),
+    appBarTheme: const AppBarTheme(
+      elevation: 0,
+      centerTitle: false,
+      backgroundColor: Color(0xFF111827),
+      foregroundColor: Colors.white,
+    ),
+    cardTheme: CardTheme(
+      elevation: 0,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+        side: const BorderSide(color: Color(0xFF374151)),
+      ),
+      color: const Color(0xFF1F2937),
+    ),
+    elevatedButtonTheme: ElevatedButtonThemeData(
+      style: ElevatedButton.styleFrom(
+        backgroundColor: primaryLight,
+        foregroundColor: Colors.white,
+        elevation: 0,
+        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      ),
+    ),
+    inputDecorationTheme: InputDecorationTheme(
+      filled: true,
+      fillColor: const Color(0xFF1F2937),
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: BorderSide.none,
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: const BorderSide(color: primaryLight, width: 2),
+      ),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+    ),
+  );
+}
+'@ | Set-Content "lib\core\theme\app_theme.dart" -Encoding UTF8
+Write-Host "app_theme.dart cree" -ForegroundColor Green
+
+# main.dart
+@'
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'app.dart';
+
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+
+  await SystemChrome.setPreferredOrientations([
+    DeviceOrientation.portraitUp,
+    DeviceOrientation.portraitDown,
+  ]);
+
+  SystemChrome.setSystemUIOverlayStyle(
+    const SystemUiOverlayStyle(
+      statusBarColor: Colors.transparent,
+      statusBarIconBrightness: Brightness.dark,
+    ),
+  );
+
+  runApp(
+    const ProviderScope(
+      child: CampusLinkApp(),
+    ),
+  );
+}
+'@ | Set-Content "lib\main.dart" -Encoding UTF8
+Write-Host "main.dart cree" -ForegroundColor Green
+
+# app.dart
+@'
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'core/theme/app_theme.dart';
+
+class CampusLinkApp extends ConsumerWidget {
+  const CampusLinkApp({super.key});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    return MaterialApp(
+      title: 'CampusLink',
+      debugShowCheckedModeBanner: false,
+      theme: AppTheme.lightTheme,
+      darkTheme: AppTheme.darkTheme,
+      themeMode: ThemeMode.system,
+      home: const Scaffold(
+        body: Center(child: Text('CampusLink chargement...')),
+      ),
+    );
+  }
+}
+'@ | Set-Content "lib\app.dart" -Encoding UTF8
+Write-Host "app.dart cree" -ForegroundColor Green
+
+
+# ════════════════════════════════════════════════════════════
+# ÉTAPE 8 — Générer le code automatiquement
+# ════════════════════════════════════════════════════════════
+
+flutter pub get
+dart run build_runner build --delete-conflicting-outputs
+
+# En mode watch (dans un terminal séparé)
+# dart run build_runner watch --delete-conflicting-outputs
+
+
+# ════════════════════════════════════════════════════════════
+# ÉTAPE 9 — Splash screen et icône
+# (Place d'abord tes fichiers dans assets/icons/ et assets/images/)
+# ════════════════════════════════════════════════════════════
+
+dart run flutter_launcher_icons
+dart run flutter_native_splash:create
+
+
+# ════════════════════════════════════════════════════════════
+# ÉTAPE 10 — Vérification finale et lancer l'app
+# ════════════════════════════════════════════════════════════
+
+flutter analyze
+flutter devices
+flutter run
+
+# Sur device physique (remplace X par ton IP locale)
+# flutter run `
+#   --dart-define=API_BASE_URL=http://192.168.1.X:8000/api `
+#   --dart-define=WS_BASE_URL=ws://192.168.1.X:8000
+
+flutter build apk --debug
+
+
+# ════════════════════════════════════════════════════════════
+# COMMANDES DU QUOTIDIEN
+# ════════════════════════════════════════════════════════════
+
+# flutter pub get
+# dart run build_runner watch --delete-conflicting-outputs
+# flutter run --hot
+# flutter analyze
+# flutter test
+# flutter pub upgrade --major-versions
+# flutter pub outdated

@@ -1,0 +1,285 @@
+Bonne question, et la réponse honnête est : **oui, quelques ajustements sont nécessaires**, mais c'est minimal. Ton backend Django est déjà très bien structuré. Voici exactement ce qu'il faut toucher et pourquoi.Parfait. J'ai tout ce qu'il faut. La réponse courte : **4 ajustements seulement**, tous dans le backend, aucun n'est destructeur et certains tu les as peut-être déjà faits.Maintenant voilà chaque modification avec le code exact à copier-coller.
+
+---
+
+## Modification 1 — CORS
+
+Par défaut, Django n'ajoute pas le header `Access-Control-Allow-Origin` dans ses réponses. Il faut ajouter le package `django-cors-headers` pour corriger ça. C'est indispensable pour que Flutter puisse parler à ton API, même depuis un appareil physique sur le même réseau local.
+
+`CorsMiddleware` doit être placé aussi haut que possible dans la liste `MIDDLEWARE`, surtout avant tout middleware qui peut générer des réponses comme `CommonMiddleware`. S'il n'est pas en premier, il ne pourra pas ajouter les headers CORS à ces réponses.
+
+```bash
+pip install django-cors-headers
+```
+
+```python
+# settings.py
+
+INSTALLED_APPS = [
+    ...
+    'corsheaders',   # ← ajouter
+    ...
+]
+
+MIDDLEWARE = [
+    'corsheaders.middleware.CorsMiddleware',   # ← EN PREMIER, avant tout
+    'django.middleware.common.CommonMiddleware',
+    ...
+]
+
+# ─── Développement : autoriser tout ──────────────────────────────
+if DEBUG:
+    CORS_ALLOW_ALL_ORIGINS = True
+
+# ─── Production : lister explicitement ───────────────────────────
+else:
+    CORS_ALLOWED_ORIGINS = [
+        "https://ton-domaine.com",
+        # Flutter mobile n'envoie pas d'Origin donc pas besoin
+        # de l'ajouter — mais si tu fais du Flutter Web, si.
+    ]
+
+# Headers que Flutter/Dio envoie — à autoriser explicitement
+CORS_ALLOW_HEADERS = [
+    'accept',
+    'accept-encoding',
+    'authorization',       # ← indispensable pour JWT
+    'content-type',
+    'origin',
+    'x-csrftoken',
+]
+```
+
+> **Bonne nouvelle** : Flutter sur mobile (iOS/Android) n'envoie pas de header `Origin` contrairement aux navigateurs, donc les erreurs CORS n'arrivent qu'en Flutter Web. Mais configure quand même `django-cors-headers` correctement pour être prêt.
+
+---
+
+## Modification 2 — Config JWT adaptée mobile
+
+La config par défaut de SimpleJWT a un access token de **5 minutes** — trop court pour une app mobile où l'utilisateur reste connecté des semaines. Une configuration recommandée pour la production est un access token de 30 minutes et un refresh token de 3 jours, avec rotation du refresh token à chaque utilisation.
+
+```python
+# settings.py
+from datetime import timedelta
+
+SIMPLE_JWT = {
+    # ─── Durées de vie ───────────────────────────────────────────
+    "ACCESS_TOKEN_LIFETIME": timedelta(minutes=30),   # était 5 min par défaut
+    "REFRESH_TOKEN_LIFETIME": timedelta(days=30),     # 30 jours pour mobile
+                                                       # (WhatsApp ne te déconnecte pas tous les jours)
+
+    # ─── Sécurité ────────────────────────────────────────────────
+    "ROTATE_REFRESH_TOKENS": True,        # Nouveau refresh token à chaque refresh
+    "BLACKLIST_AFTER_ROTATION": True,     # L'ancien refresh token devient invalide
+
+    # ─── Claims personnalisés (Flutter en a besoin sans appel API) ─
+    "UPDATE_LAST_LOGIN": True,
+
+    # ─── Standard ────────────────────────────────────────────────
+    "ALGORITHM": "HS256",
+    "AUTH_HEADER_TYPES": ("Bearer",),
+    "USER_ID_FIELD": "id",
+    "USER_ID_CLAIM": "user_id",
+}
+
+# Pour la blacklist (révocation des tokens au logout)
+INSTALLED_APPS = [
+    ...
+    'rest_framework_simplejwt.token_blacklist',   # ← ajouter
+    ...
+]
+```
+
+```bash
+# Puis migrer la base pour la table blacklist
+python manage.py migrate
+```
+
+Il faut aussi **enrichir le payload JWT** pour que Flutter n'ait pas besoin de faire un appel API supplémentaire juste pour savoir le nom de l'utilisateur :
+
+```python
+# users/serializers.py  (ou là où tu as ton TokenObtainPairSerializer)
+from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
+
+class CampusLinkTokenSerializer(TokenObtainPairSerializer):
+    @classmethod
+    def get_token(cls, user):
+        token = super().get_token(user)
+
+        # Ajouter des infos utiles directement dans le token
+        # Flutter peut les lire sans appel API supplémentaire
+        token['email'] = user.email
+        token['first_name'] = user.first_name
+        token['last_name'] = user.last_name
+        token['role'] = user.role          # 'student', 'admin', etc.
+        token['is_verified'] = user.is_verified
+
+        return token
+
+# users/views.py — utiliser ce serializer personnalisé
+from rest_framework_simplejwt.views import TokenObtainPairView
+
+class CampusLinkLoginView(TokenObtainPairView):
+    serializer_class = CampusLinkTokenSerializer
+```
+
+```python
+# urls.py — remplacer la vue de login par défaut
+from users.views import CampusLinkLoginView
+
+urlpatterns = [
+    path('api/auth/login/', CampusLinkLoginView.as_view(), name='login'),
+    path('api/auth/token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
+    ...
+]
+```
+
+---
+
+## Modification 3 — WebSocket JWT pour Django Channels
+
+C'est le seul ajout vraiment nouveau. Il n'est pas possible d'envoyer un token JWT dans le header `Authorization` d'une connexion WebSocket comme on le ferait avec un simple GET ou POST — il faut passer par un middleware personnalisé.
+
+La méthode la plus propre utilise `djangorestframework-simplejwt` directement : le client envoie le token en query parameter dans l'URL WebSocket (ex: `ws://localhost/ws/chat/?token=TON_JWT`), et le middleware l'extrait et valide l'utilisateur.
+
+Il existe un package tout fait pour ça — `django-channels-jwt-auth-middleware` — il suffit de wrapper ton `URLRouter` avec `JWTAuthMiddlewareStack` et c'est terminé.
+
+```bash
+pip install django-channels-jwt-auth-middleware
+```
+
+```python
+# asgi.py — une seule ligne à changer
+import os
+from django.core.asgi import get_asgi_application
+from channels.routing import ProtocolTypeRouter, URLRouter
+from channels.security.websocket import AllowedHostsOriginValidator
+from django_channels_jwt_auth_middleware.auth import JWTAuthMiddlewareStack  # ← import
+from messaging.routing import websocket_urlpatterns
+
+os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'campuslink.settings')
+
+application = ProtocolTypeRouter({
+    "http": get_asgi_application(),
+    "websocket": AllowedHostsOriginValidator(
+        JWTAuthMiddlewareStack(          # ← remplacer AuthMiddlewareStack par ça
+            URLRouter(websocket_urlpatterns)
+        )
+    ),
+})
+```
+
+```python
+# settings.py — autoriser les connexions WebSocket depuis l'app mobile
+ALLOWED_HOSTS = ['*']  # en dev — en prod, mettre ton domaine
+
+# Pour Django Channels en dev, autoriser toutes les origines WebSocket
+CORS_ALLOW_ALL_ORIGINS = True  # déjà fait à l'étape 1
+```
+
+Dans tes consumers, l'utilisateur est maintenant disponible via `self.scope["user"]` exactement comme avant :
+
+```python
+# messaging/consumers.py — aucun changement nécessaire ici
+class ChatConsumer(AsyncWebsocketConsumer):
+    async def connect(self):
+        self.user = self.scope["user"]   # ← ça marche automatiquement
+
+        if self.user.is_anonymous:
+            await self.close()           # Rejeter si pas authentifié
+            return
+
+        await self.accept()
+        # ... reste du code inchangé
+```
+
+---
+
+## Modification 4 — Push notifications (nouveau endpoint)
+
+C'est la seule vraie **nouvelle fonctionnalité** à ajouter. Flutter va enregistrer le device de l'utilisateur auprès de FCM/APNs et te donner un token de device — tu dois le stocker côté Django pour pouvoir envoyer des notifications push.
+
+```python
+# notifications/models.py — ajouter ce modèle
+from django.db import models
+from django.conf import settings
+
+class DeviceToken(models.Model):
+    PLATFORM_CHOICES = [('android', 'Android'), ('ios', 'iOS')]
+
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='device_tokens'
+    )
+    token = models.CharField(max_length=500, unique=True)
+    platform = models.CharField(max_length=10, choices=PLATFORM_CHOICES)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        unique_together = ('user', 'token')
+```
+
+```python
+# notifications/views.py — ajouter ces 2 endpoints
+from rest_framework.views import APIView
+from rest_framework.response import Response
+from rest_framework.permissions import IsAuthenticated
+from .models import DeviceToken
+
+class RegisterDeviceTokenView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        token = request.data.get('token')
+        platform = request.data.get('platform')  # 'android' ou 'ios'
+
+        if not token or not platform:
+            return Response({'error': 'token et platform requis'}, status=400)
+
+        # Créer ou mettre à jour (un user peut avoir plusieurs devices)
+        DeviceToken.objects.update_or_create(
+            user=request.user,
+            token=token,
+            defaults={'platform': platform}
+        )
+        return Response({'status': 'token enregistré'})
+
+    def delete(self, request):
+        # Appelé au logout — supprimer le token du device
+        token = request.data.get('token')
+        DeviceToken.objects.filter(user=request.user, token=token).delete()
+        return Response({'status': 'token supprimé'})
+
+# notifications/urls.py
+urlpatterns = [
+    path('device-token/', RegisterDeviceTokenView.as_view(), name='device-token'),
+]
+```
+
+```bash
+python manage.py makemigrations notifications
+python manage.py migrate
+```
+
+---
+
+## Résumé de tout ce qui change
+
+```
+backend/
+├── settings.py          ← CORS + JWT lifetime + INSTALLED_APPS blacklist
+├── asgi.py              ← JWTAuthMiddlewareStack (1 ligne changée)
+├── users/
+│   ├── serializers.py   ← CampusLinkTokenSerializer (payload enrichi)
+│   └── views.py         ← CampusLinkLoginView
+└── notifications/
+    ├── models.py         ← DeviceToken (NOUVEAU)
+    ├── views.py          ← RegisterDeviceTokenView (NOUVEAU)
+    └── urls.py           ← 1 endpoint NOUVEAU
+```
+
+**Ce qui ne change pas du tout** : tous tes serializers existants, tous tes endpoints (`/api/events/`, `/api/groups/`, `/api/messaging/`, etc.), tous tes modèles, toute la logique de modération et d'administration. Flutter consomme exactement les mêmes endpoints que ton frontend Next.js.
+
+Tu veux qu'on attaque maintenant la structure complète du projet Flutter avec les premiers écrans codés ?
