@@ -2,11 +2,11 @@ class ApiConstants {
   // Base URLs - These should be configured based on your environment
   static const String baseUrl = String.fromEnvironment(
     'API_BASE_URL',
-    defaultValue: 'http://10.0.2.2:8000/api',
+    defaultValue: 'http://localhost:8000/api',
   );
   static const String wsBaseUrl = String.fromEnvironment(
     'WS_BASE_URL',
-    defaultValue: 'ws://10.0.2.2:8000',
+    defaultValue: 'ws://localhost:8000',
   );
   static const int connectTimeout = 30000;
   static const int receiveTimeout = 60000;

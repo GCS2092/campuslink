@@ -3,7 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/router/app_router.dart';
 import '../models/feed_model.dart';
-import '../providers/feed_provider.dart';
+import '../providers/feed_provider.dart'; // ✅ Import manquant
 
 class FeedScreen extends ConsumerStatefulWidget {
   const FeedScreen({super.key});
@@ -31,7 +31,8 @@ class _FeedScreenState extends ConsumerState<FeedScreen> {
   }
 
   void _onScroll() {
-    if (_scrollController.position.pixels >= _scrollController.position.maxScrollExtent * 0.8) {
+    if (_scrollController.position.pixels >=
+        _scrollController.position.maxScrollExtent * 0.8) {
       ref.read(feedNotifierProvider.notifier).loadFeed();
     }
   }
@@ -52,7 +53,9 @@ class _FeedScreenState extends ConsumerState<FeedScreen> {
       ),
       body: RefreshIndicator(
         onRefresh: () async {
-          await ref.read(feedNotifierProvider.notifier).loadFeed(refresh: true);
+          await ref
+              .read(feedNotifierProvider.notifier)
+              .loadFeed(refresh: true);
         },
         child: _buildBody(feedState),
       ),
@@ -87,7 +90,8 @@ class _FeedScreenState extends ConsumerState<FeedScreen> {
         final item = state.feedItems[index];
         return _FeedItemCard(
           item: item,
-          onLike: () => ref.read(feedNotifierProvider.notifier).likePost(item.id),
+          onLike: () =>
+              ref.read(feedNotifierProvider.notifier).likePost(item.id),
         );
       },
     );
@@ -131,9 +135,7 @@ class _FeedScreenState extends ConsumerState<FeedScreen> {
             ),
             const SizedBox(height: 16),
             Expanded(
-              child: Container(
-                color: Colors.grey[300],
-              ),
+              child: Container(color: Colors.grey[300]),
             ),
           ],
         ),
@@ -169,9 +171,8 @@ class _FeedScreenState extends ConsumerState<FeedScreen> {
             ),
             const SizedBox(height: 16),
             ElevatedButton(
-              onPressed: () {
-                ref.read(feedNotifierProvider.notifier).loadFeed(refresh: true);
-              },
+              onPressed: () =>
+                  ref.read(feedNotifierProvider.notifier).loadFeed(refresh: true),
               child: const Text('Réessayer'),
             ),
           ],
@@ -241,12 +242,18 @@ class _FeedItemCard extends StatelessWidget {
                   ? NetworkImage(item.author!.profilePicture!)
                   : null,
               child: item.author?.profilePicture == null
-                  ? Text(item.author?.username.substring(0, 1).toUpperCase() ?? 'U')
+                  ? Text(
+                      item.author?.username
+                              .substring(0, 1)
+                              .toUpperCase() ??
+                          'U',
+                    )
                   : null,
             ),
             title: Text(
               item.author?.firstName != null || item.author?.lastName != null
-                  ? '${item.author?.firstName ?? ''} ${item.author?.lastName ?? ''}'.trim()
+                  ? '${item.author?.firstName ?? ''} ${item.author?.lastName ?? ''}'
+                      .trim()
                   : item.author?.username ?? 'Utilisateur',
               style: const TextStyle(fontWeight: FontWeight.w600),
             ),
@@ -270,12 +277,11 @@ class _FeedItemCard extends StatelessWidget {
                 item.image!,
                 width: double.infinity,
                 fit: BoxFit.cover,
-                errorBuilder: (context, error, stackTrace) =>
-                    Container(
-                      height: 200,
-                      color: Colors.grey[300],
-                      child: const Icon(Icons.broken_image),
-                    ),
+                errorBuilder: (context, error, stackTrace) => Container(
+                  height: 200,
+                  color: Colors.grey[300],
+                  child: const Icon(Icons.broken_image),
+                ),
               ),
             ),
           Padding(
@@ -331,7 +337,6 @@ class _FeedItemCard extends StatelessWidget {
 
 class _CreatePostSheet extends StatefulWidget {
   final Function(String) onSubmit;
-
   const _CreatePostSheet({required this.onSubmit});
 
   @override
@@ -361,9 +366,7 @@ class _CreatePostSheetState extends State<_CreatePostSheet> {
         children: [
           Row(
             children: [
-              const CircleAvatar(
-                child: Icon(Icons.person),
-              ),
+              const CircleAvatar(child: Icon(Icons.person)),
               const SizedBox(width: 12),
               Expanded(
                 child: TextField(
@@ -384,18 +387,10 @@ class _CreatePostSheetState extends State<_CreatePostSheet> {
             children: [
               Row(
                 children: [
+                  IconButton(icon: const Icon(Icons.image), onPressed: () {}),
                   IconButton(
-                    icon: const Icon(Icons.image),
-                    onPressed: () {},
-                  ),
-                  IconButton(
-                    icon: const Icon(Icons.videocam),
-                    onPressed: () {},
-                  ),
-                  IconButton(
-                    icon: const Icon(Icons.poll),
-                    onPressed: () {},
-                  ),
+                      icon: const Icon(Icons.videocam), onPressed: () {}),
+                  IconButton(icon: const Icon(Icons.poll), onPressed: () {}),
                 ],
               ),
               ElevatedButton(

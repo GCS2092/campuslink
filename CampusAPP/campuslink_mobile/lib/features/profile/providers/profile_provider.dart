@@ -2,24 +2,34 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../auth/models/user_model.dart';
 import '../../auth/services/auth_service.dart';
 import '../../auth/services/friend_service.dart';
+import '../../../core/storage/storage_service.dart';
 
-// Provider for current user profile
-final currentUserProvider = FutureProvider<User>((ref) async {
-  final service = ref.watch(authServiceProvider);
+// Provider for current user profile — attend que le token soit disponible
+final currentUserProvider = FutureProvider<User?>((ref) async {
+  final storage = ref.read(storageServiceProvider);
+  final token = await storage.getAccessToken();
+
+  // Si pas de token, on ne fait pas l'appel API
+  if (token == null || token.isEmpty) return null;
+
+  final service = ref.read(authServiceProvider);
   return service.getProfile();
 });
 
 // Provider for a specific user profile
-final userProvider = FutureProvider.family<User, String>((ref, id) async {
-  final service = ref.watch(authServiceProvider);
-  // Note: This would need a getUserById endpoint in the service
-  // For now, we'll use the profile endpoint as a placeholder
+final userProvider = FutureProvider.family<User?, String>((ref, id) async {
+  final storage = ref.read(storageServiceProvider);
+  final token = await storage.getAccessToken();
+  if (token == null || token.isEmpty) return null;
+
+  final service = ref.read(authServiceProvider);
   return service.getProfile();
 });
 
 // Provider for friends list
-final friendsProvider = FutureProvider.family<List<User>, FriendsFilterParams>((ref, params) async {
-  final service = ref.watch(friendServiceProvider);
+final friendsProvider = FutureProvider.family<List<User>, FriendsFilterParams>(
+    (ref, params) async {
+  final service = ref.read(friendServiceProvider);
   return service.getFriends(
     status: params.status,
     page: params.page,
@@ -29,13 +39,15 @@ final friendsProvider = FutureProvider.family<List<User>, FriendsFilterParams>((
 
 // Provider for friend suggestions
 final friendSuggestionsProvider = FutureProvider<List<User>>((ref) async {
-  final service = ref.watch(friendServiceProvider);
+  final service = ref.read(friendServiceProvider);
   return service.getFriendSuggestions();
 });
 
 // Provider for friend requests
-final friendRequestsProvider = FutureProvider.family<List<Friendship>, FriendRequestsFilterParams>((ref, params) async {
-  final service = ref.watch(friendServiceProvider);
+final friendRequestsProvider =
+    FutureProvider.family<List<Friendship>, FriendRequestsFilterParams>(
+        (ref, params) async {
+  final service = ref.read(friendServiceProvider);
   return service.getFriendRequests(
     status: params.status,
     page: params.page,
@@ -43,15 +55,28 @@ final friendRequestsProvider = FutureProvider.family<List<Friendship>, FriendReq
   );
 });
 
-// State notifier for profile
+// ─── ProfileNotifier ────────────────────────────────────────────────────────
+
 class ProfileNotifier extends Notifier<ProfileState> {
   AuthService get _authService => ref.read(authServiceProvider);
   FriendService get _friendService => ref.read(friendServiceProvider);
 
   @override
-  ProfileState build() => const ProfileState();
+  ProfileState build() {
+    // Charger le profil automatiquement au démarrage
+    Future.microtask(() => loadProfile());
+    return const ProfileState();
+  }
 
   Future<void> loadProfile() async {
+    // Vérifier le token avant tout appel API
+    final storage = ref.read(storageServiceProvider);
+    final token = await storage.getAccessToken();
+    if (token == null || token.isEmpty) {
+      state = state.copyWith(isLoading: false, error: 'Non authentifié');
+      return;
+    }
+
     state = state.copyWith(isLoading: true, error: null);
     try {
       final user = await _authService.getProfile();
@@ -85,15 +110,13 @@ class ProfileNotifier extends Notifier<ProfileState> {
     if (refresh) {
       state = state.copyWith(friendsPage: 1, friends: []);
     }
-
     try {
       final newFriends = await _friendService.getFriends(
         page: state.friendsPage,
         pageSize: state.friendsPageSize,
       );
-
-      final allFriends = refresh ? newFriends : [...state.friends, ...newFriends];
-
+      final allFriends =
+          refresh ? newFriends : [...state.friends, ...newFriends];
       state = state.copyWith(
         friends: allFriends,
         hasMoreFriends: newFriends.length == state.friendsPageSize,
@@ -108,16 +131,14 @@ class ProfileNotifier extends Notifier<ProfileState> {
     if (refresh) {
       state = state.copyWith(friendRequestsPage: 1, friendRequests: []);
     }
-
     try {
       final newRequests = await _friendService.getFriendRequests(
         status: 'pending',
         page: state.friendRequestsPage,
         pageSize: state.friendRequestsPageSize,
       );
-
-      final allRequests = refresh ? newRequests : [...state.friendRequests, ...newRequests];
-
+      final allRequests =
+          refresh ? newRequests : [...state.friendRequests, ...newRequests];
       state = state.copyWith(
         friendRequests: allRequests,
         hasMoreFriendRequests: newRequests.length == state.friendRequestsPageSize,
@@ -139,7 +160,6 @@ class ProfileNotifier extends Notifier<ProfileState> {
   Future<void> acceptFriendRequest(String friendshipId) async {
     try {
       await _friendService.acceptFriendRequest(friendshipId);
-      // Reload friend requests and friends
       await loadFriendRequests(refresh: true);
       await loadFriends(refresh: true);
     } catch (e) {
@@ -150,7 +170,6 @@ class ProfileNotifier extends Notifier<ProfileState> {
   Future<void> rejectFriendRequest(String friendshipId) async {
     try {
       await _friendService.rejectFriendRequest(friendshipId);
-      // Reload friend requests
       await loadFriendRequests(refresh: true);
     } catch (e) {
       state = state.copyWith(error: e.toString());
@@ -160,7 +179,6 @@ class ProfileNotifier extends Notifier<ProfileState> {
   Future<void> removeFriend(String friendshipId) async {
     try {
       await _friendService.removeFriend(friendshipId);
-      // Reload friends
       await loadFriends(refresh: true);
     } catch (e) {
       state = state.copyWith(error: e.toString());
@@ -168,11 +186,11 @@ class ProfileNotifier extends Notifier<ProfileState> {
   }
 }
 
-final profileNotifierProvider = NotifierProvider<ProfileNotifier, ProfileState>(
-  ProfileNotifier.new,
-);
+final profileNotifierProvider =
+    NotifierProvider<ProfileNotifier, ProfileState>(ProfileNotifier.new);
 
-// State class
+// ─── ProfileState ────────────────────────────────────────────────────────────
+
 class ProfileState {
   final User? user;
   final bool isLoading;
@@ -223,23 +241,22 @@ class ProfileState {
       hasMoreFriends: hasMoreFriends ?? this.hasMoreFriends,
       friendRequests: friendRequests ?? this.friendRequests,
       friendRequestsPage: friendRequestsPage ?? this.friendRequestsPage,
-      friendRequestsPageSize: friendRequestsPageSize ?? this.friendRequestsPageSize,
-      hasMoreFriendRequests: hasMoreFriendRequests ?? this.hasMoreFriendRequests,
+      friendRequestsPageSize:
+          friendRequestsPageSize ?? this.friendRequestsPageSize,
+      hasMoreFriendRequests:
+          hasMoreFriendRequests ?? this.hasMoreFriendRequests,
     );
   }
 }
 
-// Filter params classes
+// ─── Filter Params ───────────────────────────────────────────────────────────
+
 class FriendsFilterParams {
   final String? status;
   final int? page;
   final int? pageSize;
 
-  const FriendsFilterParams({
-    this.status,
-    this.page,
-    this.pageSize,
-  });
+  const FriendsFilterParams({this.status, this.page, this.pageSize});
 }
 
 class FriendRequestsFilterParams {
@@ -247,9 +264,5 @@ class FriendRequestsFilterParams {
   final int? page;
   final int? pageSize;
 
-  const FriendRequestsFilterParams({
-    this.status,
-    this.page,
-    this.pageSize,
-  });
+  const FriendRequestsFilterParams({this.status, this.page, this.pageSize});
 }

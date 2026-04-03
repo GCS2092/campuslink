@@ -27,8 +27,10 @@ class FeedService {
     if (page != null) queryParams['page'] = page.toString();
     if (pageSize != null) queryParams['page_size'] = pageSize.toString();
 
-    final response = await _dio.get(ApiConstants.feedItems, queryParameters: queryParams);
-    // Backend may return either a list directly or a paginated response with 'results'
+    final response = await _dio.get(
+      ApiConstants.feedItems,
+      queryParameters: queryParams,
+    );
     final data = response.data;
     if (data is List) {
       return data.map((e) => FeedItem.fromJson(e)).toList();
@@ -70,7 +72,10 @@ class FeedService {
     if (page != null) queryParams['page'] = page.toString();
     if (pageSize != null) queryParams['page_size'] = pageSize.toString();
 
-    final response = await _dio.get(ApiConstants.posts, queryParameters: queryParams);
+    final response = await _dio.get(
+      ApiConstants.posts,
+      queryParameters: queryParams,
+    );
     final results = response.data['results'] as List;
     return results.map((e) => SocialPost.fromJson(e)).toList();
   }
@@ -98,21 +103,34 @@ class FeedService {
     await _dio.post(ApiConstants.postLike(id));
   }
 
-  Future<List<Comment>> getComments(String postId, {int? page, int? pageSize}) async {
+  Future<List<Comment>> getComments(
+    String postId, {
+    int? page,
+    int? pageSize,
+  }) async {
     final queryParams = <String, dynamic>{};
     if (page != null) queryParams['page'] = page.toString();
     if (pageSize != null) queryParams['page_size'] = pageSize.toString();
 
-    final response = await _dio.get(ApiConstants.postComments(postId), queryParameters: queryParams);
+    final response = await _dio.get(
+      ApiConstants.postComments(postId),
+      queryParameters: queryParams,
+    );
     final results = response.data['results'] as List;
     return results.map((e) => Comment.fromJson(e)).toList();
   }
 
-  Future<Comment> addComment(String postId, String content, {String? parentId}) async {
+  Future<Comment> addComment(
+    String postId,
+    String content, {
+    String? parentId,
+  }) async {
     final data = {'content': content};
     if (parentId != null) data['parent'] = parentId;
-
-    final response = await _dio.post(ApiConstants.postComments(postId), data: data);
+    final response = await _dio.post(
+      ApiConstants.postComments(postId),
+      data: data,
+    );
     return Comment.fromJson(response.data);
   }
 
